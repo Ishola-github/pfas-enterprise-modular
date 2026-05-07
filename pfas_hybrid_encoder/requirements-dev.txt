@@ -1,0 +1,2 @@
+# Dev-only (recipe / parquet QA tests)
+pytest>=8.0

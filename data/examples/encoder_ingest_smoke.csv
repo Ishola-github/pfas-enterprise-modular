@@ -1,0 +1,4 @@
+sample_id,analyte,matrix,conc,lod,is_non_detect,SMILES,conc_unit
+S1,PFOA,serum,0.05,,0,C(C(C(C(C(C(C(F)(F)F)(F)F)(F)F)(F)F)(F)F)(F)F)(=O)O,ng/mL
+S2,PFOA,serum,,0.002,1,C(C(C(C(C(C(C(F)(F)F)(F)F)(F)F)(F)F)(F)F)(F)F)(=O)O,ng/mL
+S3,PFOS,drinking water,1.2,,0,O=S(=O)(O)C(F)(F)C(F)(F)C(F)(F)C(F)(F)C(F)(F)C(F)(F)C(F)(F)C(F)(F)F,ug/L

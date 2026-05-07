@@ -1,0 +1,57 @@
+HELP.md
+.gradle-bootstrap/
+
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### NHANES raw XPORT (large/binary; download locally) ###
+data/raw/nhanes_pfas/*.XPT
+data/raw/nhanes_pfas/*.xpt
+
+### EPA ECHO ICIS-NPDES bulk downloads (ZIP/CSV; download locally) ###
+data/raw/epa_icis_npdes/
+
+### NHANES processed outputs (local, potentially large) ###
+data/processed/
+
+### UCMR exceedance training table (large; regenerate via scripts/build_ucmr_exceedance_dataset.py) ###
+data/training/ucmr_exceedance_labeled.csv
+data/training/*.parquet
+
+### Shiny app runtime ###
+pfas_collection.sqlite
+pfas_collection.sqlite-journal
