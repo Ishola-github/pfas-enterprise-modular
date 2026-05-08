@@ -16,5 +16,12 @@ cat("\n=== Sys.getenv(\"R_LIBS\") ===\n")
 l <- Sys.getenv("R_LIBS")
 if (nzchar(l)) cat(l, "\n") else cat("(empty)\n")
 
+wul <- file.path(getwd(), "scripts", "_win_user_lib.R")
+if (file.exists(wul)) {
+  source(wul)
+  cat("\n=== win_user_lib_dir() [scripts/_win_user_lib.R; unset R_LIBS_USER => LocalAppData or Documents] ===\n")
+  cat(win_user_lib_dir(), "\n")
+}
+
 cat("\n=== sessionInfo() (truncated header) ===\n")
 print(sessionInfo())

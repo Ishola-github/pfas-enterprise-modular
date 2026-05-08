@@ -47,7 +47,7 @@ Rscript scripts/check_r_environment.R
 
 Run the same in **RStudio** via **Source** or `source("scripts/check_r_environment.R")` and diff the output.
 
-**PowerShell + `Rscript`:** Packages install under **`%USERPROFILE%\Documents\R\win-library\<R-x.y>`** (not under `C:\Program Files\R\...`) unless you run as Administrator. So either use **RStudio** (it uses its configured R + library), or:
+**PowerShell + `Rscript`:** Packages install under your **per-user** library (not `C:\Program Files\R\...` unless you run as Administrator). On Windows this is often **`%LOCALAPPDATA%\R\win-library\<x.y>`** or **`%USERPROFILE%\Documents\R\win-library\<x.y>`** — they can differ between machines and R versions. Scripts **`scripts/_win_user_lib.R`** / **`r_user_lib_path.R`** respect **`R_LIBS_USER`** if set, otherwise pick an existing folder or default to LocalAppData. Either use **RStudio** (its configured R + library), or:
 
 1. One-time:  
    `Rscript --vanilla scripts/install_r_deps_win_user_lib.R`
