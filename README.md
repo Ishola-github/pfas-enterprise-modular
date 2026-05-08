@@ -91,11 +91,10 @@ Run the same in **RStudio** via **Source** or `source("scripts/check_r_environme
 
 **PowerShell + `Rscript`:** Packages install under your **per-user** library (not `C:\Program Files\R\...` unless you run as Administrator). On Windows this is often **`%LOCALAPPDATA%\R\win-library\<x.y>`** or **`%USERPROFILE%\Documents\R\win-library\<x.y>`** — they can differ between machines and R versions. Scripts **`scripts/_win_user_lib.R`** / **`r_user_lib_path.R`** respect **`R_LIBS_USER`** if set, otherwise pick an existing folder or default to LocalAppData. Either use **RStudio** (its configured R + library), or:
 
-1. One-time:  
-   `Rscript --vanilla scripts/install_r_deps_win_user_lib.R`
-2. Then set **`R_LIBS_USER`** to that folder, or run:  
-   `.\run_shiny_app.ps1` , **`.\scripts\run_shiny_app.ps1`** , or **`powershell -NoProfile -ExecutionPolicy Bypass -File "C:\full\path\to\repo\run_shiny_app.ps1"`**  
-   (the launcher sets **`R_LIBS_USER`** and starts **`shiny::runApp`**; the root script can be run by **full path** from any cwd after you **`git pull`** the latest changes).
+1. **`run_shiny_app.ps1`** (recommended): sets **`R_LIBS_USER`**, runs **`install_r_deps_win_user_lib.R` automatically** if the user library or **`shiny`** is missing, then starts **`shiny::runApp`**. Use **`.\run_shiny_app.ps1`** , **`.\scripts\run_shiny_app.ps1`** , or **`powershell -NoProfile -ExecutionPolicy Bypass -File "C:\full\path\to\repo\run_shiny_app.ps1"`** (full path works from any cwd after you **`git pull`** the latest launcher).
+2. Manual / RStudio-only:  
+   `Rscript --vanilla scripts/install_r_deps_win_user_lib.R`  
+   then set **`R_LIBS_USER`** or open the project in RStudio and use its library.
 
 **Repo root:** the folder that contains **`LatestPFAS.R`**, **`app.R`**, and **`run_shiny_app.ps1`** (not a parent folder). If **`.\run_shiny_app.ps1`** is missing, you may be one level too high (e.g. `PFAS_on_R_Studio` with the real clone in **`pfas-enterprise-modular\`**). Check:
 

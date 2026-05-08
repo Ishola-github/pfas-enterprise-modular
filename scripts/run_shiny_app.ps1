@@ -5,7 +5,9 @@
 #   .\scripts\run_shiny_app.ps1
 #   .\run_shiny_app.ps1
 #
-# One-time install:
+# R packages: this script runs scripts/install_r_deps_win_user_lib.R automatically when the
+# user library folder or the shiny package is missing (first launch after a fresh R install).
+# Manual one-time option:
 #   & "C:\Program Files\R\R-4.6.0\bin\Rscript.exe" --vanilla ".\scripts\install_r_deps_win_user_lib.R"
 #
 # If execution policy blocks scripts:
@@ -48,11 +50,15 @@ if (-not (Test-Path -LiteralPath $RscriptExe)) {
 
 $ulibR = Join-Path $ScriptDir "r_user_lib_path.R"
 $ulib = (& $RscriptExe --vanilla $ulibR).Trim()
-if (-not (Test-Path $ulib)) {
-  Write-Warning ('User library not found: ' + $ulib + ' - run scripts\install_r_deps_win_user_lib.R first.')
+$env:R_LIBS_USER = $ulib
+
+$installR = Join-Path $ScriptDir "install_r_deps_win_user_lib.R"
+$shinyPkg = Join-Path $ulib "shiny"
+if (-not (Test-Path -LiteralPath $ulib) -or -not (Test-Path -LiteralPath $shinyPkg)) {
+  Write-Host "Installing R packages into user library (first run may take a few minutes): $ulib"
+  & $RscriptExe --vanilla $installR
 }
 
-$env:R_LIBS_USER = $ulib
 $appDir = $RepoRoot.Replace("\", "/")
 Write-Host "R_LIBS_USER=$env:R_LIBS_USER"
 Write-Host "runApp('$appDir', port=$Port)"
