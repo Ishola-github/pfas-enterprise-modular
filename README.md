@@ -52,8 +52,11 @@ Run the same in **RStudio** via **Source** or `source("scripts/check_r_environme
 1. One-time:  
    `Rscript --vanilla scripts/install_r_deps_win_user_lib.R`
 2. Then set **`R_LIBS_USER`** to that folder, or run:  
-   `.\scripts\run_shiny_app.ps1`  
+   `.\run_shiny_app.ps1` or `.\scripts\run_shiny_app.ps1`  
    (run **from the repo root**; the script sets **`R_LIBS_USER`** and starts **`shiny::runApp`**).
+
+If **Git** says *no tracking information for the current branch*, set upstream once:  
+`git branch --set-upstream-to=origin/main main` then `git pull` (or after a **force push**: `git fetch origin` and `git reset --hard origin/main` only if you accept losing unpushed local commits).
 
 Install R packages for full `LatestPFAS.R` once: rely on **`scripts/install_r_deps_win_user_lib.R`** or in R:  
 `install.packages(c("shiny", "shinydashboard", "shinymanager", "DT", "ggplot2", "dplyr", "tidyr", "tibble", "purrr", "stringr", "scales", "jsonlite", "httr", "digest", "DBI", "RSQLite"))`
