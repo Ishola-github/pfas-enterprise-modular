@@ -55,8 +55,29 @@ Run the same in **RStudio** via **Source** or `source("scripts/check_r_environme
    `.\run_shiny_app.ps1` or `.\scripts\run_shiny_app.ps1`  
    (run **from the repo root**; the script sets **`R_LIBS_USER`** and starts **`shiny::runApp`**).
 
+**Repo root:** the folder that contains **`LatestPFAS.R`**, **`app.R`**, and **`run_shiny_app.ps1`** (not a parent folder). If **`.\run_shiny_app.ps1`** is missing, you may be one level too high (e.g. `PFAS_on_R_Studio` with the real clone in **`pfas-enterprise-modular\`**). Check:
+
+```powershell
+Test-Path .\LatestPFAS.R
+Get-ChildItem -Path . -Recurse -Filter run_shiny_app.ps1 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+```
+
+Then **`Set-Location`** into that directory and run the script again.
+
+**Without the `.ps1` wrapper** — still from the **same** repo root, with **`R_LIBS_USER`** set if needed:
+
+```powershell
+Rscript -e "shiny::runApp('.', port=3838, launch.browser=TRUE)"
+```
+
+(`shiny::runApp` takes an **application directory** that contains `app.R`, not the filename `app.R` alone.)
+
 If **Git** says *no tracking information for the current branch*, set upstream once:  
 `git branch --set-upstream-to=origin/main main` then `git pull` (or after a **force push**: `git fetch origin` and `git reset --hard origin/main` only if you accept losing unpushed local commits).
+
+**`refusing to merge unrelated histories`:** the folder had a separate initial commit vs `origin/main`. Use **`git fetch origin`** then **`git reset --hard origin/main`** to match GitHub (discard local-only history), or re-clone into a new folder.
+
+If **`git reset`** warns it **cannot unlink** `pfas_collection.sqlite`, close **RStudio** / any app using that file, then run **`git reset --hard origin/main`** again (or delete the locked file after backup, only if safe).
 
 Install R packages for full `LatestPFAS.R` once: rely on **`scripts/install_r_deps_win_user_lib.R`** or in R:  
 `install.packages(c("shiny", "shinydashboard", "shinymanager", "DT", "ggplot2", "dplyr", "tidyr", "tibble", "purrr", "stringr", "scales", "jsonlite", "httr", "digest", "DBI", "RSQLite"))`
