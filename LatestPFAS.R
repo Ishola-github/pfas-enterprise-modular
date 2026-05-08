@@ -6226,11 +6226,11 @@ server <- function(input, output, session) {
 
     for (cn in upload_schema_cols) {
       if (!cn %in% names(master)) {
-        master[[cn]] <- NA_character_
+        master[[cn]] <- rep(NA_character_, nrow(master))
       }
 
       if (!cn %in% names(norm)) {
-        norm[[cn]] <- NA_character_
+        norm[[cn]] <- rep(NA_character_, nrow(norm))
       }
     }
 
@@ -6239,11 +6239,11 @@ server <- function(input, output, session) {
 
     for (cn in upload_schema_cols) {
       if (!cn %in% names(master_aligned)) {
-        master_aligned[[cn]] <- NA_character_
+        master_aligned[[cn]] <- rep(NA_character_, nrow(master_aligned))
       }
 
       if (!cn %in% names(norm_aligned)) {
-        norm_aligned[[cn]] <- NA_character_
+        norm_aligned[[cn]] <- rep(NA_character_, nrow(norm_aligned))
       }
     }
 
