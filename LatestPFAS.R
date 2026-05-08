@@ -29,6 +29,8 @@ APP_TITLE <- "PFAS Enterprise 5.0 — Standards-Compliant Toxicology & Regulator
 APP_VERSION <- "5.0.0"
 # Portable project root: shiny::runApp() uses the application directory as working directory
 PROJECT_DIR <- normalizePath(getwd(), winslash = "/", mustWork = FALSE)
+DISCLAIMER_MD_PATH <- file.path(PROJECT_DIR, "DISCLAIMER.md")
+DISCLAIMER_GITHUB_URL <- "https://github.com/Ishola-github/pfas-enterprise-modular/blob/main/DISCLAIMER.md"
 MAPPING_ENGINE_VERSION <- "2026-05-02-autodetect-identifier-hardblock-3"
 # Shown in External ML upload panel. Grep LatestPFAS.R for UPLOAD_READER_VERSION or substring
 # delimited-base-only (no readr); substring e.g. utf16-unquoted indicates encoding/quote-escape hardening.
@@ -1182,7 +1184,8 @@ ui_dashboard <- dashboardPage(
       menuItem("Decision Support", tabName = "decision", icon = icon("balance-scale")),
       menuItem("Compliance / Model Cards", tabName = "compliance", icon = icon("clipboard-check")),
       menuItem("Reports / Export", tabName = "reports", icon = icon("file-export")),
-      menuItem("ISO 17025 / GLP", tabName = "glp", icon = icon("certificate"))
+      menuItem("ISO 17025 / GLP", tabName = "glp", icon = icon("certificate")),
+      menuItem("Scope & limitations", tabName = "scope", icon = icon("exclamation-circle"))
     )
   ),
   dashboardBody(
@@ -1200,7 +1203,15 @@ ui_dashboard <- dashboardPage(
         ),
         fluidRow(
           box(width = 6, title = "Intended Use", status = "primary", solidHeader = TRUE,
-              p("Use this system for screening, prioritization, transparency review, and weight-of-evidence support. Do not treat this scaffold as a standalone regulatory submission engine until it is backed by validated production endpoint models and audited datasets.")),
+              p("Use this system for screening, prioritization, transparency review, and weight-of-evidence support. Do not treat this scaffold as a standalone regulatory submission engine until it is backed by validated production endpoint models and audited datasets."),
+              p(
+                tags$strong("Full scope statement: "),
+                "open the ",
+                tags$strong("Scope & limitations"),
+                " tab in the sidebar (same content as ",
+                tags$code("DISCLAIMER.md"),
+                " in the repository)."
+              )),
           box(width = 6, title = "Current Limitations", status = "warning", solidHeader = TRUE,
               p("This version is a standards-oriented skeleton. Replace placeholder datasets, placeholder validation statistics, and placeholder model cards with real endpoint assets, external validation results, and prospective testing evidence."))
         ),
@@ -1980,6 +1991,53 @@ ui_dashboard <- dashboardPage(
                   ),
                   box(width = 8, title = "Calibration log", DTOutput("tbl_calibration"))
                 )
+              )
+            )
+          )
+        )
+      ),
+      tabItem(
+        tabName = "scope",
+        fluidRow(
+          box(
+            width = 12,
+            title = "Scope, positioning, and limitations",
+            status = "warning",
+            solidHeader = TRUE,
+            tags$p(
+              class = "text-muted",
+              style = "margin-top: -6px; margin-bottom: 12px;",
+              tags$strong("Technical prototype / research scaffold"),
+              " - read before relying on outputs or external claims."
+            ),
+            tags$div(
+              style = "max-height: 78vh; overflow-y: auto; padding-right: 12px;",
+              if (file.exists(DISCLAIMER_MD_PATH)) {
+                includeMarkdown(DISCLAIMER_MD_PATH)
+              } else {
+                tagList(
+                  tags$p(
+                    "The file ",
+                    tags$code("DISCLAIMER.md"),
+                    " was not found under the application directory ",
+                    tags$code(PROJECT_DIR),
+                    ". Clone the full repository or copy ",
+                    tags$code("DISCLAIMER.md"),
+                    " next to ",
+                    tags$code("app.R"),
+                    "."
+                  ),
+                  tags$p(
+                    "Canonical text in the meantime: ",
+                    tags$a(href = DISCLAIMER_GITHUB_URL, target = "_blank", rel = "noopener noreferrer", DISCLAIMER_GITHUB_URL)
+                  )
+                )
+              }
+            ),
+            tags$hr(),
+            tags$p(
+              tags$small(
+                "This panel is project documentation only and is not legal advice. Operators remain responsible for public claims and use context."
               )
             )
           )

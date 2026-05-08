@@ -34,7 +34,7 @@ For a fuller statement of what the software **can and cannot** honestly claim to
 
 ## Shiny front ends
 
-**RStudio:** In the **R Console** (not PowerShell), set the API base if needed, then Run App:
+**RStudio:** In the **R Console** (not PowerShell), set the API base if needed, then Run App. The sidebar includes **Scope & limitations**, which embeds **`DISCLAIMER.md`** from the app directory (with a GitHub link if the file is missing).
 
 ```r
 Sys.setenv(PFAS_API_URL = "https://pfas-enterprise-5.onrender.com")
