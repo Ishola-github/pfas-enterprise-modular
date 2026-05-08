@@ -1,0 +1,12 @@
+.git
+.gitignore
+.Rproj.user
+*.Rhistory
+__pycache__
+*.pyc
+.pytest_cache
+venv
+.env
+data
+*.sqlite
+LatestPFAS.R

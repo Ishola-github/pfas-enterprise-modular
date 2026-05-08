@@ -78,6 +78,11 @@ data/processed/pfas_training_master.csv
 .terraform.lock.hcl
 infra/**/.terraform/
 
+### Python ###
+__pycache__/
+*.py[cod]
+*$py.class
+
 ### Shiny app runtime ###
 pfas_collection.sqlite
 pfas_collection.sqlite-journal
