@@ -4,10 +4,24 @@
 #
 # Usage:
 #   Rscript scripts/smoke_read_ucmr533.R
-#   Rscript scripts/smoke_read_ucmr533.R "C:/path/to/UCMR5_533.txt"
-#   Rscript scripts/smoke_read_ucmr533.R "C:/path/to/UCMR5_533.txt" --sample 5000
-#   Rscript scripts/smoke_read_ucmr533.R "C:/path/to/UCMR5_533.txt" --write-full   # slow (~1.6M rows)
+#   Rscript scripts/smoke_read_ucmr533.R "path/to/UCMR5_533.txt"
+#   Rscript scripts/smoke_read_ucmr533.R "path/to/UCMR5_533.txt" --sample 5000
+#   Rscript scripts/smoke_read_ucmr533.R "path/to/UCMR5_533.txt" --write-full   # slow (~1.6M rows)
+# Default path: env UCMR5_533_TXT, or data/external/epa_ucmr5/UCMR5_533.txt under the project.
 args <- commandArgs(trailingOnly = TRUE)
+argv <- commandArgs(trailingOnly = FALSE)
+file_arg_src <- grep("^--file=", argv, value = TRUE)
+script_dir <- if (length(file_arg_src)) {
+  dirname(normalizePath(sub("^--file=", "", file_arg_src[1]), winslash = "/"))
+} else {
+  normalizePath(getwd(), winslash = "/", mustWork = FALSE)
+}
+project_root <- if (basename(script_dir) == "scripts") {
+  dirname(script_dir)
+} else {
+  script_dir
+}
+
 path_arg <- args[args != "--write-full" & !grepl("^--sample=", args)]
 sample_n <- NA_integer_
 wf <- any(args == "--write-full")
@@ -24,14 +38,18 @@ if (is.na(sample_n) && any(args == "--sample")) {
 }
 
 p <- if (length(path_arg) >= 1) path_arg[[1]] else {
+  envp <- Sys.getenv("UCMR5_533_TXT", "")
   cand <- c(
-    "C:/Users/techj/Downloads/ucmr5-occurrence-data-by-method-classification/UCMR5_533.txt",
-    "C:/Users/techj/Downloads/ucmr5-occurrence-data-by-method-classification (1)/UCMR5_533.txt"
+    if (nzchar(envp)) envp else NA_character_,
+    file.path(project_root, "data/external/epa_ucmr5/UCMR5_533.txt"),
+    file.path(project_root, "data/raw/UCMR5_533.txt")
   )
+  cand <- cand[!is.na(cand) & nzchar(cand)]
   hit <- cand[file.exists(cand)]
   if (length(hit) < 1) {
     stop(
-      "Pass path to UCMR5_533.txt as first argument, or place the zip extract under Downloads with a known folder name.",
+      "Pass path to UCMR5_533.txt as first argument, set env UCMR5_533_TXT, ",
+      "or place the file at data/external/epa_ucmr5/UCMR5_533.txt (within this project).",
       call. = FALSE
     )
   }
