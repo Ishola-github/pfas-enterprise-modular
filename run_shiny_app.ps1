@@ -15,7 +15,7 @@ $root = if ($PSScriptRoot) { $PSScriptRoot } else {
 }
 $inner = Join-Path $root "scripts\run_shiny_app.ps1"
 if (-not (Test-Path $inner)) {
-  Write-Error ("Missing {0} - run this from the repository root (pfas-enterprise-modular clone)." -f $inner)
+  Write-Error ('Missing ' + $inner + ' - run this from the repository root (pfas-enterprise-modular clone).')
   exit 1
 }
 & $inner -Port $Port -RscriptExe $RscriptExe

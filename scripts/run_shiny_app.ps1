@@ -19,21 +19,21 @@ param(
 
 $ErrorActionPreference = "Stop"
 if (-not (Test-Path $RscriptExe)) {
-  Write-Error ("Rscript not found: {0} - edit -RscriptExe or install R." -f $RscriptExe)
+  Write-Error ('Rscript not found: ' + $RscriptExe + ' - edit -RscriptExe or install R.')
   exit 1
 }
 
 $RepoRoot = (Get-Location).Path
 $ScriptDir = Join-Path $RepoRoot "scripts"
 if (-not (Test-Path (Join-Path $RepoRoot "LatestPFAS.R"))) {
-  Write-Error ("LatestPFAS.R not found in {0} - Set-Location to the repo root first." -f $RepoRoot)
+  Write-Error ('LatestPFAS.R not found in ' + $RepoRoot + ' - Set-Location to the repo root first.')
   exit 1
 }
 
 $ulibR = Join-Path $ScriptDir "r_user_lib_path.R"
 $ulib = (& $RscriptExe --vanilla $ulibR).Trim()
 if (-not (Test-Path $ulib)) {
-  Write-Warning ("User library not found: {0} - run scripts\install_r_deps_win_user_lib.R first." -f $ulib)
+  Write-Warning ('User library not found: ' + $ulib + ' - run scripts\install_r_deps_win_user_lib.R first.')
 }
 
 $env:R_LIBS_USER = $ulib
