@@ -16,7 +16,8 @@ message("User library: ", ulib)
 .libPaths(c(ulib, .libPaths()))
 pkgs <- c(
   "shiny", "shinydashboard", "shinymanager", "DT", "ggplot2", "dplyr", "tidyr",
-  "tibble", "purrr", "stringr", "scales", "jsonlite", "httr", "digest", "DBI", "RSQLite"
+  "tibble", "purrr", "stringr", "scales", "jsonlite", "httr", "digest", "DBI", "RSQLite",
+  "markdown"
 )
 missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1L), quietly = TRUE)]
 if (length(missing)) {

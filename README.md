@@ -159,7 +159,7 @@ If **Git** says *no tracking information for the current branch*, set upstream o
 If **`git reset`** warns it **cannot unlink** `pfas_collection.sqlite`, close **RStudio** / any app using that file, then run **`git reset --hard origin/main`** again (or delete the locked file after backup, only if safe).
 
 Install R packages for full `LatestPFAS.R` once: rely on **`scripts/install_r_deps_win_user_lib.R`** or in R:  
-`install.packages(c("shiny", "shinydashboard", "shinymanager", "DT", "ggplot2", "dplyr", "tidyr", "tibble", "purrr", "stringr", "scales", "jsonlite", "httr", "digest", "DBI", "RSQLite"))`
+`install.packages(c("shiny", "shinydashboard", "shinymanager", "DT", "ggplot2", "dplyr", "tidyr", "tibble", "purrr", "stringr", "scales", "jsonlite", "httr", "digest", "DBI", "RSQLite", "markdown"))`
 
 - **`app.R`** — **Default Run App entry:** loads **`LatestPFAS.R`**, which includes sidebar **Enterprise 5.0 (Cloud API)** (`POST /predict` via **`PFAS_API_URL`**) plus the full dashboard, GLP, and data-collection workflows.
 - **`app_enterprise4_latestpfas.R`** — Same as **`app.R`** (thin `source("LatestPFAS.R")` loader); kept for older docs/scripts that reference this filename.
