@@ -38,6 +38,8 @@ For a fuller statement of what the software **can and cannot** honestly claim to
 
 **Data & Endpoints** includes an optional **UCMR5 Method 533** panel: set **`UCMR5_533_TXT`** or **`options(pfas.ucmr5_533_path)`** before `runApp`, use the path override field, or place **`UCMR5_533.txt`** under **`data/external/epa_ucmr5/`**, then **Load preview** (reads only the first N rows for memory safety).
 
+After **`python pipeline/process_ucmr5.py ... --run-id YOUR_ID`**, use **Python pipeline output (priority triage)** on the same tab: set **Run ID** to **`YOUR_ID`** (and **Output root** if not **`runs`**), then **Load priority report** (preview capped at N rows).
+
 ```r
 Sys.setenv(PFAS_API_URL = "https://pfas-enterprise-5.onrender.com")
 # shiny::runApp()  or  Run App on app.R

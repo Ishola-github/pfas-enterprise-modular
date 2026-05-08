@@ -83,6 +83,16 @@ resolve_ucmr5_533_txt <- function(project_dir = PROJECT_DIR) {
   hit[[1]]
 }
 
+ucmr_pipeline_priority_csv <- function(project_dir, output_root, run_id) {
+  rid <- trimws(run_id %||% "")
+  root <- trimws(output_root %||% "runs")
+  if (!nzchar(rid)) {
+    return(NA_character_)
+  }
+  p <- file.path(project_dir, root, rid, "priority_report.csv")
+  normalizePath(p, winslash = "/", mustWork = FALSE)
+}
+
 safe_pattern <- function(p) {
   if (is.null(p) || length(p) == 0) {
     return(NA_character_)
@@ -1354,6 +1364,56 @@ ui_dashboard <- dashboardPage(
             ),
             verbatimTextOutput("ucmr533_resolve_status", placeholder = TRUE),
             DTOutput("ucmr533_preview_tbl")
+          )
+        ),
+        fluidRow(
+          box(
+            width = 12,
+            title = "Python pipeline output (priority triage)",
+            status = "success",
+            solidHeader = TRUE,
+            helpText(
+              "Loads ",
+              tags$code("priority_report.csv"),
+              " from ",
+              tags$code("pipeline/process_ucmr5.py"),
+              " output: ",
+              tags$code("runs/<run_id>/"),
+              ". Only the first N rows are read into memory (full file can be 10M+ rows)."
+            ),
+            fluidRow(
+              column(
+                3,
+                textInput(
+                  "ucmr_pipeline_output_root",
+                  "Output root (folder under project)",
+                  value = "runs"
+                )
+              ),
+              column(
+                4,
+                textInput(
+                  "ucmr_pipeline_run_id",
+                  "Run ID (e.g. test_ucmr5_533)",
+                  value = "",
+                  placeholder = "test_ucmr5_533"
+                )
+              ),
+              column(
+                3,
+                numericInput(
+                  "ucmr_pipeline_preview_rows",
+                  "Max rows to load",
+                  value = 5000L,
+                  min = 100L,
+                  max = 50000L,
+                  step = 500L
+                )
+              ),
+              column(2, br(), actionButton("ucmr_pipeline_load_btn", "Load priority report", class = "btn-success"))
+            ),
+            verbatimTextOutput("ucmr_pipeline_status", placeholder = TRUE),
+            DTOutput("ucmr_pipeline_priority_tbl")
           )
         )
       ),
@@ -5133,6 +5193,81 @@ server <- function(input, output, session) {
       return(
         datatable(
           data.frame(Message = "Load failed or no data."),
+          rownames = FALSE,
+          options = list(dom = "t", ordering = FALSE),
+          selection = "none"
+        )
+      )
+    }
+    datatable(d, options = list(scrollX = TRUE, pageLength = 15), rownames = FALSE)
+  })
+
+  ucmr_pipeline_priority_df <- eventReactive(input$ucmr_pipeline_load_btn, {
+    rid <- tryCatch(trimws(input$ucmr_pipeline_run_id %||% ""), error = function(e) "")
+    if (!nzchar(rid)) {
+      showNotification("Enter a run ID (for example test_ucmr5_533).", type = "error")
+      return(NULL)
+    }
+    root <- tryCatch(trimws(input$ucmr_pipeline_output_root %||% "runs"), error = function(e) "runs")
+    if (!nzchar(root)) {
+      root <- "runs"
+    }
+    p <- ucmr_pipeline_priority_csv(PROJECT_DIR, root, rid)
+    if (is.na(p) || !nzchar(p) || !file.exists(p)) {
+      showNotification(paste0("priority_report.csv not found at:\n", p), type = "error")
+      return(NULL)
+    }
+    ncap <- suppressWarnings(as.integer(input$ucmr_pipeline_preview_rows))
+    if (is.na(ncap) || ncap < 100L) {
+      ncap <- 5000L
+    }
+    ncap <- min(50000L, max(100L, ncap))
+    tryCatch(
+      {
+        read.csv(p, nrows = ncap, stringsAsFactors = FALSE, check.names = FALSE, fileEncoding = "UTF-8")
+      },
+      error = function(e) {
+        showNotification(conditionMessage(e), type = "error")
+        NULL
+      }
+    )
+  })
+
+  output$ucmr_pipeline_status <- renderPrint({
+    if (is.null(input$ucmr_pipeline_load_btn) || input$ucmr_pipeline_load_btn < 1L) {
+      cat(
+        "Run: python pipeline/process_ucmr5.py <UCMR5.txt> --run-id YOUR_ID\n",
+        "Then enter the same YOUR_ID above and click Load priority report.\n"
+      )
+      return(invisible(NULL))
+    }
+    rid <- tryCatch(trimws(input$ucmr_pipeline_run_id %||% ""), error = function(e) "")
+    root <- tryCatch(trimws(input$ucmr_pipeline_output_root %||% "runs"), error = function(e) "runs")
+    p <- ucmr_pipeline_priority_csv(PROJECT_DIR, root, rid)
+    cat("Expected file:", p, "\n")
+    cat("Exists:", isTRUE(length(p) == 1L && nzchar(p) && file.exists(p)), "\n")
+    d <- ucmr_pipeline_priority_df()
+    if (!is.null(d)) {
+      cat("Loaded preview:", nrow(d), "rows x", ncol(d), "columns\n")
+    }
+  })
+
+  output$ucmr_pipeline_priority_tbl <- renderDT({
+    if (is.null(input$ucmr_pipeline_load_btn) || input$ucmr_pipeline_load_btn < 1L) {
+      return(
+        datatable(
+          data.frame(Note = "Enter run ID and click Load priority report."),
+          rownames = FALSE,
+          options = list(dom = "t", ordering = FALSE),
+          selection = "none"
+        )
+      )
+    }
+    d <- ucmr_pipeline_priority_df()
+    if (is.null(d)) {
+      return(
+        datatable(
+          data.frame(Message = "Load failed or file missing."),
           rownames = FALSE,
           options = list(dom = "t", ordering = FALSE),
           selection = "none"

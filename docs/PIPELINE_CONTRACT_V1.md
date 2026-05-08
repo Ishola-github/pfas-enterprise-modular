@@ -55,3 +55,7 @@ Replace thresholds and logic with validated rules when a single workflow is froz
 - Provide the **correct** input file (unzipped `.txt` where applicable).
 - Do not treat outputs as **regulatory determinations** or substitutes for certified analytical methods.
 - Archive `provenance.json` with any downstream use for traceability.
+
+## Shiny (optional preview)
+
+In **Data & Endpoints**, **Python pipeline output (priority triage)** accepts the same **`run_id`** as `--run-id` and reads **`runs/<run_id>/priority_report.csv`** (first N rows only) for in-app review.
