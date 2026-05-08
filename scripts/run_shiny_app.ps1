@@ -7,6 +7,8 @@
 # Start app:
 #   .\scripts\run_shiny_app.ps1
 #   .\run_shiny_app.ps1
+# If execution policy blocks scripts:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .\run_shiny_app.ps1
 #
 # PowerShell env (not R): $env:PFAS_API_URL , not Sys.setenv()
 

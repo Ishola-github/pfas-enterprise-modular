@@ -39,6 +39,19 @@ Sys.setenv(PFAS_API_URL = "https://pfas-enterprise-5.onrender.com")
 
 In **PowerShell**, `Sys.setenv(...)` is invalid. Use `$env:PFAS_API_URL = "https://..."` for tools you launch from that shell only.
 
+**RStudio — use the right tab:** The **Console** runs **R code only** (`source()`, `Sys.setenv()`, `shiny::runApp()`). Do **not** paste `Rscript ...`, `.\run_shiny_app.ps1`, or `Set-Location "C:\..."` there — those belong in **Terminal** (or external PowerShell). In the Console, run diagnostics with  
+`source("scripts/check_r_environment.R", encoding = "UTF-8")`  
+after **`Session → Set Working Directory → To Project Directory`** (or **`setwd(...)`** to your repo root).
+
+**PowerShell — execution policy:** If `.\run_shiny_app.ps1` says scripts are disabled, either allow scripts for your user once:  
+`Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`  
+or run a single session without changing policy:  
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\run_shiny_app.ps1`
+
+**Paths:** Replace any placeholder like `C:\path\to\repo-root` with your real folder (the one where **`Test-Path .\LatestPFAS.R`** is **`True`**), e.g.  
+`Set-Location "C:\Users\you\OneDrive\Desktop\python_work\PFAS_on_R_Studio"`  
+(or **`...\pfas-enterprise-modular`** if that is where the clone lives).
+
 **RStudio vs `Rscript`:** They may use **different R executables** and **different package libraries**. Packages can appear installed in RStudio but be missing when you run `Rscript` in PowerShell. Compare environments with:
 
 ```powershell
@@ -64,11 +77,16 @@ Get-ChildItem -Path . -Recurse -Filter run_shiny_app.ps1 -ErrorAction SilentlyCo
 
 Then **`Set-Location`** into that directory and run the script again.
 
-**Without the `.ps1` wrapper** — still from the **same** repo root, with **`R_LIBS_USER`** set if needed:
+**Without the `.ps1` wrapper** — from the repo root. **`Rscript` must see the same library as RStudio** (or run `install_r_deps_win_user_lib.R` once for that `Rscript.exe`):
 
 ```powershell
+$lib = (Rscript --vanilla .\scripts\r_user_lib_path.R).Trim()
+$env:R_LIBS_USER = $lib
 Rscript -e "shiny::runApp('.', port=3838, launch.browser=TRUE)"
 ```
+
+If `Rscript` is not on `PATH`, call the full path, e.g.  
+`& "C:\Program Files\R\R-4.6.0\bin\Rscript.exe"`.
 
 (`shiny::runApp` takes an **application directory** that contains `app.R`, not the filename `app.R` alone.)
 

@@ -2,6 +2,7 @@
 # Usage (from repo root, same folder as LatestPFAS.R):
 #   .\run_shiny_app.ps1
 #   .\run_shiny_app.ps1 -Port 8080
+# If scripts are disabled: powershell -NoProfile -ExecutionPolicy Bypass -File .\run_shiny_app.ps1
 
 param(
   [int] $Port = 3838,
