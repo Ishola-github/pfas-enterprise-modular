@@ -86,3 +86,6 @@ __pycache__/
 ### Shiny app runtime ###
 pfas_collection.sqlite
 pfas_collection.sqlite-journal
+
+### UCMR5 pipeline local runs (large CSV/JSON/PDF) ###
+runs/
