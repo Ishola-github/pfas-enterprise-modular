@@ -1,4 +1,4 @@
-# Convenience launcher at repo root — delegates to scripts/run_shiny_app.ps1
+# Convenience launcher at repo root - delegates to scripts/run_shiny_app.ps1
 # Usage (from repo root, same folder as LatestPFAS.R):
 #   .\run_shiny_app.ps1
 #   .\run_shiny_app.ps1 -Port 8080
@@ -15,6 +15,7 @@ $root = if ($PSScriptRoot) { $PSScriptRoot } else {
 }
 $inner = Join-Path $root "scripts\run_shiny_app.ps1"
 if (-not (Test-Path $inner)) {
-  Write-Error "Missing $inner — run this from the repository root (pfas-enterprise-modular clone)."
+  Write-Error ("Missing {0} - run this from the repository root (pfas-enterprise-modular clone)." -f $inner)
+  exit 1
 }
 & $inner -Port $Port -RscriptExe $RscriptExe
