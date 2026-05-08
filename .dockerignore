@@ -1,12 +1,36 @@
+# VCS / IDE
 .git
 .gitignore
+.cursor
+.vscode
+.idea
 .Rproj.user
 *.Rhistory
+.Rhistory
+
+# Python
 __pycache__
-*.pyc
+*.py[cod]
+*$py.class
 .pytest_cache
 venv
 .env
+.env.*
+!.env.example
+
+# Large project trees (keep API image small)
 data
+legacy
+results
+tools
+validation
+.terraform
+
+# Local / Shiny / DB artifacts not used by the API image
 *.sqlite
 LatestPFAS.R
+
+# Bulk downloads & training artifacts often present locally
+**/UCMR5_*
+**/epa_ucmr5
+**/epa_icis_npdes

@@ -38,8 +38,16 @@ Install R packages for the 5.0 demo once: `install.packages(c("shiny", "httr", "
 
 ## Local API test
 
+From the repo root (`pfas-toxicology/`). On Windows, prefer **`python -m uvicorn`** so you do not rely on the `Scripts` folder being on `PATH` (Store Python often warns that `uvicorn.exe` is not on `PATH`).
+
 ```bash
-uvicorn api.main:app --reload
+python -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Equivalent if `uvicorn` is on your `PATH`:
+
+```bash
+uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Health check:
@@ -60,10 +68,25 @@ curl -X POST http://127.0.0.1:8000/predict \
 
 Deploy using:
 
-- `Dockerfile`
-- `render.yaml`
-- PostgreSQL database (optional for the current demo API stub; wire in for production persistence)
+- `Dockerfile` (build context is repo root; `.dockerignore` excludes large local `data/`, legacy trees, and Shiny-only artifacts)
+- `render.yaml` (Blueprint: web service + starter PostgreSQL)
+- PostgreSQL from the blueprint (optional for the current demo API stub; connect in code when you add persistence)
 - Environment variables from `.env.example`
+
+### Render (Blueprint)
+
+1. In [Render](https://render.com): **New** → **Blueprint**.
+2. Connect your GitHub account and select the repo that contains this `Dockerfile` and `render.yaml` (for example **`pfas-enterprise-modular`** or this project’s canonical remote).
+3. Review the detected services and **Apply**.
+
+After deploy, substitute your service URL:
+
+- `https://<your-service>.onrender.com/healthz`
+- `POST https://<your-service>.onrender.com/predict`
+
+Use this line in demos and UI footers:
+
+> PFAS Enterprise 5.0 is a screening decision-support platform, not a certified laboratory replacement.
 
 ## Demo tagline
 

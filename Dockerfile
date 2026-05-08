@@ -5,8 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY api ./api
-COPY modules ./modules
+COPY . .
 
 ENV APP_ENV=production
 ENV PORT=8000
