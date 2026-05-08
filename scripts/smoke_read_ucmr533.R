@@ -8,6 +8,9 @@
 #   Rscript scripts/smoke_read_ucmr533.R "path/to/UCMR5_533.txt" --sample 5000
 #   Rscript scripts/smoke_read_ucmr533.R "path/to/UCMR5_533.txt" --write-full   # slow (~1.6M rows)
 # Default path: env UCMR5_533_TXT, or data/external/epa_ucmr5/UCMR5_533.txt under the project.
+#
+# Run the whole file with Rscript (Terminal). Do not paste only the bottom if/else block into
+# the R Console: variables like wf, d, sample_n, and out_dir are defined above.
 args <- commandArgs(trailingOnly = TRUE)
 argv <- commandArgs(trailingOnly = FALSE)
 file_arg_src <- grep("^--file=", argv, value = TRUE)
