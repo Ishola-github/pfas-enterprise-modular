@@ -30,10 +30,27 @@ This platform is **not**:
 
 ## Shiny front ends
 
-Install R packages for the 5.0 demo once: `install.packages(c("shiny", "httr", "jsonlite"))`.
+**RStudio:** In the **R Console** (not PowerShell), set the API base if needed, then Run App:
+
+```r
+Sys.setenv(PFAS_API_URL = "https://pfas-enterprise-5.onrender.com")
+# shiny::runApp()  or  Run App on app.R
+```
+
+In **PowerShell**, `Sys.setenv(...)` is invalid. Use `$env:PFAS_API_URL = "https://..."` for tools you launch from that shell only.
+
+**PowerShell + `Rscript`:** Packages install under **`%USERPROFILE%\Documents\R\win-library\<R-x.y>`** (not under `C:\Program Files\R\...`) unless you run as Administrator. So either use **RStudio** (it uses its configured R + library), or:
+
+1. One-time:  
+   `Rscript --vanilla scripts/install_r_deps_win_user_lib.R`
+2. Then set **`R_LIBS_USER`** to that folder, or run:  
+   `.\scripts\run_shiny_app.ps1`  
+   (run **from the repo root**; the script sets **`R_LIBS_USER`** and starts **`shiny::runApp`**).
+
+Install R packages for full `LatestPFAS.R` once: rely on **`scripts/install_r_deps_win_user_lib.R`** or in R:  
+`install.packages(c("shiny", "shinydashboard", "shinymanager", "DT", "ggplot2", "dplyr", "tidyr", "tibble", "purrr", "stringr", "scales", "jsonlite", "httr", "digest", "DBI", "RSQLite"))`
 
 - **`app.R`** — **Default Run App entry:** loads **`LatestPFAS.R`**, which includes sidebar **Enterprise 5.0 (Cloud API)** (`POST /predict` via **`PFAS_API_URL`**) plus the full dashboard, GLP, and data-collection workflows.
-- **`app_enterprise5_api_only.R`** — **API-only** minimal UI (no `LatestPFAS.R` mega-app). Uses **`httr`** + **`jsonlite`** only.
 - **`app_enterprise4_latestpfas.R`** — Same as **`app.R`** (thin `source("LatestPFAS.R")` loader); kept for older docs/scripts that reference this filename.
 - **`app_oecd_predictive_tox_skeleton.R`** — OECD/QSAR documentation-style Shiny skeleton (placeholders).
 
