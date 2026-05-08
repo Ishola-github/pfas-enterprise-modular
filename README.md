@@ -39,6 +39,14 @@ Sys.setenv(PFAS_API_URL = "https://pfas-enterprise-5.onrender.com")
 
 In **PowerShell**, `Sys.setenv(...)` is invalid. Use `$env:PFAS_API_URL = "https://..."` for tools you launch from that shell only.
 
+**RStudio vs `Rscript`:** They may use **different R executables** and **different package libraries**. Packages can appear installed in RStudio but be missing when you run `Rscript` in PowerShell. Compare environments with:
+
+```powershell
+Rscript scripts/check_r_environment.R
+```
+
+Run the same in **RStudio** via **Source** or `source("scripts/check_r_environment.R")` and diff the output.
+
 **PowerShell + `Rscript`:** Packages install under **`%USERPROFILE%\Documents\R\win-library\<R-x.y>`** (not under `C:\Program Files\R\...`) unless you run as Administrator. So either use **RStudio** (it uses its configured R + library), or:
 
 1. One-time:  
