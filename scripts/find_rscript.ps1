@@ -1,6 +1,6 @@
 # Prints the full path to Rscript.exe (Windows). No R required.
-# Usage: & .\scripts\find_rscript.ps1
-# Or:    $r = & .\scripts\find_rscript.ps1
+# If execution policy blocks &:  powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\find_rscript.ps1
+# Capture path: $r = @(powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\find_rscript.ps1)[0].Trim()
 
 $ErrorActionPreference = "SilentlyContinue"
 $candidates = @()

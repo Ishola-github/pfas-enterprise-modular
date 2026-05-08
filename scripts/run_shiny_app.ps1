@@ -18,15 +18,25 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-if (-not (Test-Path $RscriptExe)) {
-  Write-Error ('Rscript not found: ' + $RscriptExe + ' - edit -RscriptExe or install R.')
-  exit 1
-}
 
 $RepoRoot = (Get-Location).Path
 $ScriptDir = Join-Path $RepoRoot "scripts"
 if (-not (Test-Path (Join-Path $RepoRoot "LatestPFAS.R"))) {
   Write-Error ('LatestPFAS.R not found in ' + $RepoRoot + ' - Set-Location to the repo root first.')
+  exit 1
+}
+
+if (-not (Test-Path -LiteralPath $RscriptExe)) {
+  $finder = Join-Path $ScriptDir "find_rscript.ps1"
+  if (Test-Path -LiteralPath $finder) {
+    $lines = @(powershell.exe -NoProfile -ExecutionPolicy Bypass -File $finder 2>$null)
+    if ($lines.Count -gt 0 -and $lines[0]) {
+      $RscriptExe = $lines[0].ToString().Trim()
+    }
+  }
+}
+if (-not (Test-Path -LiteralPath $RscriptExe)) {
+  Write-Error ('Rscript not found: ' + $RscriptExe + ' - install R, pass -RscriptExe, or run find_rscript.ps1 with Bypass.')
   exit 1
 }
 

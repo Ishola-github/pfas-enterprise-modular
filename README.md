@@ -77,13 +77,21 @@ Get-ChildItem -Path . -Recurse -Filter run_shiny_app.ps1 -ErrorAction SilentlyCo
 
 Then **`Set-Location`** into that directory and run the script again.
 
-**Find `Rscript.exe` (do not type `R-4.x.x` — that is not a real folder on your PC):** In PowerShell:
+**Find `Rscript.exe` (do not type `R-4.x.x` - that is not a real folder on your PC):** In PowerShell.
+
+If **`find_rscript.ps1` is blocked** by execution policy when you call it with `&`, spawn a **one-off** process with **Bypass** (this is the usual fix when `Restricted` blocks scripts in the current session):
 
 ```powershell
-& ".\scripts\find_rscript.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\find_rscript.ps1"
 ```
 
-If policy blocks `.ps1`, use:
+Assign the path (same Bypass pattern):
+
+```powershell
+$Rscript = @(powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\find_rscript.ps1")[0].Trim()
+```
+
+No script file needed — read the install folder from the registry, then append `\bin\Rscript.exe`:
 
 ```powershell
 ( Get-ItemProperty "HKLM:\SOFTWARE\R-core\R" ).InstallPath
@@ -95,10 +103,10 @@ Then build the path yourself, e.g. `...\R-4.6.0\bin\Rscript.exe` (your version w
 Get-ChildItem "C:\Program Files\R" | ForEach-Object { Join-Path $_.FullName "bin\Rscript.exe" } | Where-Object { Test-Path $_ }
 ```
 
-**Without the `.ps1` wrapper** — from the repo root. Use the **same** `Rscript.exe` for install and for `runApp`:
+**Without the full Shiny launcher** — from the repo root. Use the **same** `Rscript.exe` for install and for `runApp`:
 
 ```powershell
-$Rscript = & ".\scripts\find_rscript.ps1"
+$Rscript = @(powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\find_rscript.ps1")[0].Trim()
 $lib = (& $Rscript --vanilla .\scripts\r_user_lib_path.R).Trim()
 $env:R_LIBS_USER = $lib
 & $Rscript --vanilla .\scripts\install_r_deps_win_user_lib.R
