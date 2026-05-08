@@ -1,25 +1,6 @@
 This document states what the PFAS Enterprise codebase **is** and **is not**, so expectations stay aligned with what the software can honestly support today.
 
-## What this project is today
-
-This is a **technical prototype / research scaffold**, **not** a production-grade PFAS regulatory platform.
-
-It is valuable mainly as:
-
-- A portfolio project and demonstration of scientific software craft  
-- An internal R&D or data-integration workspace  
-- A machine-learning and QSAR **experimentation** environment  
-- A **screening / prioritization** demonstration aligned with transparency and weight-of-evidence thinking  
-- A **compliance-oriented architecture** demo (audit concepts, QMS/ISO-style structure, checklists)—not proof of certification  
-
-It is **not yet**:
-
-- A validated EPA-compliant analytical system  
-- A certified risk-assessment engine  
-- A legally defensible regulatory-submission platform  
-- A commercially mature SaaS with production SLAs, security review, and operational guarantees  
-
-## What the application can realistically do now
+## What the application can do
 
 ### 1. PFAS data organization and exploration
 
@@ -44,7 +25,7 @@ The repository may be **strongest** as a place to benchmark descriptors, compare
 
 The project can illustrate environmental toxicology familiarity, ML integration, QSAR architecture, validation-oriented thinking, ISO/QMS awareness, Shiny deployment, and multi-language glue (e.g. R + Python). That is a **legitimate** use for proposals, interviews, and consulting demos when described honestly.
 
-## What the application cannot honestly do yet
+## What the application cannot do yet
 
 ### 1. Regulatory decision-making
 
@@ -70,20 +51,9 @@ Enterprise buyers typically expect validated models, security posture, provenanc
 
 > PFAS screening and prioritization platform for environmental toxicology R&D and decision support—with clear limitations and human review.
 
-**Avoid** overclaiming, for example:
-
-> “PFAS compliance platform,” “AI PFAS detection,” “EPA-approved predictive engine,” or implying substitution for certified analytical methods.
-
-## Suggested next steps (technical credibility)
-
-1. **Replace placeholders** with curated real data (e.g. UCMR, CompTox, public PFAS literature datasets—subject to licensing and quality review).  
-2. **Pick one narrow workflow** and drive it to genuine validation (e.g. water exceedance prioritization, AD flagging, one endpoint class)—instead of breadth without depth.  
-3. **Surface uncertainty and applicability domain** consistently in UI and exports.  
-4. **Publish or preprint** one retrospective or external validation study tied to that workflow—often more valuable than UI polish alone.  
-
 ## Summary
 
-Closest honest comparison today: **advanced environmental toxicology / QSAR research prototype and screening dashboard**, not a **commercial enterprise PFAS compliance suite**.
+**Advanced environmental toxicology / QSAR research prototype and screening dashboard**, not a **commercial enterprise PFAS compliance suite**.
 
 Regulators and certified laboratories would not treat this as a substitute for methods or lab certification without substantial additional evidence. Researchers, consultants, startups, and reviewers **may** still find it useful **when scoped honestly** and evolved with real data and validation.
 
