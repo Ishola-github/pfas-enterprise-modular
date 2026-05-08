@@ -70,6 +70,17 @@ Test-Path .\scripts\find_rscript.ps1
 
 Both should be **`True`**.
 
+**Paste two commands separately:** If you run **`powershell ... -File .\run_shiny_app.ps1`** and **`Set-Location "..."`** on the **same line** without a space or **`;`**, PowerShell treats **`.\run_shiny_app.ps1Set-Location`** as one bad filename. Use **Enter** between commands, or one line with a semicolon, e.g.  
+`Set-Location "C:\path\to\repo"; powershell -NoProfile -ExecutionPolicy Bypass -File .\run_shiny_app.ps1`
+
+**Launch Shiny without `cd` first:** With an up-to-date clone, you can pass the **full path** to the repo’s **`run_shiny_app.ps1`** from any working directory (for example `C:\Users\techj`):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\you\OneDrive\Desktop\python_work\PFAS_on_R_Studio\run_shiny_app.ps1"
+```
+
+Use the folder that contains **`LatestPFAS.R`** (adjust if your clone is nested). The launcher resolves the app directory from the script location, not from **`Get-Location`**.
+
 **RStudio vs `Rscript`:** They may use **different R executables** and **different package libraries**. Packages can appear installed in RStudio but be missing when you run `Rscript` in PowerShell. Compare environments with:
 
 ```powershell
@@ -83,8 +94,8 @@ Run the same in **RStudio** via **Source** or `source("scripts/check_r_environme
 1. One-time:  
    `Rscript --vanilla scripts/install_r_deps_win_user_lib.R`
 2. Then set **`R_LIBS_USER`** to that folder, or run:  
-   `.\run_shiny_app.ps1` or `.\scripts\run_shiny_app.ps1`  
-   (run **from the repo root**; the script sets **`R_LIBS_USER`** and starts **`shiny::runApp`**).
+   `.\run_shiny_app.ps1` , **`.\scripts\run_shiny_app.ps1`** , or **`powershell -NoProfile -ExecutionPolicy Bypass -File "C:\full\path\to\repo\run_shiny_app.ps1"`**  
+   (the launcher sets **`R_LIBS_USER`** and starts **`shiny::runApp`**; the root script can be run by **full path** from any cwd after you **`git pull`** the latest changes).
 
 **Repo root:** the folder that contains **`LatestPFAS.R`**, **`app.R`**, and **`run_shiny_app.ps1`** (not a parent folder). If **`.\run_shiny_app.ps1`** is missing, you may be one level too high (e.g. `PFAS_on_R_Studio` with the real clone in **`pfas-enterprise-modular\`**). Check:
 

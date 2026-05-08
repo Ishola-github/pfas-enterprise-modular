@@ -1,12 +1,13 @@
 # Run PFAS Shiny from PowerShell (uses per-user package library for this R version).
-# Run from the repository root (folder that contains LatestPFAS.R and scripts/).
+# Repo root is derived from this file's location, so you can launch via full path from any cwd:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File "C:\path\to\repo\run_shiny_app.ps1"
+# Or from repo root:
+#   .\scripts\run_shiny_app.ps1
+#   .\run_shiny_app.ps1
 #
 # One-time install:
 #   & "C:\Program Files\R\R-4.6.0\bin\Rscript.exe" --vanilla ".\scripts\install_r_deps_win_user_lib.R"
 #
-# Start app:
-#   .\scripts\run_shiny_app.ps1
-#   .\run_shiny_app.ps1
 # If execution policy blocks scripts:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .\run_shiny_app.ps1
 #
@@ -19,10 +20,15 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$RepoRoot = (Get-Location).Path
-$ScriptDir = Join-Path $RepoRoot "scripts"
+if ($PSScriptRoot) {
+  $ScriptDir = $PSScriptRoot
+  $RepoRoot = Split-Path -Parent $ScriptDir
+} else {
+  $RepoRoot = (Get-Location).Path
+  $ScriptDir = Join-Path $RepoRoot "scripts"
+}
 if (-not (Test-Path (Join-Path $RepoRoot "LatestPFAS.R"))) {
-  Write-Error ('LatestPFAS.R not found in ' + $RepoRoot + ' - Set-Location to the repo root first.')
+  Write-Error ('LatestPFAS.R not found in ' + $RepoRoot + ' - expected next to scripts/; reinstall or fix paths.')
   exit 1
 }
 

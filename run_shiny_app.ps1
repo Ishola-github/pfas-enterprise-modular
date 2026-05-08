@@ -1,7 +1,9 @@
 # Convenience launcher at repo root - delegates to scripts/run_shiny_app.ps1
-# Usage (from repo root, same folder as LatestPFAS.R):
+# Usage:
 #   .\run_shiny_app.ps1
 #   .\run_shiny_app.ps1 -Port 8080
+# From any directory (use your real path):
+#   powershell -NoProfile -ExecutionPolicy Bypass -File "C:\path\to\repo\run_shiny_app.ps1"
 # If scripts are disabled: powershell -NoProfile -ExecutionPolicy Bypass -File .\run_shiny_app.ps1
 
 param(
