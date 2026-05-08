@@ -7,10 +7,24 @@
 #   Rscript scripts/smoke_read_ucmr533.R "path/to/UCMR5_533.txt"
 #   Rscript scripts/smoke_read_ucmr533.R "path/to/UCMR5_533.txt" --sample 5000
 #   Rscript scripts/smoke_read_ucmr533.R "path/to/UCMR5_533.txt" --write-full   # slow (~1.6M rows)
-# Default path: env UCMR5_533_TXT, or data/external/epa_ucmr5/UCMR5_533.txt under the project.
+# Default path (first match wins): CLI arg, env UCMR5_533_TXT, R option pfas.ucmr5_533_path,
+# or data/external/epa_ucmr5/UCMR5_533.txt under the project.
+#
+# R Console (source() has no CLI args; PowerShell $env:... is not visible here unless you
+# started R from that shell). Use a real path, not the literal "C:/path/to/..." example:
+#   options(pfas.ucmr5_533_path = "C:/Users/you/Downloads/.../UCMR5_533.txt")
+#   source("scripts/smoke_read_ucmr533.R", encoding = "UTF-8")
+# or: Sys.setenv(UCMR5_533_TXT = "C:/Users/you/Downloads/.../UCMR5_533.txt") then source().
 #
 # Run the whole file with Rscript (Terminal). Do not paste only the bottom if/else block into
 # the R Console: variables like wf, d, sample_n, and out_dir are defined above.
+is_placeholder_ucmr_path <- function(x) {
+  if (length(x) != 1L || !nzchar(x)) {
+    return(FALSE)
+  }
+  grepl("path[/\\\\]to[/\\\\]", x, ignore.case = TRUE)
+}
+
 args <- commandArgs(trailingOnly = TRUE)
 argv <- commandArgs(trailingOnly = FALSE)
 file_arg_src <- grep("^--file=", argv, value = TRUE)
@@ -42,8 +56,13 @@ if (is.na(sample_n) && any(args == "--sample")) {
 
 p <- if (length(path_arg) >= 1) path_arg[[1]] else {
   envp <- Sys.getenv("UCMR5_533_TXT", "")
+  optp <- getOption("pfas.ucmr5_533_path", default = "")
+  if (!is.character(optp) || !nzchar(optp)) {
+    optp <- ""
+  }
   cand <- c(
     if (nzchar(envp)) envp else NA_character_,
+    if (nzchar(optp)) optp else NA_character_,
     file.path(project_root, "data/external/epa_ucmr5/UCMR5_533.txt"),
     file.path(project_root, "data/raw/UCMR5_533.txt")
   )
@@ -51,14 +70,31 @@ p <- if (length(path_arg) >= 1) path_arg[[1]] else {
   hit <- cand[file.exists(cand)]
   if (length(hit) < 1) {
     stop(
-      "Pass path to UCMR5_533.txt as first argument, set env UCMR5_533_TXT, ",
-      "or place the file at data/external/epa_ucmr5/UCMR5_533.txt (within this project).",
+      "Could not find UCMR5_533.txt. Do one of:\n",
+      "  Terminal: Rscript scripts/smoke_read_ucmr533.R \"C:/real/path/UCMR5_533.txt\"\n",
+      "  R Console before source(): options(pfas.ucmr5_533_path = \"C:/real/path/UCMR5_533.txt\")\n",
+      "  Or copy the file to: ", file.path(project_root, "data/external/epa_ucmr5/UCMR5_533.txt"),
+      "\n(Do not use the literal path C:/path/to/... from docs; replace with your real file.)",
       call. = FALSE
     )
   }
   hit[[1]]
 }
-if (!file.exists(p)) stop("File not found: ", p, call. = FALSE)
+if (is_placeholder_ucmr_path(p)) {
+  stop(
+    "Placeholder path not allowed: ", p, "\n",
+    "Use your real UCMR5_533.txt location (e.g. under Downloads after EPA zip extract).",
+    call. = FALSE
+  )
+}
+if (!file.exists(p)) {
+  hint <- if (nzchar(Sys.getenv("UCMR5_533_TXT", ""))) {
+    "\nIf you set UCMR5_533_TXT in PowerShell, RStudio may not see it; use options(pfas.ucmr5_533_path=...) or Sys.setenv() in the R Console, or pass the path on the Rscript command line."
+  } else {
+    ""
+  }
+  stop("File not found: ", p, hint, call. = FALSE)
+}
 message("Reading: ", normalizePath(p, winslash = "/", mustWork = TRUE))
 d <- read.delim(
   p,
