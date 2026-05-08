@@ -1,5 +1,5 @@
-# PFAS Enterprise 4.0 — Standards-compliant predictive toxicology Shiny application
-# SQLite-backed data collection, curation, audit logging, and ML export scaffold.
+# PFAS Enterprise 5.0 — Standards-compliant predictive toxicology Shiny application
+# SQLite-backed data collection, curation, audit logging, ML export scaffold, and Cloud API screening.
 
 suppressPackageStartupMessages({
   library(shiny)
@@ -14,6 +14,7 @@ suppressPackageStartupMessages({
   library(stringr)
   library(scales)
   library(jsonlite)
+  library(httr)
   library(digest)
   library(DBI)
   library(RSQLite)
@@ -24,8 +25,8 @@ max_upload_mb <- suppressWarnings(as.numeric(Sys.getenv("PFAS_MAX_UPLOAD_MB", "5
 if (is.na(max_upload_mb) || max_upload_mb <= 0) max_upload_mb <- 512
 options(shiny.maxRequestSize = max_upload_mb * 1024^2)
 
-APP_TITLE <- "PFAS Enterprise 4.0 — Standards-Compliant Toxicology & Regulatory Screening"
-APP_VERSION <- "4.0.3"
+APP_TITLE <- "PFAS Enterprise 5.0 — Standards-Compliant Toxicology & Regulatory Screening"
+APP_VERSION <- "5.0.0"
 # Portable project root: shiny::runApp() uses the application directory as working directory
 PROJECT_DIR <- normalizePath(getwd(), winslash = "/", mustWork = FALSE)
 MAPPING_ENGINE_VERSION <- "2026-05-02-autodetect-identifier-hardblock-3"
@@ -38,6 +39,8 @@ LOCAL_PYTHON_DEFAULT <- file.path("C:", "pfasenv", "Scripts", "python.exe")
 LINK_SHINY_DEMO <- Sys.getenv("PFAS_LINK_SHINY_DEMO", "https://demo.yourcompany.com/request-access")
 LINK_GITHUB_REPO <- Sys.getenv("PFAS_LINK_GITHUB_REPO", "https://github.com/your-org/private-pfas-repo")
 PFAS_INTAKE_API_URL <- trimws(Sys.getenv("PFAS_INTAKE_API_URL", ""))
+# Cloud screening API (FastAPI /predict, e.g. Render). Same env as thin app.R / README.
+PFAS_API_URL <- trimws(Sys.getenv("PFAS_API_URL", "https://pfas-enterprise-5.onrender.com"))
 PFAS_INTAKE_API_ENDPOINT <- if (nzchar(PFAS_INTAKE_API_URL)) {
   paste0(sub("/+$", "", PFAS_INTAKE_API_URL), "/upload")
 } else {
@@ -1173,6 +1176,7 @@ ui_dashboard <- dashboardPage(
       menuItem("Modeling", tabName = "modeling", icon = icon("cogs")),
       menuItem("Validation", tabName = "validation", icon = icon("check-circle")),
       menuItem("Predictions", tabName = "predictions", icon = icon("table")),
+      menuItem("Enterprise 5.0 (Cloud API)", tabName = "enterprise5", icon = icon("cloud")),
       menuItem("Applicability Domain", tabName = "ad", icon = icon("bullseye")),
       menuItem("Mechanistic Interpretation", tabName = "mechanistic", icon = icon("microscope")),
       menuItem("Decision Support", tabName = "decision", icon = icon("balance-scale")),
@@ -1783,7 +1787,7 @@ ui_dashboard <- dashboardPage(
         fluidRow(
           box(
             width = 12,
-            title = "PFAS Enterprise 4.0 — ISO 17025 / on-prem GLP mode",
+            title = "PFAS Enterprise 5.0 — ISO 17025 / on-prem GLP mode",
             status = "primary",
             solidHeader = TRUE,
             p(
@@ -1976,6 +1980,63 @@ ui_dashboard <- dashboardPage(
                   ),
                   box(width = 8, title = "Calibration log", DTOutput("tbl_calibration"))
                 )
+              )
+            )
+          )
+        )
+      ),
+      tabItem(
+        tabName = "enterprise5",
+        fluidRow(
+          box(
+            width = 12,
+            title = "PFAS Enterprise 5.0 — Cloud screening API",
+            status = "primary",
+            solidHeader = TRUE,
+            tags$p(
+              "Screening decision-support only. ",
+              tags$strong(
+                "PFAS Enterprise 5.0 is a screening decision-support platform, not a certified laboratory replacement."
+              )
+            ),
+            tags$p(
+              "POST target: ",
+              tags$code(PFAS_API_URL),
+              ". Override with ",
+              tags$code("PFAS_API_URL"),
+              " (environment variable) before starting the app."
+            )
+          )
+        ),
+        fluidRow(
+          box(
+            width = 4,
+            title = "Request",
+            status = "info",
+            solidHeader = TRUE,
+            textInput("e5_sample_id", "Sample ID", "DEMO_001"),
+            textInput("e5_dtxsid", "DTXSID", "DTXSID8030271"),
+            selectInput("e5_method_id", "Method", c("EPA_533", "EPA_1633")),
+            selectInput("e5_matrix", "Matrix", c("water", "sludge", "serum")),
+            actionButton("e5_run", "Run screening", class = "btn-primary")
+          ),
+          box(
+            width = 8,
+            title = "Response",
+            status = "success",
+            solidHeader = TRUE,
+            tabsetPanel(
+              tabPanel(
+                title = "Prediction",
+                verbatimTextOutput("e5_result", placeholder = TRUE)
+              ),
+              tabPanel(
+                title = "Sustainability",
+                verbatimTextOutput("e5_sustainability", placeholder = TRUE)
+              ),
+              tabPanel(
+                title = "Raw JSON",
+                verbatimTextOutput("e5_raw", placeholder = TRUE)
               )
             )
           )
@@ -4907,6 +4968,107 @@ server <- function(input, output, session) {
   output$tbl_error_buckets <- renderDT(render_dt(error_buckets, 8))
   output$tbl_performance_metrics <- renderDT(render_dt(performance_metrics, 8))
   output$tbl_predictions <- renderDT(render_dt(predictions, 10))
+
+  # Enterprise 5.0 — cloud screening API (FastAPI /predict; see PFAS_API_URL)
+  e5_api_last <- reactiveVal(NULL)
+  observeEvent(input$e5_run, {
+    req(auth$user)
+    api_base <- trimws(Sys.getenv("PFAS_API_URL", PFAS_API_URL))
+    api_base <- sub("/+$", "", api_base)
+    payload <- list(
+      sample_id = input$e5_sample_id,
+      dtxsid = input$e5_dtxsid,
+      method_id = input$e5_method_id,
+      matrix = input$e5_matrix
+    )
+    res <- tryCatch(
+      httr::POST(
+        paste0(api_base, "/predict"),
+        body = payload,
+        encode = "json",
+        httr::content_type_json(),
+        httr::timeout(45)
+      ),
+      error = function(e) {
+        list(error = TRUE, message = conditionMessage(e))
+      }
+    )
+    if (isTRUE(res$error)) {
+      e5_api_last(list(status = 0L, text = "", err = res$message, parsed = NULL))
+      showNotification(res$message, type = "error")
+      return(invisible(NULL))
+    }
+    sc <- httr::status_code(res)
+    txt <- tryCatch(httr::content(res, "text", encoding = "UTF-8"), error = function(e) "")
+    parsed <- tryCatch(jsonlite::fromJSON(txt), error = function(e) NULL)
+    e5_api_last(list(status = sc, text = txt, err = NULL, parsed = parsed))
+    if (sc < 400) {
+      write_audit(
+        "cloud_api_predict",
+        as.character(input$e5_sample_id %||% "unknown"),
+        "screening_request",
+        op_id(),
+        paste0("Enterprise 5.0 POST /predict (", api_base, ")"),
+        details = list(
+          dtxsid = input$e5_dtxsid,
+          method_id = input$e5_method_id,
+          matrix = input$e5_matrix,
+          run_id = if (!is.null(parsed)) parsed$run_id else NA_character_
+        )
+      )
+    } else {
+      showNotification(paste0("API HTTP ", sc), type = "warning")
+    }
+  }, ignoreInit = TRUE)
+
+  output$e5_result <- renderPrint({
+    r <- e5_api_last()
+    req(r)
+    if (!is.null(r$err)) {
+      cat("Request failed: ", r$err, "\n", sep = "")
+      return(invisible(NULL))
+    }
+    if (r$status >= 400) {
+      cat("HTTP ", r$status, "\n", r$text, "\n", sep = "")
+      return(invisible(NULL))
+    }
+    p <- r$parsed
+    if (is.null(p)) {
+      cat(r$text)
+      return(invisible(NULL))
+    }
+    keep <- c("run_id", "prediction", "confidence", "ad_warning", "intended_use")
+    show <- p[intersect(keep, names(p))]
+    print(show)
+  })
+
+  output$e5_sustainability <- renderPrint({
+    r <- e5_api_last()
+    req(r)
+    p <- r$parsed
+    if (is.null(p)) {
+      cat("(no parsed response)\n")
+      return(invisible(NULL))
+    }
+    if (!is.null(p$sustainability)) {
+      print(p$sustainability)
+    } else {
+      cat("(no sustainability block)\n")
+    }
+  })
+
+  output$e5_raw <- renderPrint({
+    r <- e5_api_last()
+    req(r)
+    if (nzchar(r$text %||% "")) {
+      cat(r$text)
+    } else if (!is.null(r$err)) {
+      cat(r$err)
+    } else {
+      cat("(empty)\n")
+    }
+  })
+
   output$tbl_ad_registry <- renderDT(render_dt(ad_registry, 8))
   output$tbl_ad_summary <- renderDT(render_dt(compound_ad_summary, 10))
   output$tbl_analog_support <- renderDT(render_dt(analog_support, 8))

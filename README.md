@@ -32,9 +32,9 @@ This platform is **not**:
 
 Install R packages for the 5.0 demo once: `install.packages(c("shiny", "httr", "jsonlite"))`.
 
-- **`app.R`** — **Recommended default:** loads **Enterprise 4.0** from `LatestPFAS.R` on tab *Enterprise 4.0*, and **Cloud API 5.0** (`POST /predict` to `PFAS_API_URL`) on tab *Cloud API 5.0*. API inputs are a **Shiny module** (`api5_…`) so they do not clash with duplicate IDs such as `sample_id` in the legacy app.
-- **`app_enterprise5_api_only.R`** — **API-only** demo (same as the previous standalone 5.0 UI). Use when you do not have `LatestPFAS.R` or want a minimal Shiny surface.
-- **`app_enterprise4_latestpfas.R`** — **Legacy 4.0 only** (no API tab): `source()`s `LatestPFAS.R` and returns its `shinyApp`. Use if you need the exact single-page app without `navbarPage`.
+- **`app.R`** — **Default Run App entry:** loads **`LatestPFAS.R`**, which includes sidebar **Enterprise 5.0 (Cloud API)** (`POST /predict` via **`PFAS_API_URL`**) plus the full dashboard, GLP, and data-collection workflows.
+- **`app_enterprise5_api_only.R`** — **API-only** minimal UI (no `LatestPFAS.R` mega-app). Uses **`httr`** + **`jsonlite`** only.
+- **`app_enterprise4_latestpfas.R`** — Same as **`app.R`** (thin `source("LatestPFAS.R")` loader); kept for older docs/scripts that reference this filename.
 - **`app_oecd_predictive_tox_skeleton.R`** — OECD/QSAR documentation-style Shiny skeleton (placeholders).
 
 ## Local API test
