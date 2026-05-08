@@ -1,4 +1,4 @@
-"""PFAS Enterprise 5.0 — demo FastAPI service for screening stub and health checks."""
+"""PFAS Enterprise 5.0 - demo FastAPI service for screening stub and health checks."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from typing import Any
 
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
+
+from modules.sustainability import calculate_sustainability_metrics
 
 app = FastAPI(
     title="PFAS Enterprise 5.0",
@@ -47,7 +49,18 @@ def predict(req: PredictRequest) -> dict[str, Any]:
         "Not EPA-approved, ISO-accredited, or a certified laboratory method."
     )
     if not screening_only:
-        intended += " (SCREENING_USE_ONLY is false — production wiring required.)"
+        intended += " (SCREENING_USE_ONLY is false - production wiring required.)"
+
+    prediction = "borderline"
+    confidence = 0.72
+
+    cost_lab = _env_float("COST_PER_LAB_ANALYSIS_USD", "350")
+    kg_co2 = _env_float("KG_CO2_PER_SAMPLE", "2.5")
+    sustainability = calculate_sustainability_metrics(
+        [{"prediction": prediction, "confidence": confidence}],
+        cost_per_lab_analysis=cost_lab,
+        kg_co2_per_sample=kg_co2,
+    )
 
     return {
         "run_id": run_id,
@@ -55,13 +68,9 @@ def predict(req: PredictRequest) -> dict[str, Any]:
         "dtxsid": req.dtxsid,
         "method_id": req.method_id,
         "matrix": req.matrix,
-        "prediction": "borderline",
-        "confidence": 0.72,
+        "prediction": prediction,
+        "confidence": confidence,
         "ad_warning": "Inside applicability domain (demo stub). Confirm critical results analytically.",
         "intended_use": intended,
-        "sustainability": {
-            "estimated_lab_cost_avoided_usd": _env_float("COST_PER_LAB_ANALYSIS_USD", "350"),
-            "estimated_kg_co2_avoided_per_decision": _env_float("KG_CO2_PER_SAMPLE", "2.5"),
-            "note": "Demo metrics — calibrate for your laboratory economics and logistics.",
-        },
+        "sustainability": sustainability,
     }
