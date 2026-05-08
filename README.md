@@ -77,16 +77,33 @@ Get-ChildItem -Path . -Recurse -Filter run_shiny_app.ps1 -ErrorAction SilentlyCo
 
 Then **`Set-Location`** into that directory and run the script again.
 
-**Without the `.ps1` wrapper** — from the repo root. **`Rscript` must see the same library as RStudio** (or run `install_r_deps_win_user_lib.R` once for that `Rscript.exe`):
+**Find `Rscript.exe` (do not type `R-4.x.x` — that is not a real folder on your PC):** In PowerShell:
 
 ```powershell
-$lib = (Rscript --vanilla .\scripts\r_user_lib_path.R).Trim()
-$env:R_LIBS_USER = $lib
-Rscript -e "shiny::runApp('.', port=3838, launch.browser=TRUE)"
+& ".\scripts\find_rscript.ps1"
 ```
 
-If `Rscript` is not on `PATH`, call the full path, e.g.  
-`& "C:\Program Files\R\R-4.6.0\bin\Rscript.exe"`.
+If policy blocks `.ps1`, use:
+
+```powershell
+( Get-ItemProperty "HKLM:\SOFTWARE\R-core\R" ).InstallPath
+```
+
+Then build the path yourself, e.g. `...\R-4.6.0\bin\Rscript.exe` (your version will differ). Or list installs:
+
+```powershell
+Get-ChildItem "C:\Program Files\R" | ForEach-Object { Join-Path $_.FullName "bin\Rscript.exe" } | Where-Object { Test-Path $_ }
+```
+
+**Without the `.ps1` wrapper** — from the repo root. Use the **same** `Rscript.exe` for install and for `runApp`:
+
+```powershell
+$Rscript = & ".\scripts\find_rscript.ps1"
+$lib = (& $Rscript --vanilla .\scripts\r_user_lib_path.R).Trim()
+$env:R_LIBS_USER = $lib
+& $Rscript --vanilla .\scripts\install_r_deps_win_user_lib.R
+& $Rscript -e "shiny::runApp('.', port=3838, launch.browser=TRUE)"
+```
 
 (`shiny::runApp` takes an **application directory** that contains `app.R`, not the filename `app.R` alone.)
 
