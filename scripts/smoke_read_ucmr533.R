@@ -10,11 +10,20 @@
 # Default path (first match wins): CLI arg, env UCMR5_533_TXT, R option pfas.ucmr5_533_path,
 # or data/external/epa_ucmr5/UCMR5_533.txt under the project.
 #
-# R Console (source() has no CLI args; PowerShell $env:... is not visible here unless you
-# started R from that shell). Use a real path, not the literal "C:/path/to/..." example:
-#   options(pfas.ucmr5_533_path = "C:/Users/you/Downloads/.../UCMR5_533.txt")
+# R Console: source() does not receive Rscript CLI flags (--sample, --write-full). Use Terminal
+# for those. PowerShell $env:UCMR5_533_TXT is often invisible to RStudio unless you set env in R.
+#
+# Use a REAL path to UCMR5_533.txt (unzipped .txt, not .zip). Replace placeholders; do not use
+# "...", "REAL_PATH_HERE", or "C:/path/to/...". Find the file if needed, e.g.:
+#   list.files("C:/Users/you", pattern = "533|UCMR", recursive = TRUE, full.names = TRUE)
+#
+# Then either (quoted env name avoids parser edge cases in some setups):
+#   Sys.setenv("UCMR5_533_TXT" = "C:/Users/you/Downloads/your-folder/UCMR5_533.txt")
 #   source("scripts/smoke_read_ucmr533.R", encoding = "UTF-8")
-# or: Sys.setenv(UCMR5_533_TXT = "C:/Users/you/Downloads/.../UCMR5_533.txt") then source().
+# or:
+#   options(pfas.ucmr5_533_path = "C:/Users/you/Downloads/your-folder/UCMR5_533.txt")
+#   source("scripts/smoke_read_ucmr533.R", encoding = "UTF-8")
+# Confirm first: file.exists("C:/.../UCMR5_533.txt") must be TRUE.
 #
 # Run the whole file with Rscript (Terminal). Do not paste only the bottom if/else block into
 # the R Console: variables like wf, d, sample_n, and out_dir are defined above.
