@@ -2004,12 +2004,6 @@ ui_dashboard <- dashboardPage(
             title = "Scope, positioning, and limitations",
             status = "warning",
             solidHeader = TRUE,
-            tags$p(
-              class = "text-muted",
-              style = "margin-top: -6px; margin-bottom: 12px;",
-              tags$strong("Technical prototype / research scaffold"),
-              " - read before relying on outputs or external claims."
-            ),
             tags$div(
               style = "max-height: 78vh; overflow-y: auto; padding-right: 12px;",
               if (file.exists(DISCLAIMER_MD_PATH)) {
@@ -2033,12 +2027,6 @@ ui_dashboard <- dashboardPage(
                   )
                 )
               }
-            ),
-            tags$hr(),
-            tags$p(
-              tags$small(
-                "This panel is project documentation only and is not legal advice. Operators remain responsible for public claims and use context."
-              )
             )
           )
         )

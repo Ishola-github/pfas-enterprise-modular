@@ -1,5 +1,3 @@
-# Scope, positioning, and limitations
-
 This document states what the PFAS Enterprise codebase **is** and **is not**, so expectations stay aligned with what the software can honestly support today.
 
 ## What this project is today
