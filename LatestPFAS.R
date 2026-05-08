@@ -62,6 +62,27 @@ DATASET_FORM_CONFIRMATION_MESSAGE <- Sys.getenv(
   if (is.null(x) || length(x) == 0 || all(is.na(x))) y else x
 }
 
+# First existing path wins: env UCMR5_533_TXT, option pfas.ucmr5_533_path, then project data/.
+resolve_ucmr5_533_txt <- function(project_dir = PROJECT_DIR) {
+  envp <- Sys.getenv("UCMR5_533_TXT", "")
+  optp <- getOption("pfas.ucmr5_533_path", default = "")
+  if (!is.character(optp) || !nzchar(optp)) {
+    optp <- ""
+  }
+  cand <- c(
+    if (nzchar(envp)) envp else NA_character_,
+    if (nzchar(optp)) optp else NA_character_,
+    file.path(project_dir, "data/external/epa_ucmr5/UCMR5_533.txt"),
+    file.path(project_dir, "data/raw/UCMR5_533.txt")
+  )
+  cand <- cand[!is.na(cand) & nzchar(cand)]
+  hit <- cand[vapply(cand, file.exists, logical(1L))]
+  if (length(hit) < 1) {
+    return(NA_character_)
+  }
+  hit[[1]]
+}
+
 safe_pattern <- function(p) {
   if (is.null(p) || length(p) == 0) {
     return(NA_character_)
@@ -1298,6 +1319,42 @@ ui_dashboard <- dashboardPage(
         fluidRow(
           box(width = 6, title = "Dataset Missingness", status = "info", solidHeader = TRUE, plotOutput("plot_missingness", height = 300)),
           box(width = 6, title = "Class Balance", status = "info", solidHeader = TRUE, plotOutput("plot_class_balance", height = 300))
+        ),
+        fluidRow(
+          box(
+            width = 12,
+            title = "UCMR5 Method 533 occurrence (optional preview)",
+            status = "info",
+            solidHeader = TRUE,
+            helpText(
+              "Exploration only (not regulatory analytics). Same encoding as scripts/smoke_read_ucmr533.R (latin1). ",
+              "Only the first N rows are loaded to keep memory safe (~1.6M rows in full file)."
+            ),
+            fluidRow(
+              column(
+                6,
+                textInput(
+                  "ucmr533_path_override",
+                  "Optional path to UCMR5_533.txt (blank = env UCMR5_533_TXT, option pfas.ucmr5_533_path, or data/external/epa_ucmr5/)",
+                  value = ""
+                )
+              ),
+              column(
+                3,
+                numericInput(
+                  "ucmr533_preview_rows",
+                  "Max rows to load",
+                  value = 5000L,
+                  min = 100L,
+                  max = 50000L,
+                  step = 500L
+                )
+              ),
+              column(3, br(), actionButton("ucmr533_load_btn", "Load preview", class = "btn-info"))
+            ),
+            verbatimTextOutput("ucmr533_resolve_status", placeholder = TRUE),
+            DTOutput("ucmr533_preview_tbl")
+          )
         )
       ),
       tabItem(
@@ -4997,7 +5054,94 @@ server <- function(input, output, session) {
         review_status, source_type, source_reference
       )
   })
-  
+
+  ucmr533_preview_df <- eventReactive(input$ucmr533_load_btn, {
+    ov <- tryCatch(trimws(input$ucmr533_path_override %||% ""), error = function(e) "")
+    p <- if (nzchar(ov)) ov else resolve_ucmr5_533_txt(PROJECT_DIR)
+    if (length(p) != 1L || is.na(p) || !nzchar(p) || !file.exists(p)) {
+      showNotification(
+        paste(
+          "UCMR5_533.txt not found. Use path override, Sys.setenv(\"UCMR5_533_TXT\"),",
+          "options(pfas.ucmr5_533_path), or copy to data/external/epa_ucmr5/UCMR5_533.txt."
+        ),
+        type = "error"
+      )
+      return(NULL)
+    }
+    ncap <- suppressWarnings(as.integer(input$ucmr533_preview_rows))
+    if (is.na(ncap) || ncap < 100L) {
+      ncap <- 5000L
+    }
+    ncap <- min(50000L, max(100L, ncap))
+    tryCatch(
+      {
+        read.delim(
+          p,
+          sep = "\t",
+          quote = "",
+          fill = TRUE,
+          stringsAsFactors = FALSE,
+          fileEncoding = "latin1",
+          nrows = ncap
+        )
+      },
+      error = function(e) {
+        showNotification(conditionMessage(e), type = "error")
+        NULL
+      }
+    )
+  })
+
+  output$ucmr533_resolve_status <- renderPrint({
+    if (is.null(input$ucmr533_load_btn) || input$ucmr533_load_btn < 1L) {
+      cat(
+        "Set optional path or rely on UCMR5_533_TXT / options(pfas.ucmr5_533_path) / ",
+        "data/external/epa_ucmr5/UCMR5_533.txt, then click Load preview.\n"
+      )
+      return(invisible(NULL))
+    }
+    d <- ucmr533_preview_df()
+    ov <- tryCatch(trimws(input$ucmr533_path_override %||% ""), error = function(e) "")
+    p <- if (nzchar(ov)) ov else resolve_ucmr5_533_txt(PROJECT_DIR)
+    if (length(p) != 1L || is.na(p) || !nzchar(p)) {
+      cat("No file resolved.\n")
+      return(invisible(NULL))
+    }
+    if (!file.exists(p)) {
+      cat("Path not found:", p, "\n")
+      return(invisible(NULL))
+    }
+    cat("Source:", normalizePath(p, winslash = "/", mustWork = TRUE), "\n")
+    if (!is.null(d)) {
+      cat("Loaded preview:", nrow(d), "rows x", ncol(d), "columns\n")
+    }
+  })
+
+  output$ucmr533_preview_tbl <- renderDT({
+    if (is.null(input$ucmr533_load_btn) || input$ucmr533_load_btn < 1L) {
+      return(
+        datatable(
+          data.frame(Note = "Click Load preview after configuring path (optional)."),
+          rownames = FALSE,
+          options = list(dom = "t", ordering = FALSE),
+          selection = "none"
+        )
+      )
+    }
+    d <- ucmr533_preview_df()
+    if (is.null(d)) {
+      return(
+        datatable(
+          data.frame(Message = "Load failed or no data."),
+          rownames = FALSE,
+          options = list(dom = "t", ordering = FALSE),
+          selection = "none"
+        )
+      )
+    }
+    datatable(d, options = list(scrollX = TRUE, pageLength = 15), rownames = FALSE)
+  })
+
   output$tbl_system_readiness <- renderDT(render_dt(system_readiness, 10))
   output$tbl_oecd_home <- renderDT(render_dt(oecd_checklist, 5))
   output$tbl_dataset_registry <- renderDT(render_dt(dataset_registry, 8))

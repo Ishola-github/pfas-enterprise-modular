@@ -36,6 +36,8 @@ For a fuller statement of what the software **can and cannot** honestly claim to
 
 **RStudio:** In the **R Console** (not PowerShell), set the API base if needed, then Run App. The sidebar includes **Scope & limitations**, which embeds **`DISCLAIMER.md`** from the app directory (with a GitHub link if the file is missing).
 
+**Data & Endpoints** includes an optional **UCMR5 Method 533** panel: set **`UCMR5_533_TXT`** or **`options(pfas.ucmr5_533_path)`** before `runApp`, use the path override field, or place **`UCMR5_533.txt`** under **`data/external/epa_ucmr5/`**, then **Load preview** (reads only the first N rows for memory safety).
+
 ```r
 Sys.setenv(PFAS_API_URL = "https://pfas-enterprise-5.onrender.com")
 # shiny::runApp()  or  Run App on app.R
