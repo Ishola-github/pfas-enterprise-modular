@@ -52,6 +52,24 @@ or run a single session without changing policy:
 `Set-Location "C:\Users\you\OneDrive\Desktop\python_work\PFAS_on_R_Studio"`  
 (or **`...\pfas-enterprise-modular`** if that is where the clone lives).
 
+**RStudio Console vs Terminal:** The **Console** (prompt `>`) runs **R** only. Lines like **`Set-Location`**, **`& $Rscript`**, **`.\run_shiny_app.ps1`**, or **`\scripts\...`** belong in **RStudio’s Terminal** tab (PowerShell), not in the Console. In the Console, use R instead, for example:
+
+```r
+setwd("C:/Users/you/OneDrive/Desktop/python_work/PFAS_on_R_Studio")  # use / not \, real path
+source("scripts/check_r_environment.R")
+shiny::runApp(".", port = 3838, launch.browser = TRUE)
+```
+
+**PowerShell working directory:** Shell commands that use **`.\scripts\...`** must be run from the **repo root**. If you start in **`C:\Users\techj`** (or your home folder), **`find_rscript.ps1`** is missing, PowerShell may still print a message, and **`$Rscript = @(...)[0]`** can capture that **error text** so the next **`& $Rscript`** fails. Before calling **`find_rscript`**, run:
+
+```powershell
+Set-Location "C:\path\to\your\repo-root"   # folder where LatestPFAS.R lives
+Test-Path .\LatestPFAS.R
+Test-Path .\scripts\find_rscript.ps1
+```
+
+Both should be **`True`**.
+
 **RStudio vs `Rscript`:** They may use **different R executables** and **different package libraries**. Packages can appear installed in RStudio but be missing when you run `Rscript` in PowerShell. Compare environments with:
 
 ```powershell
@@ -85,10 +103,13 @@ If **`find_rscript.ps1` is blocked** by execution policy when you call it with `
 powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\find_rscript.ps1"
 ```
 
-Assign the path (same Bypass pattern):
+Assign the path (same Bypass pattern; only after **`Set-Location`** to repo root so **`.\scripts\find_rscript.ps1`** exists):
 
 ```powershell
 $Rscript = @(powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\find_rscript.ps1")[0].Trim()
+if (-not (Test-Path -LiteralPath $Rscript)) {
+  throw "find_rscript did not return a valid path. Are you in the repo root? Got: $Rscript"
+}
 ```
 
 No script file needed — read the install folder from the registry, then append `\bin\Rscript.exe`:
@@ -107,6 +128,7 @@ Get-ChildItem "C:\Program Files\R" | ForEach-Object { Join-Path $_.FullName "bin
 
 ```powershell
 $Rscript = @(powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\find_rscript.ps1")[0].Trim()
+if (-not (Test-Path -LiteralPath $Rscript)) { throw "Bad Rscript path: $Rscript" }
 $lib = (& $Rscript --vanilla .\scripts\r_user_lib_path.R).Trim()
 $env:R_LIBS_USER = $lib
 & $Rscript --vanilla .\scripts\install_r_deps_win_user_lib.R
