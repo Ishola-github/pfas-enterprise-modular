@@ -69,7 +69,7 @@ curl -X POST http://127.0.0.1:8000/predict \
 Deploy using:
 
 - `Dockerfile` (build context is repo root; `.dockerignore` excludes large local `data/`, legacy trees, and Shiny-only artifacts)
-- `render.yaml` (Blueprint: web service + starter PostgreSQL)
+- `render.yaml` (Blueprint: Docker web service + PostgreSQL on a **current** instance type, e.g. `basic-256mb`; legacy DB `starter` is rejected for new databases)
 - PostgreSQL from the blueprint (optional for the current demo API stub; connect in code when you add persistence)
 - Environment variables from `.env.example`
 

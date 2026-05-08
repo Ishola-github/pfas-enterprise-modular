@@ -20,4 +20,4 @@ services:
 
 databases:
   - name: pfas-enterprise-db
-    plan: starter
+    plan: basic-256mb
