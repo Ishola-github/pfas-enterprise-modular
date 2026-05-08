@@ -4,6 +4,8 @@ Human-centered PFAS screening intelligence platform.
 
 PFAS Enterprise 5.0 helps laboratories, consultants, and environmental teams harmonize PFAS data, screen samples, generate model-card reports, route uncertain results to human review, and track sustainability impact.
 
+**Reality check:** This repository is a **technical prototype / research scaffold** with compliance-oriented *architecture*, not a certified regulatory or analytical product. Read **[DISCLAIMER.md](DISCLAIMER.md)** for honest scope, limitations, and suggested positioning.
+
 ## 5.0 Pillars
 
 | Pillar | Purpose |
@@ -27,6 +29,8 @@ This platform is **not**:
 - a clinical diagnostic system
 
 **Strict demo wording:** PFAS Enterprise 5.0 is a screening decision-support platform, not a certified laboratory replacement.
+
+For a fuller statement of what the software **can and cannot** honestly claim today (portfolio / R&D uses, screening vs regulatory use, analytical chemistry boundaries, and suggested next steps), see **[DISCLAIMER.md](DISCLAIMER.md)**.
 
 ## Shiny front ends
 
