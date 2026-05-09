@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 import json
 import pandas as pd
 
@@ -9,7 +9,6 @@ PENALTIES = {
     "LOW": 2,
     "INFO": 0,
 }
-
 
 def generate_iso17025_outputs(run_dir: str, reference_csv: str = "data/reference/iso17025_blindspots.csv"):
     run_path = Path(run_dir)
@@ -80,7 +79,6 @@ def generate_iso17025_outputs(run_dir: str, reference_csv: str = "data/reference
         "score": score,
         "rating": rating,
     }
-
 
 if __name__ == "__main__":
     import argparse

@@ -1,4 +1,4 @@
-blind_spot,risk_area,pfas_lab_example,iso_17025_relevance,severity,evidence_required,status,corrective_action
+﻿blind_spot,risk_area,pfas_lab_example,iso_17025_relevance,severity,evidence_required,status,corrective_action
 Traceability gaps,Chain of custody,Missing sample movement record,Sample/result traceability,HIGH,"COC log; sample receipt; analyst record",Open,Add mandatory sample event log
 Instrument data integrity,Raw data control,LC-MS/MS raw files edited or overwritten,Data integrity and technical records,CRITICAL,"Raw file hash; audit trail; backup log",Open,Add immutable raw data archive
 Method validation drift,Change control,EPA 533 workflow changed without revalidation,Method validation and verification,HIGH,"Validation summary; change record",Open,Require revalidation trigger
