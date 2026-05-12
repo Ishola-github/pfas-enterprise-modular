@@ -1,0 +1,461 @@
+{
+  "pipeline_lane": "methanol_standards",
+  "ad_model_version": "1.0.0",
+  "training_csv": "data/training/methanol_standards/training.csv",
+  "training_csv_sha256": "c862525a281036f548aeffc4d0b9778d7ec1948705dd7ba77bbad96ec941a42d",
+  "training_csv_rows": 12,
+  "training_range_version": "c862525a2810",
+  "sop_separation_note": "SOP \u00a76: this AD model is bound to its lane. Do not use it to gate predictions for any other pipeline_lane. Predictions outside this envelope must be REFUSED (ad_status='reject'), not silently warned about.",
+  "ad_method": "per_analyte_envelope_v1",
+  "value_lane": true,
+  "thresholds": {
+    "warning_z": 2.0,
+    "reject_z": 3.0
+  },
+  "global": {
+    "n_training_rows": 12,
+    "n_analytical_rows": 12,
+    "n_detect_rows": 12,
+    "n_nondetect_rows": 0,
+    "n_analytes_with_envelope": 12,
+    "unit_set": [
+      "mg/kg"
+    ],
+    "method_set": [
+      "LC-MS/MS"
+    ],
+    "source_set": [
+      "NIST_RM8446"
+    ]
+  },
+  "analytes": {
+    "Perfluorobutanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFBA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 43.0,
+        "max": 43.0,
+        "mean": 43.0,
+        "std": 0.0,
+        "p05": 43.0,
+        "p25": 43.0,
+        "p50": 43.0,
+        "p75": 43.0,
+        "p95": 43.0
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.6334684555795864,
+        "max": 1.6334684555795864,
+        "mean": 1.6334684555795864,
+        "std": 0.0,
+        "p05": 1.6334684555795864,
+        "p25": 1.6334684555795864,
+        "p50": 1.6334684555795864,
+        "p75": 1.6334684555795864,
+        "p95": 1.6334684555795864
+      }
+    },
+    "Perfluoropentanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFPeA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 60.9,
+        "max": 60.9,
+        "mean": 60.9,
+        "std": 0.0,
+        "p05": 60.9,
+        "p25": 60.9,
+        "p50": 60.9,
+        "p75": 60.9,
+        "p95": 60.9
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.7846172926328754,
+        "max": 1.7846172926328754,
+        "mean": 1.7846172926328754,
+        "std": 0.0,
+        "p05": 1.7846172926328754,
+        "p25": 1.7846172926328754,
+        "p50": 1.7846172926328754,
+        "p75": 1.7846172926328754,
+        "p95": 1.7846172926328754
+      }
+    },
+    "Perfluorohexanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHxA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 59.1,
+        "max": 59.1,
+        "mean": 59.1,
+        "std": 0.0,
+        "p05": 59.1,
+        "p25": 59.1,
+        "p50": 59.1,
+        "p75": 59.1,
+        "p95": 59.1
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.7715874808812553,
+        "max": 1.7715874808812553,
+        "mean": 1.7715874808812553,
+        "std": 0.0,
+        "p05": 1.7715874808812553,
+        "p25": 1.7715874808812553,
+        "p50": 1.7715874808812553,
+        "p75": 1.7715874808812553,
+        "p95": 1.7715874808812553
+      }
+    },
+    "Perfluoroheptanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHpA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 76.0,
+        "max": 76.0,
+        "mean": 76.0,
+        "std": 0.0,
+        "p05": 76.0,
+        "p25": 76.0,
+        "p50": 76.0,
+        "p75": 76.0,
+        "p95": 76.0
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.8808135922807914,
+        "max": 1.8808135922807914,
+        "mean": 1.8808135922807914,
+        "std": 0.0,
+        "p05": 1.8808135922807914,
+        "p25": 1.8808135922807914,
+        "p50": 1.8808135922807914,
+        "p75": 1.8808135922807914,
+        "p95": 1.8808135922807914
+      }
+    },
+    "Perfluorooctanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFOA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 54.8,
+        "max": 54.8,
+        "mean": 54.8,
+        "std": 0.0,
+        "p05": 54.8,
+        "p25": 54.8,
+        "p50": 54.8,
+        "p75": 54.8,
+        "p95": 54.8
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.7387805584843692,
+        "max": 1.7387805584843692,
+        "mean": 1.7387805584843692,
+        "std": 0.0,
+        "p05": 1.7387805584843692,
+        "p25": 1.7387805584843692,
+        "p50": 1.7387805584843692,
+        "p75": 1.7387805584843692,
+        "p95": 1.7387805584843692
+      }
+    },
+    "Perfluorononanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFNA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 63.0,
+        "max": 63.0,
+        "mean": 63.0,
+        "std": 0.0,
+        "p05": 63.0,
+        "p25": 63.0,
+        "p50": 63.0,
+        "p75": 63.0,
+        "p95": 63.0
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.7993405494535817,
+        "max": 1.7993405494535817,
+        "mean": 1.7993405494535817,
+        "std": 0.0,
+        "p05": 1.7993405494535817,
+        "p25": 1.7993405494535817,
+        "p50": 1.7993405494535817,
+        "p75": 1.7993405494535817,
+        "p95": 1.7993405494535817
+      }
+    },
+    "Perfluorodecanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFDA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 58.1,
+        "max": 58.1,
+        "mean": 58.1,
+        "std": 0.0,
+        "p05": 58.1,
+        "p25": 58.1,
+        "p50": 58.1,
+        "p75": 58.1,
+        "p95": 58.1
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.7641761323903307,
+        "max": 1.7641761323903307,
+        "mean": 1.7641761323903307,
+        "std": 0.0,
+        "p05": 1.7641761323903307,
+        "p25": 1.7641761323903307,
+        "p50": 1.7641761323903307,
+        "p75": 1.7641761323903307,
+        "p95": 1.7641761323903307
+      }
+    },
+    "Perfluoroundecanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFUnA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 62.8,
+        "max": 62.8,
+        "mean": 62.8,
+        "std": 0.0,
+        "p05": 62.8,
+        "p25": 62.8,
+        "p50": 62.8,
+        "p75": 62.8,
+        "p95": 62.8
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.797959643737196,
+        "max": 1.797959643737196,
+        "mean": 1.797959643737196,
+        "std": 0.0,
+        "p05": 1.797959643737196,
+        "p25": 1.797959643737196,
+        "p50": 1.797959643737196,
+        "p75": 1.797959643737196,
+        "p95": 1.797959643737196
+      }
+    },
+    "Perfluorododecanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFDoA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 59.5,
+        "max": 59.5,
+        "mean": 59.5,
+        "std": 0.0,
+        "p05": 59.5,
+        "p25": 59.5,
+        "p50": 59.5,
+        "p75": 59.5,
+        "p95": 59.5
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.7745169657285496,
+        "max": 1.7745169657285496,
+        "mean": 1.7745169657285496,
+        "std": 0.0,
+        "p05": 1.7745169657285496,
+        "p25": 1.7745169657285496,
+        "p50": 1.7745169657285496,
+        "p75": 1.7745169657285496,
+        "p95": 1.7745169657285496
+      }
+    },
+    "Perfluorotridecanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFTriA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 62.9,
+        "max": 62.9,
+        "mean": 62.9,
+        "std": 0.0,
+        "p05": 62.9,
+        "p25": 62.9,
+        "p50": 62.9,
+        "p75": 62.9,
+        "p95": 62.9
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.7986506454452689,
+        "max": 1.7986506454452689,
+        "mean": 1.7986506454452689,
+        "std": 0.0,
+        "p05": 1.7986506454452689,
+        "p25": 1.7986506454452689,
+        "p50": 1.7986506454452689,
+        "p75": 1.7986506454452689,
+        "p95": 1.7986506454452689
+      }
+    },
+    "Perfluorotetradecanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFTA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 58.0,
+        "max": 58.0,
+        "mean": 58.0,
+        "std": 0.0,
+        "p05": 58.0,
+        "p25": 58.0,
+        "p50": 58.0,
+        "p75": 58.0,
+        "p95": 58.0
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.7634279935629373,
+        "max": 1.7634279935629373,
+        "mean": 1.7634279935629373,
+        "std": 0.0,
+        "p05": 1.7634279935629373,
+        "p25": 1.7634279935629373,
+        "p50": 1.7634279935629373,
+        "p75": 1.7634279935629373,
+        "p95": 1.7634279935629373
+      }
+    },
+    "Perfluorooctanesulfonamide": {
+      "cas_rn": "",
+      "analyte_short_name": "PFOSA",
+      "primary_source": "NIST_RM8446",
+      "units": [
+        "mg/kg"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 66.9,
+        "max": 66.9,
+        "mean": 66.9,
+        "std": 0.0,
+        "p05": 66.9,
+        "p25": 66.9,
+        "p50": 66.9,
+        "p75": 66.9,
+        "p95": 66.9
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.825426117767823,
+        "max": 1.825426117767823,
+        "mean": 1.825426117767823,
+        "std": 0.0,
+        "p05": 1.825426117767823,
+        "p25": 1.825426117767823,
+        "p50": 1.825426117767823,
+        "p75": 1.825426117767823,
+        "p95": 1.825426117767823
+      }
+    }
+  },
+  "refusal_rules": [
+    "analyte not in training set -> reject (reason: analyte_unseen)",
+    "unit not in training unit_set -> reject (reason: unit_mismatch)",
+    "value <= 0 and not flagged ND -> reject (reason: invalid_value)",
+    "log10 |z| > reject_z -> reject (reason: value_out_of_range)",
+    "warning_z < log10 |z| <= reject_z -> warning (reason: value_warning)",
+    "no envelope for analyte (n < 2 detects) -> warning (reason: sparse_training)"
+  ]
+}

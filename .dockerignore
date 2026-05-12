@@ -18,8 +18,24 @@ venv
 .env.*
 !.env.example
 
-# Large project trees (keep API image small)
+# Large project trees (keep API image small).
+#
+# data/ is excluded by default — except the two subtrees the operational
+# FastAPI service requires at runtime:
+#   * data/ad_models/<lane>/ad_model.json  (per-lane AD decisions)
+#   * data/config/{ucmr_analyte_limits_ngl,matrix_pipeline_sop}.csv
+#
+# Negation must un-ignore both the directory entry and its contents (Docker
+# build context quirk). Order matters: parents before children.
 data
+!data/ad_models
+!data/ad_models/**
+!data/config
+!data/config/**
+!data/reference
+!data/reference/registry
+!data/reference/registry/reference_registry.csv
+
 legacy
 results
 tools

@@ -32,10 +32,44 @@ PROJECT_DIR <- normalizePath(getwd(), winslash = "/", mustWork = FALSE)
 DISCLAIMER_MD_PATH <- file.path(PROJECT_DIR, "DISCLAIMER.md")
 DISCLAIMER_GITHUB_URL <- "https://github.com/Ishola-github/pfas-enterprise-modular/blob/main/DISCLAIMER.md"
 MAPPING_ENGINE_VERSION <- "2026-05-02-autodetect-identifier-hardblock-3"
+# ISO / PFAS screening MVP: user-facing Map + mapping status only (22 keys).
+# Normalized tables still carry legacy columns (region, collection_month, pws_size, health_*) as all-NA for master/SQLite column alignment.
+CORE_EXTERNAL_MAP_KEYS <- c(
+  "source_dataset", "sample_id", "matrix", "date", "analyte", "cas",
+  "result_value", "unit", "qualifier", "mdl", "rl", "detect_flag",
+  "state", "county", "facility_water_type", "sample_point_type",
+  "method_id", "collection_year", "facility_id", "sample_point_id",
+  "latitude", "longitude"
+)
+REFERENCE_EXTRA_MAP_KEYS <- c("uncertainty", "reference_id")
+# Must match selectInput choice in External ML upload panel exactly.
+REFERENCE_MATERIAL_DATASET_TYPE <- "reference material (NIST / RM / bench)"
 # Shown in External ML upload panel. Grep LatestPFAS.R for UPLOAD_READER_VERSION or substring
 # delimited-base-only (no readr); substring e.g. utf16-unquoted indicates encoding/quote-escape hardening.
 UPLOAD_READER_VERSION <- "2026-06-06-upload-nrows-nulsanitize-fix"
 ICIS_NPDES_UI_VERSION <- "2026-05-07-icis-npdes-echo-bulk"
+# Shown in External ML upload banner when ICIS-AIR bulk column signature matches.
+ICIS_AIR_UPLOAD_BANNER_VERSION <- "2026-05-12-icis-air-hardblock-1"
+# Canonical semantic types for the upload mapper. Each one routes through a
+# different policy (mapping eligibility, validation rules, training eligibility).
+# Mapping is enforced in get_upload_mapping() + the btn_external_* handlers.
+UPLOAD_SEMANTIC_TYPES <- c(
+  "pfas_occurrence_or_other",
+  "air_program_metadata",
+  "biosolids_program_metadata",
+  "reference_material",
+  "method_validation",
+  "facility_enrichment"
+)
+# Fields that are PFAS-occurrence specific. Blanked + hard-refused for
+# program-metadata semantic types (air / biosolids).
+PFAS_OCCURRENCE_MAP_FIELDS <- c(
+  "result_value", "unit", "qualifier", "analyte", "cas", "date",
+  "mdl", "rl", "detect_flag", "matrix", "sample_id", "state", "county",
+  "method_id", "facility_water_type", "sample_point_type",
+  "collection_year", "facility_id", "sample_point_id",
+  "latitude", "longitude"
+)
 DB_PATH <- file.path(PROJECT_DIR, "pfas_collection.sqlite")
 LOCAL_PYTHON_DEFAULT <- file.path("C:", "pfasenv", "Scripts", "python.exe")
 LINK_SHINY_DEMO <- Sys.getenv("PFAS_LINK_SHINY_DEMO", "https://demo.yourcompany.com/request-access")
@@ -60,6 +94,46 @@ DATASET_FORM_CONFIRMATION_MESSAGE <- Sys.getenv(
 
 `%||%` <- function(x, y) {
   if (is.null(x) || length(x) == 0 || all(is.na(x))) y else x
+}
+
+# Normalize header names for signature checks (case/spacing/punctuation tolerant).
+normalize_upload_colnames <- function(col_names) {
+  x <- tolower(trimws(as.character(col_names)))
+  x <- gsub("[[:space:].]+", "_", x, perl = FALSE)
+  x <- gsub("_+", "_", x, perl = FALSE)
+  x
+}
+
+# True when the uploaded table looks like EPA ECHO ICIS-AIR_POLLUTANTS bulk export
+# (facility/program pollutant listings — not stack or ambient PFAS concentrations).
+# Used only for a governance banner; strict schema validation remains authoritative.
+detect_icis_air_bulk_program_table <- function(col_names, file_name = "") {
+  if (is.null(col_names) || length(col_names) < 1L) {
+    return(FALSE)
+  }
+  cn <- normalize_upload_colnames(col_names)
+  cn <- unique(cn[nzchar(cn)])
+  if (!("pgm_sys_id" %in% cn && "pollutant_code" %in% cn)) {
+    return(FALSE)
+  }
+  air_meta <- any(
+    c(
+      "pollutant_desc",
+      "srs_id",
+      "chemical_abstract_service_nmbr",
+      "chemical_abstract_service_number",
+      "air_pollutant_class_code",
+      "air_pollutant_class_desc"
+    ) %in% cn
+  )
+  if (isTRUE(air_meta)) {
+    return(TRUE)
+  }
+  fn <- tolower(trimws(as.character(file_name %||% "")))
+  if (nzchar(fn) && grepl("icis", fn, fixed = TRUE) && grepl("air", fn, fixed = TRUE)) {
+    return(TRUE)
+  }
+  FALSE
 }
 
 # First existing path wins: env UCMR5_533_TXT, option pfas.ucmr5_533_path, then project data/.
@@ -551,6 +625,39 @@ default_external_upload_schema <- function() {
   )
 }
 
+# Shared across narrow normalize, wide fallback, and strict_validate_normalized_external.
+parse_external_upload_numeric <- function(x) {
+  y <- trimws(as.character(x))
+  y[y %in% c("", "NA", "N/A", "na", "n/a", "NULL", "null")] <- NA_character_
+  y <- gsub(",", "", y, fixed = TRUE)
+  y <- gsub("^<\\s*", "", y)
+  y <- gsub("^>\\s*", "", y)
+  direct <- suppressWarnings(as.numeric(y))
+  need_extract <- is.na(direct) & !is.na(y) & nzchar(y)
+  if (any(need_extract, na.rm = TRUE)) {
+    tok <- stringr::str_extract(y[need_extract], "[-+]?[0-9]*\\.?[0-9]+(?:[eE][-+]?[0-9]+)?")
+    direct[need_extract] <- suppressWarnings(as.numeric(tok))
+  }
+  direct
+}
+
+# Unicode micro signs + wordy UOM strings -> tokens in allowed_result_units.
+normalize_external_result_unit_for_schema <- function(u) {
+  x <- trimws(as.character(u))
+  x[is.na(x)] <- ""
+  x <- gsub("\u00b5|\u03bc", "u", x, perl = TRUE)
+  x <- tolower(trimws(x))
+  x <- gsub("\t|\r|\n", " ", x, perl = TRUE)
+  x <- gsub("\\s+", " ", x, perl = TRUE)
+  x <- gsub("^micrograms?\\s*/\\s*l(it(er)?s?)?$", "ug/l", x, perl = TRUE)
+  x <- gsub("^nanograms?\\s*/\\s*l(it(er)?s?)?$", "ng/l", x, perl = TRUE)
+  x <- gsub("^milligrams?\\s*/\\s*l(it(er)?s?)?$", "mg/l", x, perl = TRUE)
+  x <- gsub("^micrograms?\\s*/\\s*ml$", "ug/ml", x, perl = TRUE)
+  x <- gsub("^nanograms?\\s*/\\s*ml$", "ng/ml", x, perl = TRUE)
+  x <- gsub("\\s*\\.\\s*$", "", x, perl = TRUE)
+  trimws(x)
+}
+
 load_external_upload_schema <- function(project_dir = PROJECT_DIR) {
   path <- file.path(project_dir, "data", "config", "external_upload_schema.json")
   base <- default_external_upload_schema()
@@ -578,7 +685,7 @@ external_upload_raw_digest <- function(datapath) {
   digest::digest(file = dp, algo = "sha256", serialize = FALSE)
 }
 
-strict_validate_normalized_external <- function(norm_df, schema = NULL) {
+strict_validate_normalized_external <- function(norm_df, schema = NULL, dataset_type = NULL) {
   sch <- schema %||% default_external_upload_schema()
   sv <- as.character(sch$schema_version %||% "external_normalized_v1")
   violations <- list()
@@ -666,16 +773,37 @@ strict_validate_normalized_external <- function(norm_df, schema = NULL) {
   analyte <- trimws(as.character(norm_df$analyte))
   analyte[is.na(analyte)] <- ""
 
-  result_num <- suppressWarnings(as.numeric(norm_df$result_value))
+  result_num <- parse_external_upload_numeric(norm_df$result_value)
 
   allowed_u <- sch$allowed_result_units %||% default_external_upload_schema()$allowed_result_units
-  allowed_u <- unique(tolower(trimws(as.character(allowed_u))))
+  allowed_u <- unique(normalize_external_result_unit_for_schema(as.character(allowed_u)))
+  if (identical(trimws(as.character(dataset_type %||% "")), REFERENCE_MATERIAL_DATASET_TYPE)) {
+    extra_ref <- c(
+      "ug/kg", "mg/kg", "ng/kg", "g/kg",
+      "ug/g", "mg/g", "ng/g", "g/g",
+      "ppm", "ppt", "ppb", "ppq",
+      "ng/l", "ug/l", "mg/l", "mg/ml", "ug/ml", "ng/ml"
+    )
+    allowed_u <- unique(c(allowed_u, normalize_external_result_unit_for_schema(extra_ref)))
+  }
 
   ru <- if ("result_unit" %in% names(norm_df)) norm_df$result_unit else rep(NA_character_, nr)
-  ru <- tolower(trimws(as.character(ru)))
+  ru <- normalize_external_result_unit_for_schema(ru)
   ru[is.na(ru)] <- ""
 
-  row_bad <- (analyte == "") | is.na(result_num) | !is.finite(result_num) |
+  qv <- if ("qualifier" %in% names(norm_df)) tolower(trimws(as.character(norm_df$qualifier))) else rep("", nr)
+  qv[is.na(qv)] <- ""
+  nd_from_qual <- safe_detect(qv, "^<|\\bnd\\b|non[- ]?detect|\\bbdl\\b|not\\s+detected|\\babsent\\b|^u\\b|^uj\\b")
+  nd_from_detect <- rep(FALSE, nr)
+  if ("detect_flag" %in% names(norm_df)) {
+    dfv <- suppressWarnings(as.integer(norm_df$detect_flag))
+    nd_from_detect <- !is.na(dfv) & dfv == 0L
+  }
+  nd_row <- nd_from_qual | nd_from_detect
+
+  result_numeric_fail <- (is.na(result_num) | !is.finite(result_num)) & !nd_row
+
+  row_bad <- (analyte == "") | result_numeric_fail |
     (nzchar(ru) & !(ru %in% allowed_u))
 
   an_len <- nchar(analyte, type = "chars", allowNA = TRUE)
@@ -706,7 +834,8 @@ strict_validate_normalized_external <- function(norm_df, schema = NULL) {
 
   metrics$n_analyte_blank <- sum(analyte == "", na.rm = TRUE)
   metrics$n_analyte_too_long <- sum(an_len > mx, na.rm = TRUE)
-  metrics$n_result_nonfinite <- sum(is.na(result_num) | !is.finite(result_num), na.rm = TRUE)
+  metrics$n_result_nonfinite <- sum(result_numeric_fail, na.rm = TRUE)
+  metrics$n_non_detect_rows <- sum(nd_row, na.rm = TRUE)
   metrics$n_unit_invalid <- sum(nzchar(ru) & !(ru %in% allowed_u), na.rm = TRUE)
   if ("sample_id" %in% names(norm_df)) {
     sid <- trimws(as.character(norm_df$sample_id))
@@ -728,6 +857,171 @@ strict_validate_normalized_external <- function(norm_df, schema = NULL) {
     violations = violations,
     run_id = NA_character_
   )
+}
+
+df_has_reference_column_signature <- function(cnames) {
+  if (length(cnames) < 1L) {
+    return(FALSE)
+  }
+  n <- tolower(gsub("[^a-z0-9]+", "", trimws(as.character(cnames))))
+  sig1 <- any(
+    n %in% c(
+      "valuestatus", "coveragefactor", "referencematerial", "referencesource",
+      "nisttablecitation", "nisttable", "weightedmeanbasis"
+    )
+  )
+  sig2 <- any(n == "uncertainty") && any(n %in% c("referencesource", "referencematerial", "shortname"))
+  isTRUE(sig1) || isTRUE(sig2)
+}
+
+reference_upload_filename_hint <- function(fname) {
+  f <- tolower(trimws(fname %||% ""))
+  if (!nzchar(f)) {
+    return(FALSE)
+  }
+  safe_detect(f, "^nist_|nist_|/nist/|srm[ _]?1957|rm[ _]?8446|rm[ _]?8690")
+}
+
+run_reference_material_preflight <- function(norm, mapping, raw_df, declared_type, upload_fname) {
+  out <- list(
+    status = "PASS",
+    label = "Reference material preflight",
+    codes = character(0),
+    messages = character(0)
+  )
+  decl <- trimws(declared_type %||% "")
+  ref_sig <- isTRUE(df_has_reference_column_signature(names(raw_df))) ||
+    isTRUE(reference_upload_filename_hint(upload_fname))
+
+  if (decl %in% c("environmental occurrence", "facility enrichment") && isTRUE(ref_sig)) {
+    out$status <- "BLOCK"
+    out$codes <- c(out$codes, "REFERENCE_AS_OCCURRENCE")
+    out$messages <- c(
+      out$messages,
+      paste0(
+        "Reference-material / bench table detected (column names or filename suggest NIST/RM extracts), ",
+        "but Dataset type is '", decl, "'. Choose '", REFERENCE_MATERIAL_DATASET_TYPE,
+        "' — do not treat bench CSVs as UCMR-style occurrence data."
+      )
+    )
+    return(out)
+  }
+
+  if (decl != REFERENCE_MATERIAL_DATASET_TYPE) {
+    return(out)
+  }
+
+  req_maps <- c("matrix", "analyte", "result_value", "unit", "uncertainty")
+  miss <- !vapply(req_maps, function(k) nzchar(trimws(mapping[[k]] %||% "")), logical(1))
+  if (any(miss)) {
+    out$status <- "BLOCK"
+    out$codes <- c(out$codes, "MISSING_REQUIRED_MAP")
+    out$messages <- c(
+      out$messages,
+      paste0(
+        "Reference material requires mapped columns: matrix, analyte, result_value (value), unit, uncertainty. ",
+        "Missing: ", paste(req_maps[miss], collapse = ", ")
+      )
+    )
+    return(out)
+  }
+
+  prov_ok <- nzchar(trimws(mapping$reference_id %||% "")) ||
+    nzchar(trimws(mapping$source_dataset %||% ""))
+  review_msgs <- character(0)
+  if (!prov_ok) {
+    review_msgs <- c(
+      review_msgs,
+      paste0(
+        "Map reference_id (preferred) or source_dataset to document / catalog id (e.g. SRM 1957, RM 8446) ",
+        "for full provenance."
+      )
+    )
+  }
+
+  nr <- nrow(raw_df)
+  pickv <- function(map_key) {
+    col <- trimws(mapping[[map_key]] %||% "")
+    if (!nzchar(col) || !(col %in% names(raw_df))) {
+      return(rep(NA_character_, nr))
+    }
+    as.character(raw_df[[col]])
+  }
+  unc_raw <- pickv("uncertainty")
+  unc_chr <- trimws(as.character(unc_raw))
+  unc_chr[is.na(unc_chr)] <- ""
+  unc_chr <- gsub("^±\\s*", "", unc_chr, perl = TRUE)
+  unc_chr <- gsub("^\\+/-\\s*", "", unc_chr, perl = TRUE)
+  unc_num <- parse_external_upload_numeric(unc_chr)
+  finite_unc <- sum(!is.na(unc_num) & is.finite(unc_num), na.rm = TRUE)
+  if (nr > 0L && finite_unc == 0L) {
+    out$status <- "BLOCK"
+    out$codes <- c(out$codes, "UNCERTAINTY_NONNUMERIC")
+    out$messages <- c(
+      out$messages,
+      "Mapped uncertainty column has no finite numeric values after parse (reference material requires numeric uncertainty, typically expanded U)."
+    )
+    return(out)
+  }
+
+  mat <- if (!is.null(norm) && "matrix" %in% names(norm)) trimws(as.character(norm$matrix)) else character(0)
+  mat[is.na(mat)] <- ""
+  if (length(mat) > 0L) {
+    frac_serum <- mean(safe_detect(tolower(mat), "serum|plasma|blood"), na.rm = TRUE)
+    if (is.finite(frac_serum) && frac_serum > 0.5) {
+      review_msgs <- c(
+        review_msgs,
+        "Majority physiological matrix (serum/plasma/blood): not drinking-water occurrence or MCL-style exceedance context."
+      )
+    }
+    frac_meth <- mean(safe_detect(tolower(mat), "methanol|calibration"), na.rm = TRUE)
+    if (is.finite(frac_meth) && frac_meth > 0.35) {
+      review_msgs <- c(
+        review_msgs,
+        "Methanol / calibration-line matrix: not an environmental field sample or distribution sample."
+      )
+    }
+    frac_afff <- mean(safe_detect(tolower(mat), "afff|foam"), na.rm = TRUE)
+    if (is.finite(frac_afff) && frac_afff > 0.35) {
+      review_msgs <- c(
+        review_msgs,
+        "AFFF / foam matrix: not drinking-water UCMR occurrence data; keep forensic / foam workflows separate."
+      )
+    }
+  }
+
+  ru <- if (!is.null(norm) && "result_unit" %in% names(norm)) {
+    normalize_external_result_unit_for_schema(norm$result_unit)
+  } else {
+    character(0)
+  }
+  ru <- ru[!is.na(ru)]
+  if (length(mat) > 0L && length(ru) > 0L) {
+    frac_meth_mat <- mean(safe_detect(tolower(mat), "methanol"), na.rm = TRUE)
+    frac_dw_u <- mean(ru %in% c("ng/l", "ug/l", "mg/l"), na.rm = TRUE)
+    if (is.finite(frac_meth_mat) && frac_meth_mat > 0.35 && is.finite(frac_dw_u) && frac_dw_u > 0.5) {
+      review_msgs <- c(
+        review_msgs,
+        "REVIEW: methanol-like matrix with mostly mass/volume water units — confirm units match the certificate (e.g. mg/kg vs ng/L)."
+      )
+    }
+  }
+
+  miss_mat_rows <- if (length(mat) > 0L) sum(mat == "", na.rm = TRUE) else 0L
+  if (length(mat) > 0L && miss_mat_rows > 0.2 * length(mat)) {
+    out$status <- "BLOCK"
+    out$codes <- c(out$codes, "MATRIX_SPARSE")
+    out$messages <- c(out$messages, "More than 20% of rows have blank matrix after mapping — reference material requires explicit matrix on each row.")
+    return(out)
+  }
+
+  if (length(review_msgs) > 0L) {
+    out$status <- "REVIEW"
+    out$codes <- c(out$codes, "REFERENCE_REVIEW_NOTES")
+    out$messages <- c(out$messages, review_msgs)
+  }
+
+  out
 }
 
 persist_upload_validation_run <- function(con, phase, sch_res, validated_by, file_name, raw_sha256, dataset_type) {
@@ -1216,6 +1510,7 @@ ui_dashboard <- dashboardPage(
       menuItem("Compliance / Model Cards", tabName = "compliance", icon = icon("clipboard-check")),
       menuItem("Reports / Export", tabName = "reports", icon = icon("file-export")),
       menuItem("ISO 17025 / GLP", tabName = "glp", icon = icon("certificate")),
+      menuItem("ISO Blind Spots", tabName = "iso_blind_spots", icon = icon("triangle-exclamation")),
       menuItem("Scope & limitations", tabName = "scope", icon = icon("exclamation-circle"))
     )
   ),
@@ -1338,7 +1633,9 @@ ui_dashboard <- dashboardPage(
             solidHeader = TRUE,
             helpText(
               "Exploration only (not regulatory analytics). Same encoding as scripts/smoke_read_ucmr533.R (latin1). ",
-              "Only the first N rows are loaded to keep memory safe (~1.6M rows in full file)."
+              "Only the first N rows are loaded to keep memory safe (~1.6M rows in full file). ",
+              "UCMR is drinking-water monitoring, not biosolids or serum occurrence—keep matrices separate; see ",
+              code("data/reference/registry/reference_registry_README.md"), "."
             ),
             fluidRow(
               column(
@@ -1610,6 +1907,7 @@ ui_dashboard <- dashboardPage(
         fluidRow(
           box(width = 12, title = "Export / Reporting Specification", status = "info", solidHeader = TRUE,
               tags$ul(
+                tags$li(tags$strong("ISO preflight: "), "run ", tags$code("8) ISO Preflight (strict gate)"), " in the pipeline row (same checks as the red ISO Preflight control); evidence-governed train and ", tags$code("Run all steps"), " enforce this gate unless ", tags$code("PFAS_SKIP_ISO_PREFLIGHT"), " is set."),
                 tags$li(tags$strong("ML validation (live): "), "after training, run step ", tags$code("16) Generate ML validation report (HTML)"), " below; artifact ", tags$code("results/ISO17025_ML_Validation_Report.html"), " plus ", tags$code("results/ml_validation_report_summary.txt"), "."),
                 tags$li(tags$strong("Download: "), tags$code("Download ML validation report (HTML)"), " (same tab, pipeline runner row)."),
                 tags$li("Prediction CSV — ", tags$code("results/nhanes_test_predictions.csv"), " when prediction step completes."),
@@ -1669,6 +1967,162 @@ ui_dashboard <- dashboardPage(
             uiOutput("pfas_qc_path_badge"),
             textInput("pfas_pt_path", "PFAS Proficiency Test Path", value = file.path(PROJECT_DIR, "data", "external", "proficiency_testing"), placeholder = "File or folder path for PT datasets"),
             uiOutput("pfas_pt_path_badge"),
+            helpText(
+              tags$strong("Matrix / role hints (informational): "),
+              "Gray chips under each path summarize intended scientific role (not accreditation). ",
+              "The reference-path row scans CSV/TSV/TXT names under your reference folder for serum vs UCMR vs AFFF vs calibration cues. ",
+              "Bundled curated tables live under ", code("data/reference/nist/srm1957/"), ", ", code("nist/rm8446/"), ", ", code("nist/rm8690/"), " (see ", code("nist/manifest.json"), ") and ", code("data/reference/registry/"), ". ",
+              tags$em("Note: "), "the default folder name ", code("method_validation"), " is historical — prefer reference/benchmark extracts here; wet-lab method validation reports belong only if you intentionally stage them for desk review. ",
+              "Official pointers by matrix (ECHO/ICIS biosolids, NHANES PFAS, OTM-50 air, NIST vs UCMR scope): ",
+              code("data/reference/registry/reference_registry_README.md"), "."
+            ),
+            tags$div(
+              class = "alert",
+              style = "background:#fff3e0;border:1px solid #ffb74d;color:#bf360c;padding:10px 14px;border-radius:4px;margin:8px 0 10px 0;",
+              tags$p(style = "margin:0 0 8px 0;", tags$strong("SOP \u00a7 6 — Separate matrix pipelines")),
+              tags$p(
+                style = "margin:0 0 8px 0;",
+                "Do ", tags$strong("not"), " merge drinking water, serum, biosolids/sludge, AFFF, methanol standards, and air emissions into one generalized PFAS prediction pool."
+              ),
+              tags$p(
+                style = "margin:0;",
+                "Canonical mapping: ", code("data/config/matrix_pipeline_sop.csv"), ". ",
+                "Step 6) Build multi-source training table refuses multiple ", code("pipeline_lane"), " sources in one run (escape hatch for exploratory screening only: ",
+                code("PFAS_ALLOW_MULTISOURCE_MERGE=1"), ")."
+              )
+            ),
+            DT::dataTableOutput("tbl_matrix_pipeline_sop"),
+            br(),
+            tags$strong("Per-lane training tables (data/training/<pipeline_id>/training.csv):"),
+            fluidRow(
+              column(12,
+                actionButton("btn_lane_drinking_water", "Build lane: drinking_water (UCMR5)", class = "btn-info"),
+                actionButton("btn_lane_serum", "Build lane: serum (NHANES + SRM 1957)", class = "btn-info"),
+                actionButton("btn_lane_biosolids_sludge", "Build lane: biosolids/sludge (1633 + EPA biosolids)", class = "btn-info"),
+                actionButton("btn_lane_afff", "Build lane: AFFF (RM 8690)", class = "btn-info"),
+                actionButton("btn_lane_methanol_standards", "Build lane: methanol standards (RM 8446)", class = "btn-info"),
+                actionButton("btn_lane_air_emissions", "Build lane: air emissions (OTM-50)", class = "btn-info"),
+                actionButton("btn_lane_all", "Build all 6 lanes separately", class = "btn-warning")
+              )
+            ),
+            verbatimTextOutput("matrix_pipeline_status", placeholder = TRUE),
+            DT::dataTableOutput("tbl_matrix_pipeline_outputs"),
+            br(),
+            tags$div(
+              class = "alert",
+              style = "background:#fdecea;border:1px solid #f5c6cb;color:#721c24;padding:10px 14px;border-radius:4px;margin:8px 0 10px 0;",
+              tags$p(style = "margin:0 0 8px 0;",
+                tags$strong("Applicability-domain enforcement (hard refusal)")),
+              tags$p(style = "margin:0 0 8px 0;",
+                "Predictions and uploads outside the validated per-lane training envelope are ",
+                tags$strong("refused"), ", not silently warned. Each row is annotated with ",
+                code("ad_status"), " / ", code("ad_distance"), " / ", code("ad_reason"), " / ",
+                code("reference_lane"), " / ", code("training_range_version"), " / ",
+                code("ad_model_version"), " / ", code("ad_threshold"), " / ",
+                code("nearest_training_source"), " / ", code("ad_method"),
+                ". Refused rows have their analytical result columns blanked."),
+              tags$p(style = "margin:0;",
+                "AD models live in ", code("data/ad_models/<lane>/ad_model.json"),
+                " and every decision is appended to ", code("data/audit/ad_decisions.jsonl"), ".")
+            ),
+            fluidRow(
+              column(12,
+                actionButton("btn_ad_rebuild_all", "Rebuild AD models (all 6 lanes)", class = "btn-warning"),
+                actionButton("btn_ad_refresh_audit", "Refresh audit log view", class = "btn-default")
+              )
+            ),
+            br(),
+            fluidRow(
+              column(4,
+                fileInput("ad_input_csv", "Candidate CSV to gate (per-lane AD)",
+                          accept = c(".csv", "text/csv"))),
+              column(4,
+                selectInput("ad_lane_select", "Reference lane",
+                            choices = c("(auto: use pipeline_lane column)" = "",
+                                        "drinking_water" = "drinking_water",
+                                        "serum" = "serum",
+                                        "biosolids_sludge" = "biosolids_sludge",
+                                        "afff" = "afff",
+                                        "methanol_standards" = "methanol_standards",
+                                        "air_emissions" = "air_emissions"),
+                            selected = "")),
+              column(4,
+                radioButtons("ad_mode", "Refusal mode",
+                             choices = c("strict (blank rejected rows)" = "strict",
+                                         "annotate only" = "annotate"),
+                             selected = "strict", inline = FALSE))
+            ),
+            actionButton("btn_ad_run_guard", "Run AD guard on candidate CSV", class = "btn-danger"),
+            verbatimTextOutput("ad_guard_status", placeholder = TRUE),
+            uiOutput("ad_guard_counts"),
+            tags$strong("AD-annotated output (head):"),
+            DT::dataTableOutput("tbl_ad_guard_output"),
+            br(),
+            tags$strong("AD decisions audit log (data/audit/ad_decisions.jsonl, tail 100):"),
+            DT::dataTableOutput("tbl_ad_audit"),
+            br(),
+            tags$div(
+              class = "alert",
+              style = "background:#e8eaf6;border:1px solid #9fa8da;color:#1a237e;padding:10px 14px;border-radius:4px;margin:8px 0 10px 0;",
+              tags$p(style = "margin:0 0 8px 0;",
+                tags$strong("Sealed external blind validation (preregistration-grade)")),
+              tags$p(style = "margin:0 0 8px 0;",
+                "Submissions are hash-sealed before any scoring. Once sealed, the four ground rules apply: ",
+                tags$strong("no retuning, no threshold change, no model change, no dataset editing after hash submission."),
+                " Reveals are ", tags$strong("single-shot"), "; the scorer refuses to re-run unless ",
+                code("--force"), " is passed, and any sealed-byte tampering causes ",
+                code("dataset_sha256_mismatch"), " refusal."),
+              tags$p(style = "margin:0;",
+                "Sealed packs live in ", code("validation/blind_external/sealed/<id>/"),
+                "; reveals in ", code("validation/blind_external/revealed/<id>/score.json"),
+                "; submission and reveal indexes in ",
+                code("validation/blind_external/manifests/"), ".")
+            ),
+            fluidRow(
+              column(4, fileInput("bv_input_csv",
+                                  "Candidate validation CSV (must include truth + predicted columns)",
+                                  accept = c(".csv", "text/csv"))),
+              column(4, selectInput("bv_lane", "Matrix lane",
+                                    choices = c("drinking_water" = "drinking_water",
+                                                "serum" = "serum",
+                                                "biosolids_sludge" = "biosolids_sludge",
+                                                "afff" = "afff",
+                                                "methanol_standards" = "methanol_standards",
+                                                "air_emissions" = "air_emissions"),
+                                    selected = "drinking_water")),
+              column(4, textInput("bv_submitted_by", "Submitted by",
+                                  placeholder = "lab / institution / submitter id"))
+            ),
+            fluidRow(
+              column(3, textInput("bv_truth_col", "Truth column (binary 0/1)",
+                                  value = "truth_label")),
+              column(3, textInput("bv_score_col", "Predicted score column (optional, continuous)",
+                                  value = "predicted_score")),
+              column(3, textInput("bv_label_col", "Predicted label column (optional, 0/1)",
+                                  value = "predicted_label")),
+              column(3, textInput("bv_model_version", "Model version",
+                                  placeholder = "e.g. mymodel_v1.2+commit_abc1234"))
+            ),
+            textAreaInput("bv_note", "Note (optional)", value = "",
+                          rows = 2, width = "100%"),
+            actionButton("btn_bv_seal", "Seal submission (hash + lock)",
+                         class = "btn-primary"),
+            actionButton("btn_bv_score", "Score a sealed submission",
+                         class = "btn-success"),
+            actionButton("btn_bv_force_score", "Force re-score (records prior reveal archive)",
+                         class = "btn-warning"),
+            actionButton("btn_bv_refresh", "Refresh indexes",
+                         class = "btn-default"),
+            br(), br(),
+            selectInput("bv_submission_id", "Sealed submission to score",
+                        choices = character(0), selectize = TRUE),
+            verbatimTextOutput("bv_status", placeholder = TRUE),
+            uiOutput("bv_score_pills"),
+            tags$strong("Submissions index (validation/blind_external/manifests/submissions_index.jsonl):"),
+            DT::dataTableOutput("tbl_bv_submissions"),
+            br(),
+            tags$strong("Reveals index (validation/blind_external/manifests/reveals_index.jsonl):"),
+            DT::dataTableOutput("tbl_bv_reveals"),
             helpText("These fields are optional. If set, they are passed to downloader scripts as PFAS_ECHO_URLS and PFAS_SDWIS_URLS."),
             helpText(
               tags$strong("EPA ICIS-NPDES (ECHO bulk downloads): "),
@@ -1690,6 +2144,24 @@ ui_dashboard <- dashboardPage(
             ),
             actionButton("btn_bootstrap_source_folders", "Bootstrap source folders", class = "btn-default"),
             actionButton("btn_iso_preflight", "ISO Preflight (strict gate)", class = "btn-danger"),
+            tags$div(
+              class = "alert",
+              style = "background:#e3f2fd;border:1px solid #90caf9;color:#0d47a1;padding:10px 14px;border-radius:4px;margin:8px 0 10px 0;",
+              uiOutput("ml_workflow_mode_badge"),
+              tags$p(
+                style = "margin:8px 0 0 0;",
+                tags$strong("Evidence-governed path: "),
+                "Step 9 and External ",
+                tags$strong("Train (Evidence-Governed)"),
+                " run only after ISO preflight passes (reference, method, QC, PT evidence)."
+              ),
+              tags$p(
+                style = "margin:6px 0 0 0;",
+                tags$strong("Exploratory screening path: "),
+                tags$em("ISO / QC / PT evidence gates are not enforced. "),
+                "Use for research, prioritization, and workflow evaluation only — not for regulated compliance claims, not as laboratory validation, and not a substitute for analyst review."
+              )
+            ),
             verbatimTextOutput("source_bootstrap_status", placeholder = TRUE),
             verbatimTextOutput("iso_data_paths_status", placeholder = TRUE),
             verbatimTextOutput("iso_preflight_status", placeholder = TRUE),
@@ -1704,8 +2176,11 @@ ui_dashboard <- dashboardPage(
                 actionButton("btn_pfas_prepare", "5) Prepare baseline training table", class = "btn-info"),
                 actionButton("btn_pfas_multisource", "6) Build multi-source training table", class = "btn-info"),
                 actionButton("btn_pfas_matrix", "7) Build model matrix", class = "btn-info"),
-                actionButton("train_pfas_model", "9) Train PFAS Exceedance Model", class = "btn-success"),
+                actionButton("btn_pfas_pipeline_iso_preflight", "8) ISO Preflight (strict gate)", class = "btn-danger"),
+                actionButton("train_pfas_model", "9) Train PFAS Exceedance Model (Evidence-Governed)", class = "btn-success"),
+                actionButton("train_pfas_model_screening", "Screening — Train PFAS Exceedance (Exploratory)", class = "btn-info"),
                 actionButton("run_pfas_prediction", "10) Run PFAS Prediction", class = "btn-success"),
+                actionButton("btn_nist_reference_validation", "10b) NIST SRM reference validation", class = "btn-info"),
                 actionButton("btn_validate_reference_dataset", "11) Load reference dataset", class = "btn-info"),
                 actionButton("btn_qc_validation_check", "12) QC validation check", class = "btn-info"),
                 actionButton("btn_applicability_domain_check", "13) Applicability domain check", class = "btn-info"),
@@ -1739,6 +2214,18 @@ ui_dashboard <- dashboardPage(
             verbatimTextOutput("qc_pt_upload_status", placeholder = TRUE),
             br(),
             verbatimTextOutput("pfas_pipeline_log", placeholder = TRUE),
+            tags$div(
+              class = "alert",
+              style = "background:#e8f5e9;border:1px solid #a5d6a7;color:#1b5e20;padding:10px 14px;border-radius:4px;margin:12px 0 8px 0;",
+              tags$p(
+                style = "margin:0 0 8px 0;",
+                tags$strong("NIST SRM serum reference metadata"),
+                " (from last validation run). ",
+                tags$em("Physiological / body-burden workflows only"),
+                " — not for drinking-water MCL, ISO 17025 lab validation, or environmental recovery claims."
+              ),
+              tableOutput("nist_reference_audit_table")
+            ),
             hr(),
             tags$strong("Schema & folder readiness (not lab validation)"),
             tags$div(
@@ -1779,6 +2266,7 @@ ui_dashboard <- dashboardPage(
               "Upload data file",
               accept = c(".csv", ".tsv", ".txt", ".xlsx", ".xls", ".json", ".parquet", ".rds", ".xpt")
             ),
+            uiOutput("icis_air_external_upload_banner"),
             helpText(
               tags$strong("UCMR5 / EPA text: "),
               "This panel expects a ",
@@ -1800,7 +2288,13 @@ ui_dashboard <- dashboardPage(
               code("PFASSTRUCT.csv"), " (CompTox ", tags$em("PFASSTRUCT"), " export) for registry / QSAR-style chemical tables; ",
               code("UCMR5_533_sample.csv"), " (or equivalent small CSV) for environmental-occurrence upload tests; ",
               "NHANES PFAS lab + linked demographics when ", tags$strong("Dataset type"), " is ",
-              tags$em("human biomonitoring"), "."
+              tags$em("human biomonitoring"), ". ",
+              tags$strong("Reference / bench: "), "NIST SRM/RM extracts (e.g. under ", code("data/reference/nist/"), ") are ",
+              tags$em("not"), " UCMR occurrence tables—set ", tags$strong("Dataset type"), " to ",
+              tags$em("reference material (NIST / RM / bench)"), " and map ", code("matrix"), ", ", code("analyte"), ", ",
+              code("value"), " / ", code("uncertainty"), " columns; for governed serum benchmarking prefer the in-app ",
+              tags$strong("10b) NIST SRM reference validation"), " step instead of mixing matrices into training. ",
+              "EPA/CDC/NIST source list by matrix: ", code("data/reference/registry/reference_registry_README.md"), "."
             ),
             selectInput(
               "external_dataset_type",
@@ -1810,11 +2304,13 @@ ui_dashboard <- dashboardPage(
                 "environmental occurrence",
                 "facility enrichment",
                 "method validation",
+                "reference material (NIST / RM / bench)",
                 "unknown/custom"
               ),
               selected = "environmental occurrence"
             ),
             verbatimTextOutput("external_file_meta", placeholder = TRUE),
+            verbatimTextOutput("external_reference_preflight_status", placeholder = TRUE),
             DTOutput("tbl_external_preview"),
             hr(),
             uiOutput("external_map_ui"),
@@ -1822,7 +2318,8 @@ ui_dashboard <- dashboardPage(
             actionButton("btn_external_validate", "Validate"),
             actionButton("btn_external_normalize", "Normalize"),
             actionButton("btn_external_save", "Save"),
-            actionButton("btn_external_train", "Train"),
+            actionButton("btn_external_train", "Train (Evidence-Governed)", class = "btn-success"),
+            actionButton("btn_external_train_screening", "Screening — Train (Exploratory)", class = "btn-info"),
             br(), br(),
             verbatimTextOutput("external_quality_status", placeholder = TRUE),
             tags$strong("Strict schema validation (ISO ingest gate)"),
@@ -1861,7 +2358,10 @@ ui_dashboard <- dashboardPage(
             title = "PFAS Exceedance ML Results (scripts outputs)",
             status = "primary",
             solidHeader = TRUE,
-            p("Reads artifacts from ", code("results/"), " generated by ", code("python scripts/train_pfas_model.py"), " (PFAS exceedance pipeline)."),
+            p(
+              "Reads artifacts from ", code("results/"), " (evidence-governed trains) or ", code("results/screening/"),
+              " (exploratory screening trains), generated by ", code("python scripts/train_pfas_model.py"), " (PFAS exceedance pipeline)."
+            ),
             p(
               tags$em(
                 "Screening-level decision support only. Do not replace ISO/IEC 17025 laboratory analytical reporting, analyst review, or validated method release."
@@ -2114,6 +2614,24 @@ ui_dashboard <- dashboardPage(
         )
       ),
       tabItem(
+        tabName = "iso_blind_spots",
+        fluidRow(
+          box(
+            title = "ISO/IEC 17025 Readiness",
+            width = 12,
+            status = "warning",
+            solidHeader = TRUE,
+            tags$h4(style = "margin-top:0;", "Summary (", tags$code("iso_readiness_score.json"), ")"),
+            verbatimTextOutput("iso_score_text"),
+            br(),
+            tags$h4("Blind spot register (", tags$code("iso_blind_spots_report.csv"), ")"),
+            DT::dataTableOutput("iso_blindspots_table"),
+            br(),
+            htmlOutput("iso_disclaimer")
+          )
+        )
+      ),
+      tabItem(
         tabName = "scope",
         fluidRow(
           box(
@@ -2221,6 +2739,9 @@ ui <- shinymanager::secure_app(
 # -------------------------------------------------------------------
 
 server <- function(input, output, session) {
+  iso_json_path <- file.path(PROJECT_DIR, "runs", "test_ucmr5_533", "iso_readiness_score.json")
+  iso_csv_path <- file.path(PROJECT_DIR, "runs", "test_ucmr5_533", "iso_blind_spots_report.csv")
+
   ensure_valid_db_connection()
   auth <- shinymanager::secure_server(
     check_credentials = shinymanager::check_credentials(login_credentials_df),
@@ -2411,8 +2932,18 @@ server <- function(input, output, session) {
     DT::datatable(df, options = list(pageLength = pageLength, scrollX = TRUE), rownames = FALSE)
   }
 
-  read_results_csv <- function(file_name) {
-    p <- file.path(PROJECT_DIR, "results", file_name)
+  read_results_csv <- function(file_name, results_subdir = NULL) {
+    sub <- results_subdir
+    if (is.null(sub) || length(sub) < 1L || !nzchar(trimws(as.character(sub)[[1]]))) {
+      p <- file.path(PROJECT_DIR, "results", file_name)
+    } else {
+      s <- trimws(as.character(sub)[[1]])
+      if (grepl("[.\\\\/]", s)) {
+        p <- file.path(PROJECT_DIR, "results", file_name)
+      } else {
+        p <- file.path(PROJECT_DIR, "results", s, file_name)
+      }
+    }
     if (!file.exists(p)) return(NULL)
     tryCatch(
       read.csv(p, stringsAsFactors = FALSE, check.names = FALSE),
@@ -2420,8 +2951,17 @@ server <- function(input, output, session) {
     )
   }
 
-  read_results_json <- function(file_name) {
-    p <- file.path(PROJECT_DIR, "results", file_name)
+  read_results_json <- function(file_name, results_subdir = NULL) {
+    if (is.null(results_subdir) || length(results_subdir) < 1L || !nzchar(trimws(as.character(results_subdir)[[1]]))) {
+      p <- file.path(PROJECT_DIR, "results", file_name)
+    } else {
+      s <- trimws(as.character(results_subdir)[[1]])
+      if (grepl("[.\\\\/]", s)) {
+        p <- file.path(PROJECT_DIR, "results", file_name)
+      } else {
+        p <- file.path(PROJECT_DIR, "results", s, file_name)
+      }
+    }
     if (!file.exists(p)) return(NULL)
     tryCatch(
       {
@@ -2434,6 +2974,49 @@ server <- function(input, output, session) {
       },
       error = function(e) NULL
     )
+  }
+
+  # Prefer evidence-governed results/; if only screening exists, or screening is newer, use results/screening/.
+  pfas_resolve_train_metrics_paths <- function() {
+    root_m <- file.path(PROJECT_DIR, "results", "nhanes_model_metrics.json")
+    scr_m <- file.path(PROJECT_DIR, "results", "screening", "nhanes_model_metrics.json")
+    er <- file.exists(root_m)
+    es <- file.exists(scr_m)
+    if (!er && !es) {
+      return(list(subdir = "", banner = ""))
+    }
+    if (er && !es) {
+      return(list(subdir = "", banner = ""))
+    }
+    if (!er && es) {
+      return(list(
+        subdir = "screening",
+        banner = paste0(
+          "Showing exploratory screening metrics under results/screening/ ",
+          "(no evidence-governed nhanes_model_metrics.json in results/)."
+        )
+      ))
+    }
+    tr <- suppressWarnings(file.info(root_m)$mtime)
+    ts <- suppressWarnings(file.info(scr_m)$mtime)
+    if (inherits(ts, "POSIXct") && inherits(tr, "POSIXct") && !is.na(ts) && !is.na(tr) && ts > tr) {
+      return(list(
+        subdir = "screening",
+        banner = paste0(
+          "Newer metrics file is exploratory screening (results/screening/). ",
+          "An evidence-governed copy also exists in results/."
+        )
+      ))
+    }
+    banner_ev <- if (es && inherits(ts, "POSIXct") && inherits(tr, "POSIXct") && !is.na(ts) && !is.na(tr) && ts <= tr) {
+      paste0(
+        "Showing evidence-governed metrics (results/). ",
+        "An exploratory screening copy exists under results/screening/."
+      )
+    } else {
+      ""
+    }
+    list(subdir = "", banner = banner_ev)
   }
 
   read_training_json <- function(file_name) {
@@ -2455,7 +3038,9 @@ server <- function(input, output, session) {
   }
 
   read_label_derivation_audit_payload <- function() {
-    read_results_json("label_derivation_audit.json")
+    rp <- pfas_resolve_train_metrics_paths()
+    subdir_arg <- if (nzchar(rp$subdir %||% "")) rp$subdir else NULL
+    read_results_json("label_derivation_audit.json", results_subdir = subdir_arg)
   }
 
   read_label_integrity_report_payload <- function() {
@@ -2620,7 +3205,16 @@ server <- function(input, output, session) {
   external_upload_save_note <- reactiveVal("No normalized upload saved yet.")
   external_upload_read_error <- reactiveVal("")
   external_upload_strict_result <- reactiveVal(NULL)
+  external_reference_preflight <- reactiveVal(NULL)
   pipeline_last_error <- reactiveVal("")
+  ml_workflow_train_context <- reactiveVal(list(
+    workflow_mode = "idle",
+    validation_scope = NA_character_,
+    iso_governed = NA,
+    results_artifact_subdir = "",
+    note = "No model train completed in this session yet.",
+    updated_at = NA_character_
+  ))
 
   allowed_upload_ext <- c("csv", "tsv", "txt", "xlsx", "xls", "json", "parquet", "rds", "xpt")
 
@@ -2645,7 +3239,8 @@ server <- function(input, output, session) {
     "mdl", "rl", "detect_flag", "state", "county", "latitude", "longitude",
     "region", "facility_water_type", "sample_point_type", "method_id",
     "collection_year", "collection_month", "pws_size", "facility_id", "sample_point_id",
-    "health_endpoint", "health_value", "dataset_type", "upload_id", "uploaded_at"
+    "health_endpoint", "health_value", "dataset_type", "upload_id", "uploaded_at",
+    "pipeline_lane"
   )
 
   read_delimited_robust <- function(path, sep, header = TRUE, nrows = NA_integer_) {
@@ -2830,7 +3425,8 @@ server <- function(input, output, session) {
     ext <- tolower(ext %||% "")
     all_seps <- c(",", "\t", "|", ";")
     if (ext == "csv") {
-      return(read_try_best(unique(c(",", all_seps))))
+      # Many EPA/UCMR-style exports use .csv extension but are tab- or pipe-delimited; sniff first line.
+      return(read_try_best(unique(c(sniff_order(), ",", all_seps))))
     }
     if (ext == "tsv") {
       return(read_try_best(unique(c("\t", all_seps))))
@@ -2881,7 +3477,15 @@ server <- function(input, output, session) {
 
       ncell <- nrow(df) * ncol(df)
       lite <- is.finite(ncell) && ncell > 1e6L
-      return(sanitize_utf8_df(as.data.frame(df, stringsAsFactors = FALSE, check.names = FALSE), light = lite))
+      df <- sanitize_utf8_df(as.data.frame(df, stringsAsFactors = FALSE, check.names = FALSE), light = lite)
+      # Collapse headers to stable snake-ish tokens so EPA TitleCase / spaced columns match autodetect aliases.
+      nm <- names(df)
+      nm <- tolower(trimws(iconv(nm, from = "", to = "UTF-8", sub = "")))
+      nm <- gsub("[^a-z0-9]+", "_", nm, perl = TRUE)
+      nm <- gsub("^_+|_+$", "", nm, perl = TRUE)
+      nm <- gsub("_+", "_", nm, perl = TRUE)
+      names(df) <- nm
+      return(df)
     }
 
     if (ext %in% c("xlsx", "xls")) {
@@ -2943,21 +3547,7 @@ server <- function(input, output, session) {
   }
 
   normalize_upload_schema <- function(df, mapping, dataset_type) {
-    parse_numeric_value <- function(x) {
-      y <- trimws(as.character(x))
-      y[y %in% c("", "NA", "N/A", "na", "n/a", "NULL", "null")] <- NA_character_
-      y <- gsub(",", "", y, fixed = TRUE)
-      y <- gsub("^<\\s*", "", y)
-      y <- gsub("^>\\s*", "", y)
-      direct <- suppressWarnings(as.numeric(y))
-      need_extract <- is.na(direct) & !is.na(y) & nzchar(y)
-      if (any(need_extract, na.rm = TRUE)) {
-        # Extract first numeric token from mixed strings like "<0.5 ng/L" or "ND (0.02)".
-        tok <- stringr::str_extract(y[need_extract], "[-+]?[0-9]*\\.?[0-9]+(?:[eE][-+]?[0-9]+)?")
-        direct[need_extract] <- suppressWarnings(as.numeric(tok))
-      }
-      direct
-    }
+    parse_numeric_value <- function(x) parse_external_upload_numeric(x)
     normalize_name <- function(x) {
       tolower(gsub("[^a-z0-9]+", "", trimws(as.character(x))))
     }
@@ -2972,36 +3562,55 @@ server <- function(input, output, session) {
     col_names <- names(df)
     col_norm <- normalize_name(col_names)
     field_aliases <- list(
-      source_dataset = c("source_dataset", "source dataset", "dataset", "source", "source_name", "methodid", "method_id"),
-      sample_id = c("sample_id", "sample id", "sample", "id", "seqn", "station", "pwsid", "pws_id", "samplepointid", "sample_point_id"),
-      matrix = c("matrix", "sample_matrix", "sample type", "facilitywatertype", "facility_water_type", "samplepointtype", "sample_point_type"),
-      date = c("sample_date", "sample date", "collection_date", "collection date", "date"),
-      analyte = c("analyte", "analyte_name", "parameter", "parameter_name", "constituent", "contaminant", "chemical", "chemical_name", "compound"),
-      cas = c("cas", "casrn", "cas_number"),
+      source_dataset = c(
+        "source_dataset", "source dataset", "dataset", "source", "source_name", "methodid", "method_id",
+        "program", "datasource", "study", "ucmr_phase", "data_source"
+      ),
+      sample_id = c(
+        "sample_id", "sample id", "sample", "id", "seqn", "station", "pwsid", "pws_id", "samplepointid", "sample_point_id",
+        "sampleid", "sample_number", "samplenumber", "lab_sample_id", "labsampleid", "submission_id", "submissionid",
+        "sample_identifier", "sampleidentifier", "public_water_system_id", "pwsidentifier", "water_system_no", "watersystemno"
+      ),
+      matrix = c(
+        "matrix", "sample_matrix", "sample type", "facilitywatertype", "facility_water_type", "samplepointtype", "sample_point_type",
+        "sampletype", "matrixtype", "media", "media_type", "matrix_code"
+      ),
+      date = c(
+        "sample_date", "sample date", "collection_date", "collection date", "date", "activity_start_date",
+        "activitystartdate", "collectiondate", "date_collected", "datecollected", "sample_collection_date"
+      ),
+      analyte = c(
+        "analyte", "analyte_name", "parameter", "parameter_name", "constituent", "contaminant", "chemical", "chemical_name", "compound",
+        "contaminant_name", "constituent_name", "analytename", "parametercode", "parameter_code", "chemical_name", "pollutant"
+      ),
+      cas = c("cas", "casrn", "cas_number", "cas_num", "casregistrynumber"),
       result_value = c(
         "result_value", "result value", "result", "result_clean", "resultclean", "result_ngl", "result ngl",
-        "concentration", "concentration_ng_l", "concentration_ngl", "value", "value_ngl", "reported", "reported_result"
+        "concentration", "concentration_ng_l", "concentration_ngl", "value", "value_ngl", "reported", "reported_result",
+        "analyticalresultvalue", "analytical_result", "resultamount", "measurement_value", "level", "amount", "reading",
+        "gm_result"
       ),
-      unit = c("result_unit", "result unit", "unit", "units", "uom"),
-      qualifier = c("qualifier", "flag", "result_flag", "censor"),
-      mdl = c("mdl", "method_detection_limit", "detection_limit"),
-      rl = c("rl", "reporting_limit", "report_limit"),
-      detect_flag = c("detect_flag", "detect", "detected"),
-      state = c("state", "state_abbr"),
-      county = c("county"),
-      region = c("region"),
-      facility_water_type = c("facilitywatertype", "facility_water_type"),
-      sample_point_type = c("samplepointtype", "sample_point_type"),
-      method_id = c("methodid", "method_id"),
-      collection_year = c("collectionyear", "collection_year", "year"),
-      collection_month = c("collectionmonth", "collection_month", "month"),
-      pws_size = c("pwssize", "pws_size"),
-      facility_id = c("facilityid", "facility_id"),
-      sample_point_id = c("samplepointid", "sample_point_id"),
-      latitude = c("latitude", "lat"),
-      longitude = c("longitude", "lon", "lng"),
-      health_endpoint = c("health_endpoint", "endpoint"),
-      health_value = c("health_value")
+      unit = c(
+        "result_unit", "result unit", "unit", "units", "uom", "result_units", "units_desc", "unit_desc", "uom_desc",
+        "gm_result_unit"
+      ),
+      qualifier = c(
+        "qualifier", "flag", "result_flag", "censor", "result_qualifier", "lab_qualifier", "detection_qualifier",
+        "gm_result_modifier", "sample_event_result_type", "result_type", "result_qualifier_code", "qualifier_code"
+      ),
+      mdl = c("mdl", "method_detection_limit", "detection_limit", "method_detection_level", "minimum_reporting_level"),
+      rl = c("rl", "reporting_limit", "report_limit", "practical_quantitation_limit", "pql", "reporting_level"),
+      detect_flag = c("detect_flag", "detect", "detected", "detection_indicator", "is_detected"),
+      state = c("state", "state_abbr", "state_code", "st", "stateprovince", "state_province"),
+      county = c("county", "county_name", "countyname", "administrative_area"),
+      facility_water_type = c("facilitywatertype", "facility_water_type", "water_type", "sourcetype", "source_type"),
+      sample_point_type = c("samplepointtype", "sample_point_type", "location_type", "point_type"),
+      method_id = c("methodid", "method_id", "analytical_method", "analyticalmethod", "method_code", "methodcode", "analytical_method_id"),
+      collection_year = c("collectionyear", "collection_year", "year", "sample_year", "calendar_year"),
+      facility_id = c("facilityid", "facility_id", "facility_code", "site_id", "siteid", "pws_id_number"),
+      sample_point_id = c("samplepointid", "sample_point_id", "monitoring_point", "station_id", "stationid"),
+      latitude = c("latitude", "lat", "lat_measure", "latmeasure", "dec_lat", "y_coord"),
+      longitude = c("longitude", "lon", "lng", "long_measure", "longmeasure", "dec_lon", "x_coord")
     )
     resolve_col <- function(name) {
       mapped <- trimws(as.character(mapping[[name]] %||% ""))
@@ -3085,7 +3694,16 @@ server <- function(input, output, session) {
       as.character(df[[col]])
     }
     num_pick <- function(name) parse_numeric_value(pick(name))
-    qualifier <- pick("qualifier")
+    raw_result_chr <- pick("result_value")
+    qualifier <- trimws(pick("qualifier"))
+    qualifier[is.na(qualifier)] <- ""
+    rv_l <- tolower(trimws(as.character(raw_result_chr)))
+    rv_l[is.na(rv_l)] <- ""
+    nd_infer <- !nzchar(qualifier) & nzchar(rv_l) & safe_detect(
+      rv_l,
+      "^nd$|^n\\.d\\.?$|^non[- ]?detect$|^bdl$|^u$|^uj$|^<"
+    )
+    qualifier <- ifelse(nd_infer, ifelse(safe_detect(rv_l, "^\\s*<"), "<", "ND"), qualifier)
     detect_raw <- tolower(trimws(pick("detect_flag")))
     detect_from_q <- !safe_detect(tolower(trimws(qualifier %||% "")), "^<|nd|non.?detect|bdl|u\\b|uj\\b")
     detect <- ifelse(
@@ -3094,6 +3712,7 @@ server <- function(input, output, session) {
       detect_from_q
     )
 
+    nrm <- nrow(df)
     tibble::tibble(
       source = "external_upload",
       source_dataset = pick("source_dataset"),
@@ -3103,29 +3722,30 @@ server <- function(input, output, session) {
       analyte = pick("analyte"),
       cas = pick("cas"),
       result_value = num_pick("result_value"),
-      result_unit = pick("unit"),
+      result_unit = normalize_external_result_unit_for_schema(pick("unit")),
       qualifier = qualifier,
       mdl = num_pick("mdl"),
       rl = num_pick("rl"),
       detect_flag = as.integer(detect),
       state = pick("state"),
       county = pick("county"),
-      region = pick("region"),
+      region = rep(NA_character_, nrm),
       facility_water_type = pick("facility_water_type"),
       sample_point_type = pick("sample_point_type"),
       method_id = pick("method_id"),
       collection_year = pick("collection_year"),
-      collection_month = pick("collection_month"),
-      pws_size = pick("pws_size"),
+      collection_month = rep(NA_character_, nrm),
+      pws_size = rep(NA_character_, nrm),
       facility_id = pick("facility_id"),
       sample_point_id = pick("sample_point_id"),
       latitude = num_pick("latitude"),
       longitude = num_pick("longitude"),
-      health_endpoint = pick("health_endpoint"),
-      health_value = num_pick("health_value"),
+      health_endpoint = rep(NA_character_, nrm),
+      health_value = rep(NA_real_, nrm),
       dataset_type = dataset_type,
       upload_id = NA_character_,
-      uploaded_at = NA_character_
+      uploaded_at = NA_character_,
+      pipeline_lane = rep(NA_character_, nrm)
     )
   }
 
@@ -3158,14 +3778,7 @@ server <- function(input, output, session) {
   }
 
   normalize_upload_schema_with_wide_fallback <- function(df, mapping, dataset_type) {
-    parse_numeric_value <- function(x) {
-      y <- trimws(as.character(x))
-      y[y %in% c("", "NA", "N/A", "na", "n/a", "NULL", "null")] <- NA_character_
-      y <- gsub(",", "", y, fixed = TRUE)
-      y <- gsub("^<\\s*", "", y)
-      y <- gsub("^>\\s*", "", y)
-      suppressWarnings(as.numeric(y))
-    }
+    parse_numeric_value <- function(x) parse_external_upload_numeric(x)
     base <- normalize_upload_schema(df, mapping, dataset_type)
     usable_base <- sum(
       !is.na(base$analyte) & nzchar(trimws(as.character(base$analyte))) & !is.na(base$result_value),
@@ -3181,12 +3794,7 @@ server <- function(input, output, session) {
     canon_names[is.na(canon_names)] <- gsub("[^a-z0-9]+", "_", tolower(trimws(analyte_cols[is.na(canon_names)])))
 
     if (nrow(df) == 0) return(base)
-    keep_keys <- c(
-      "source_dataset", "sample_id", "matrix", "date", "cas", "unit", "qualifier", "mdl",
-      "rl", "detect_flag", "state", "county", "region", "facility_water_type", "sample_point_type",
-      "method_id", "collection_year", "collection_month", "pws_size", "facility_id", "sample_point_id",
-      "latitude", "longitude", "health_endpoint", "health_value"
-    )
+    keep_keys <- CORE_EXTERNAL_MAP_KEYS
     key_map <- setNames(lapply(keep_keys, function(k) base[[k]]), keep_keys)
     long_raw <- as.data.frame(df, stringsAsFactors = FALSE, check.names = FALSE) %>%
       tibble::as_tibble() %>%
@@ -3204,7 +3812,15 @@ server <- function(input, output, session) {
       if (is.null(v) || length(v) == 0) return(rep(NA_character_, nrow(long_raw)))
       as.character(v[row_idx])
     }
-    qualifier_vec <- pick_key("qualifier")
+    qualifier_vec <- trimws(pick_key("qualifier"))
+    qualifier_vec[is.na(qualifier_vec)] <- ""
+    rvl <- tolower(trimws(as.character(long_raw$result_value_raw)))
+    rvl[is.na(rvl)] <- ""
+    nd_infer_l <- !nzchar(qualifier_vec) & nzchar(rvl) & safe_detect(
+      rvl,
+      "^nd$|^n\\.d\\.?$|^non[- ]?detect$|^bdl$|^u$|^uj$|^<"
+    )
+    qualifier_vec <- ifelse(nd_infer_l, ifelse(safe_detect(rvl, "^\\s*<"), "<", "ND"), qualifier_vec)
     detect_raw <- tolower(trimws(pick_key("detect_flag")))
     detect_from_q <- !safe_detect(tolower(trimws(qualifier_vec %||% "")), "^<|nd|non.?detect|bdl|u\\b|uj\\b")
     detect <- ifelse(
@@ -3213,6 +3829,7 @@ server <- function(input, output, session) {
       detect_from_q
     )
 
+    nlong <- nrow(long_raw)
     out <- tibble::tibble(
       source = "external_upload",
       source_dataset = pick_key("source_dataset"),
@@ -3222,29 +3839,30 @@ server <- function(input, output, session) {
       analyte = as.character(unname(canon_names[long_raw$analyte_col])),
       cas = pick_key("cas"),
       result_value = parse_numeric_value(long_raw$result_value_raw),
-      result_unit = pick_key("unit"),
+      result_unit = normalize_external_result_unit_for_schema(pick_key("unit")),
       qualifier = qualifier_vec,
       mdl = parse_numeric_value(pick_key("mdl")),
       rl = parse_numeric_value(pick_key("rl")),
       detect_flag = as.integer(detect),
       state = pick_key("state"),
       county = pick_key("county"),
-      region = pick_key("region"),
+      region = rep(NA_character_, nlong),
       facility_water_type = pick_key("facility_water_type"),
       sample_point_type = pick_key("sample_point_type"),
       method_id = pick_key("method_id"),
       collection_year = pick_key("collection_year"),
-      collection_month = pick_key("collection_month"),
-      pws_size = pick_key("pws_size"),
+      collection_month = rep(NA_character_, nlong),
+      pws_size = rep(NA_character_, nlong),
       facility_id = pick_key("facility_id"),
       sample_point_id = pick_key("sample_point_id"),
       latitude = parse_numeric_value(pick_key("latitude")),
       longitude = parse_numeric_value(pick_key("longitude")),
-      health_endpoint = pick_key("health_endpoint"),
-      health_value = parse_numeric_value(pick_key("health_value")),
+      health_endpoint = rep(NA_character_, nlong),
+      health_value = rep(NA_real_, nlong),
       dataset_type = dataset_type,
       upload_id = NA_character_,
-      uploaded_at = NA_character_
+      uploaded_at = NA_character_,
+      pipeline_lane = rep(NA_character_, nlong)
     ) %>%
       filter(!is.na(result_value))
 
@@ -3275,13 +3893,10 @@ server <- function(input, output, session) {
       trimws(as.character(mapping$unit %||% "")),
       trimws(as.character(mapping$state %||% "")),
       trimws(as.character(mapping$county %||% "")),
-      trimws(as.character(mapping$region %||% "")),
       trimws(as.character(mapping$facility_water_type %||% "")),
       trimws(as.character(mapping$sample_point_type %||% "")),
       trimws(as.character(mapping$method_id %||% "")),
       trimws(as.character(mapping$collection_year %||% "")),
-      trimws(as.character(mapping$collection_month %||% "")),
-      trimws(as.character(mapping$pws_size %||% "")),
       trimws(as.character(mapping$facility_id %||% "")),
       trimws(as.character(mapping$sample_point_id %||% ""))
     ))
@@ -3316,18 +3931,16 @@ server <- function(input, output, session) {
     date_map_col <- trimws(as.character(mapping$date %||% ""))
     state_map_col <- trimws(as.character(mapping$state %||% ""))
     county_map_col <- trimws(as.character(mapping$county %||% ""))
-    region_map_col <- trimws(as.character(mapping$region %||% ""))
     facility_water_type_map_col <- trimws(as.character(mapping$facility_water_type %||% ""))
     sample_point_type_map_col <- trimws(as.character(mapping$sample_point_type %||% ""))
     method_id_map_col <- trimws(as.character(mapping$method_id %||% ""))
     collection_year_map_col <- trimws(as.character(mapping$collection_year %||% ""))
-    collection_month_map_col <- trimws(as.character(mapping$collection_month %||% ""))
-    pws_size_map_col <- trimws(as.character(mapping$pws_size %||% ""))
     facility_id_map_col <- trimws(as.character(mapping$facility_id %||% ""))
     sample_point_id_map_col <- trimws(as.character(mapping$sample_point_id %||% ""))
     unit_map_col <- trimws(as.character(mapping$unit %||% ""))
     src_map_col <- trimws(as.character(mapping$source_dataset %||% ""))
     idx2 <- pmax(1L, pmin(as.integer(long2$.row_id), nrow(df)))
+    n2 <- nrow(long2)
 
     out2 <- tibble::tibble(
       source = "external_upload",
@@ -3344,20 +3957,20 @@ server <- function(input, output, session) {
       analyte = as.character(long2$analyte),
       cas = NA_character_,
       result_value = long2$result_value,
-      result_unit = pick_matrix_meta(unit_map_col, idx2),
+      result_unit = normalize_external_result_unit_for_schema(pick_matrix_meta(unit_map_col, idx2)),
       qualifier = NA_character_,
       mdl = NA_real_,
       rl = NA_real_,
       detect_flag = as.integer(1),
       state = pick_matrix_meta(state_map_col, idx2),
       county = pick_matrix_meta(county_map_col, idx2),
-      region = pick_matrix_meta(region_map_col, idx2),
+      region = rep(NA_character_, n2),
       facility_water_type = pick_matrix_meta(facility_water_type_map_col, idx2),
       sample_point_type = pick_matrix_meta(sample_point_type_map_col, idx2),
       method_id = pick_matrix_meta(method_id_map_col, idx2),
       collection_year = pick_matrix_meta(collection_year_map_col, idx2),
-      collection_month = pick_matrix_meta(collection_month_map_col, idx2),
-      pws_size = pick_matrix_meta(pws_size_map_col, idx2),
+      collection_month = rep(NA_character_, n2),
+      pws_size = rep(NA_character_, n2),
       facility_id = pick_matrix_meta(facility_id_map_col, idx2),
       sample_point_id = pick_matrix_meta(sample_point_id_map_col, idx2),
       latitude = NA_real_,
@@ -3366,7 +3979,8 @@ server <- function(input, output, session) {
       health_value = NA_real_,
       dataset_type = dataset_type,
       upload_id = NA_character_,
-      uploaded_at = NA_character_
+      uploaded_at = NA_character_,
+      pipeline_lane = rep(NA_character_, n2)
     )
     out2
   }
@@ -3513,6 +4127,27 @@ server <- function(input, output, session) {
     )
   }
 
+  iso_preflight_failed_paths_note <- function(pf) {
+    failed <- names(pf$checks)[!pf$checks]
+    if (length(failed) == 0L) {
+      return("")
+    }
+    one <- function(tag, comp) {
+      fn <- comp$file %||% ""
+      if (length(fn) != 1L) fn <- fn[[1]]
+      fn <- as.character(fn)[1]
+      if (is.na(fn)) fn <- ""
+      fp <- as.character(comp$path %||% "")[1]
+      paste0(tag, "=", fp, if (nzchar(fn)) paste0("(", fn, ")") else "(no_eligible_file)")
+    }
+    bits <- character(0)
+    if ("reference" %in% failed) bits <- c(bits, one("ref", pf$ref))
+    if ("method" %in% failed) bits <- c(bits, one("method", pf$method))
+    if ("qc" %in% failed) bits <- c(bits, one("qc", pf$qc))
+    if ("pt" %in% failed) bits <- c(bits, one("pt", pf$pt))
+    paste(bits, collapse = "; ")
+  }
+
   enforce_iso_preflight <- function(action_label = "This action") {
     skip <- trimws(Sys.getenv("PFAS_SKIP_ISO_PREFLIGHT", ""))
     if (nzchar(skip) && tolower(skip) %in% c("1", "true", "yes")) {
@@ -3532,7 +4167,10 @@ server <- function(input, output, session) {
       type = "error",
       duration = 10
     )
-    append_pipeline_log("ISO preflight BLOCK for ", action_label, " | failed=", paste(failed, collapse = ", "))
+    append_pipeline_log(
+      "ISO preflight BLOCK for ", action_label, " | failed=", paste(failed, collapse = ", "),
+      " | ", iso_preflight_failed_paths_note(pf)
+    )
     FALSE
   }
 
@@ -4115,12 +4753,33 @@ server <- function(input, output, session) {
     run_local_cmd(rscript_exec, c(file.path("scripts", script_name)), label, extra_env = extra_env)
   }
 
-  run_r_script_in_process <- function(script_name, label) {
+  run_r_script_in_process <- function(script_name, label, extra_env = NULL) {
     append_pipeline_log("START ", label, " (in-process source)")
     old_wd <- getwd()
     on.exit(setwd(old_wd), add = TRUE)
     setwd(PROJECT_DIR)
     script_path <- file.path("scripts", script_name)
+    env_names <- character(0)
+    old_env <- character(0)
+    if (!is.null(extra_env) && length(extra_env) > 0) {
+      env_names <- names(extra_env)
+      old_env <- Sys.getenv(env_names, unset = NA_character_)
+      do.call(Sys.setenv, as.list(extra_env))
+      on.exit(
+        {
+          for (i in seq_along(env_names)) {
+            nm <- env_names[[i]]
+            oldv <- old_env[[i]]
+            if (is.na(oldv)) {
+              Sys.unsetenv(nm)
+            } else {
+              do.call(Sys.setenv, setNames(list(oldv), nm))
+            }
+          }
+        },
+        add = TRUE
+      )
+    }
     ok <- tryCatch(
       {
         local_env <- new.env(parent = .GlobalEnv)
@@ -4171,14 +4830,76 @@ server <- function(input, output, session) {
     ""
   }
 
-  run_python_step <- function() {
+  pfas_screening_train_extra_env <- function() {
+    c(
+      PFAS_WORKFLOW_MODE = "screening",
+      PFAS_VALIDATION_SCOPE = "exploratory",
+      PFAS_ISO_GOVERNED = "false",
+      PFAS_TRAIN_RESULTS_SUBDIR = "screening"
+    )
+  }
+
+  record_train_workflow_context <- function(workflow_mode, iso_governed, ok) {
+    vs <- if (isTRUE(iso_governed)) "evidence_governed" else "exploratory"
+    ts <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+    outcome <- if (isTRUE(ok)) "success" else "failure"
+    ra_sub <- if (identical(workflow_mode, "screening")) "screening" else ""
+    lst <- list(
+      workflow_mode = workflow_mode,
+      validation_scope = vs,
+      iso_governed = isTRUE(iso_governed),
+      results_artifact_subdir = ra_sub,
+      train_outcome = outcome,
+      updated_at = ts,
+      app_version = APP_VERSION
+    )
+    note_txt <- paste0(
+      if (identical(workflow_mode, "screening")) {
+        "Exploratory screening — ISO gates not enforced on this path."
+      } else if (identical(workflow_mode, "evidence_governed")) {
+        "Evidence-governed train path (ISO preflight required before train)."
+      } else {
+        "Idle."
+      },
+      " Last train outcome: ", outcome, " at ", ts, "."
+    )
+    ml_workflow_train_context(list(
+      workflow_mode = workflow_mode,
+      validation_scope = vs,
+      iso_governed = isTRUE(iso_governed),
+      results_artifact_subdir = ra_sub,
+      note = note_txt,
+      updated_at = ts
+    ))
+    jp <- file.path(PROJECT_DIR, "results", "last_train_workflow_context.json")
+    try(
+      {
+        d <- dirname(jp)
+        if (!dir.exists(d)) dir.create(d, recursive = TRUE)
+        jsonlite::write_json(lst, jp, pretty = TRUE, auto_unbox = TRUE)
+      },
+      silent = TRUE
+    )
+  }
+
+  run_python_step <- function(extra_env = NULL) {
     py_exec <- resolve_python_exec(input$pfas_python_exec %||% "")
     train_script <- file.path("scripts", "train_pfas_model.py")
     if (!file.exists(file.path(PROJECT_DIR, train_script))) {
       train_script <- file.path("scripts", "train_nhanes_model.py")
     }
     # Remove stale per-task artifacts before retrain so freshness/status reflects current run.
-    res_dir <- file.path(PROJECT_DIR, "results")
+    res_sub <- ""
+    if (!is.null(extra_env) && !is.null(extra_env[["PFAS_TRAIN_RESULTS_SUBDIR"]])) {
+      res_sub <- trimws(as.character(extra_env[["PFAS_TRAIN_RESULTS_SUBDIR"]])[[1]])
+    }
+    if (length(res_sub) != 1L || grepl("[.\\\\/]", res_sub)) {
+      res_sub <- ""
+    }
+    res_dir <- if (nzchar(res_sub)) file.path(PROJECT_DIR, "results", res_sub) else file.path(PROJECT_DIR, "results")
+    if (!dir.exists(res_dir)) {
+      dir.create(res_dir, recursive = TRUE, showWarnings = FALSE)
+    }
     stale_files <- c(
       "nhanes_model_metrics_by_task.json",
       "nhanes_model_metrics.json",
@@ -4220,7 +4941,7 @@ server <- function(input, output, session) {
     ht <- suppressWarnings(as.numeric(input$pfas_holdout_threshold %||% 0.25))
     if (!is.finite(ht) || ht < 0.01 || ht > 0.99) ht <- 0.25
     train_extra <- c(train_extra, "--holdout-threshold", sprintf("%.6g", ht))
-    run_local_cmd(py_exec, c(train_script, train_extra), step_label)
+    run_local_cmd(py_exec, c(train_script, train_extra), step_label, extra_env = extra_env)
   }
 
   run_ml_validation_report_step <- function() {
@@ -4256,6 +4977,49 @@ server <- function(input, output, session) {
     run_local_cmd(py_exec, c(pred_script), "predict_pfas.py")
   }
 
+  run_nist_reference_validation_step <- function() {
+    py_exec <- resolve_python_exec(input$pfas_python_exec %||% "")
+    nist_script <- file.path("scripts", "validate_nist_pfas_reference.py")
+    if (!nzchar(py_exec)) {
+      pipeline_last_error("NIST reference validation: Python executable not found.")
+      append_pipeline_log("SKIP validate_nist_pfas_reference.py: Python executable not found.")
+      return(FALSE)
+    }
+    if (!file.exists(file.path(PROJECT_DIR, nist_script))) {
+      pipeline_last_error("NIST reference validation: scripts/validate_nist_pfas_reference.py not found.")
+      append_pipeline_log("SKIP validate_nist_pfas_reference.py: script missing.")
+      return(FALSE)
+    }
+    ref_primary <- file.path(PROJECT_DIR, "data", "reference", "nist_srm1957_pfas_reference.csv")
+    ref_nested_serum <- file.path(PROJECT_DIR, "data", "reference", "nist", "srm1957", "serum_pfas.csv")
+    ref_fallback <- file.path(PROJECT_DIR, "data", "reference", "nist_srm1957_pfas.csv")
+    ref_fallback2 <- file.path(PROJECT_DIR, "data", "reference", "nist_srm1957_pfas_noncertified.csv")
+    ref_csv <- if (file.exists(ref_primary)) {
+      ref_primary
+    } else if (file.exists(ref_nested_serum)) {
+      ref_nested_serum
+    } else if (file.exists(ref_fallback)) {
+      ref_fallback
+    } else {
+      ref_fallback2
+    }
+    if (!file.exists(ref_csv)) {
+      pipeline_last_error(
+        "NIST reference validation: data/reference/nist_srm1957_pfas_reference.csv (or nist/srm1957/serum_pfas.csv, nist_srm1957_pfas.csv, _noncertified.csv) not found."
+      )
+      append_pipeline_log("SKIP NIST reference validation: reference CSV missing.")
+      return(FALSE)
+    }
+    pr_arg <- normalizePath(PROJECT_DIR, winslash = "/", mustWork = FALSE)
+    ref_arg <- normalizePath(ref_csv, winslash = "/", mustWork = FALSE)
+    pred_csv <- file.path(PROJECT_DIR, "results", "prediction_output.csv")
+    args <- c(nist_script, "--project-root", pr_arg, "--reference-csv", ref_arg)
+    if (file.exists(pred_csv)) {
+      args <- c(args, "--predictions-csv", normalizePath(pred_csv, winslash = "/", mustWork = FALSE))
+    }
+    run_local_cmd(py_exec, args, "validate_nist_pfas_reference.py")
+  }
+
   run_icis_dmr_filter_step <- function() {
     py_exec <- resolve_python_exec(input$pfas_python_exec %||% "")
     filt_script <- file.path("scripts", "filter_npdes_dmr_pfas.py")
@@ -4287,6 +5051,55 @@ server <- function(input, output, session) {
     cat(pfas_pipeline_log(), "\n")
   })
 
+  output$nist_reference_audit_table <- renderTable(
+    {
+      pfas_results_nonce()
+      jp <- file.path(PROJECT_DIR, "results", "nist_reference_validation_report.json")
+      if (!file.exists(jp)) {
+        return(NULL)
+      }
+      j <- tryCatch(jsonlite::fromJSON(jp, simplifyVector = TRUE), error = function(e) NULL)
+      if (is.null(j) || is.null(j$reference_metadata)) {
+        return(NULL)
+      }
+      m <- j$reference_metadata
+      ord <- c(
+        "software_benchmarking_statement",
+        "validation_scope",
+        "reference_source",
+        "reference_material",
+        "reference_type",
+        "value_status",
+        "value_status_csv",
+        "matrix",
+        "analytical_basis",
+        "interlaboratory",
+        "uncertainty",
+        "coverage_factor",
+        "traceability",
+        "isomer_reporting",
+        "linear_isomer",
+        "branched_isomer",
+        "combined_isomer_reporting",
+        "external_lab_source",
+        "weighted_mean_basis",
+        "consensus_mean_note",
+        "nist_documentation"
+      )
+      nm <- names(m)
+      keys <- c(ord[ord %in% nm], nm[!nm %in% ord])
+      data.frame(
+        Field = keys,
+        Value = vapply(keys, function(k) paste(as.character(m[[k]]), collapse = ", "), character(1)),
+        stringsAsFactors = FALSE
+      )
+    },
+    striped = TRUE,
+    spacing = "s",
+    align = "l",
+    digits = 4
+  )
+
   output$source_bootstrap_status <- renderPrint({
     cat(source_bootstrap_note(), "\n")
   })
@@ -4305,6 +5118,46 @@ server <- function(input, output, session) {
     }
   }
 
+  matrix_hint_chip <- function(label, bg = "#37474f") {
+    tags$span(
+      style = sprintf(
+        "display:inline-block;margin:4px 6px 0 0;padding:2px 8px;border-radius:4px;background:%s;color:#fff;font-size:11px;font-weight:500;",
+        bg
+      ),
+      label
+    )
+  }
+
+  scan_reference_folder_matrix_chips <- function(resolved_path) {
+    if (!nzchar(resolved_path %||% "") || !dir.exists(resolved_path)) {
+      return(tagList(matrix_hint_chip("path missing — set a folder with matrix-tagged reference CSVs", "#9e9e9e")))
+    }
+    fl <- tryCatch(
+      list.files(resolved_path, pattern = "\\.(csv|tsv|txt)$", ignore.case = TRUE, full.names = TRUE, recursive = TRUE),
+      error = function(e) character(0)
+    )
+    if (length(fl) < 1L) {
+      return(tagList(matrix_hint_chip("no CSV/TSV/TXT — cannot infer matrix mix from filenames", "#9e9e9e")))
+    }
+    fl <- utils::head(fl, 80L)
+    bn <- tolower(basename(fl))
+    chips <- list()
+    add <- function(cond, lab, col) {
+      if (isTRUE(cond)) {
+        chips[[length(chips) + 1L]] <<- matrix_hint_chip(lab, col)
+      }
+    }
+    add(any(grepl("srm.?1957|1957_serum|serum|plasma|blood|nhanes", bn, perl = TRUE)), "physiological benchmark (serum/plasma style)", "#1b5e20")
+    add(any(grepl("8446|methanol|calibration|cal_?std|cal.?line", bn, perl = TRUE)), "calibration standard (solution line)", "#01579b")
+    add(any(grepl("8690|afff|foam|firefight|fire.?fight", bn, perl = TRUE)), "source-material reference (AFFF/foam)", "#4a148c")
+    add(any(grepl("ucmr|occurrence|raw.?water|gw|sdwis|finished.?water|tap", bn, perl = TRUE)), "environmental occurrence (monitoring-style)", "#e65100")
+    add(any(grepl("sludge|biosolid|wwtp|residual|soil", bn, perl = TRUE)), "biosolids/soil/environmental (non-ingestion matrix)", "#5d4037")
+    if (length(chips) == 0L) {
+      chips <- list(matrix_hint_chip("matrix role not inferred — use filenames (e.g. serum_pfas, srm1957, ucmr) or a matrix column", "#757575"))
+    }
+    do.call(tagList, chips)
+  }
+
   iso_path_badge_screening_optional <- function(short_label) {
     tags$span(
       style = "display:inline-block;padding:3px 10px;border-radius:999px;background:#757575;color:#fff;font-size:12px;font-weight:500;",
@@ -4317,35 +5170,65 @@ server <- function(input, output, session) {
   }
 
   output$pfas_ref_path_badge <- renderUI({
-    if (!lab_schema_badges_enabled()) {
-      return(iso_path_badge_screening_optional("Reference pack"))
+    ref_path <- resolve_pipeline_path(input$pfas_ref_path, file.path(PROJECT_DIR, "data", "external", "method_validation"))
+    top <- if (!lab_schema_badges_enabled()) {
+      iso_path_badge_screening_optional("Reference pack")
+    } else {
+      chk <- check_reference_dataset_schema(input$pfas_ref_path)
+      iso_badge(chk$ok, "Reference ready", "Reference missing/invalid")
     }
-    chk <- check_reference_dataset_schema(input$pfas_ref_path)
-    iso_badge(chk$ok, "Reference ready", "Reference missing/invalid")
+    tagList(
+      div(style = "display:flex;flex-wrap:wrap;align-items:center;gap:8px;", top),
+      div(style = "margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;", scan_reference_folder_matrix_chips(ref_path))
+    )
   })
 
   output$pfas_method_path_badge <- renderUI({
-    if (!lab_schema_badges_enabled()) {
-      return(iso_path_badge_screening_optional("Method pack"))
+    top <- if (!lab_schema_badges_enabled()) {
+      iso_path_badge_screening_optional("Method pack")
+    } else {
+      chk <- check_method_dataset_schema(input$pfas_method_path)
+      iso_badge(chk$ok, "Method schema ready", "Method schema missing")
     }
-    chk <- check_method_dataset_schema(input$pfas_method_path)
-    iso_badge(chk$ok, "Method schema ready", "Method schema missing")
+    tagList(
+      div(style = "display:flex;flex-wrap:wrap;align-items:center;gap:8px;", top),
+      div(
+        style = "margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;",
+        matrix_hint_chip("method governance / metadata (EPA 533 / 537 / 1633-style) — NOT wet-lab validation evidence", "#006064")
+      )
+    )
   })
 
   output$pfas_qc_path_badge <- renderUI({
-    if (!lab_schema_badges_enabled()) {
-      return(iso_path_badge_screening_optional("QC pack"))
+    top <- if (!lab_schema_badges_enabled()) {
+      iso_path_badge_screening_optional("QC pack")
+    } else {
+      chk <- check_qc_dataset_schema(input$pfas_qc_path)
+      iso_badge(chk$ok, "QC schema ready", "QC schema missing")
     }
-    chk <- check_qc_dataset_schema(input$pfas_qc_path)
-    iso_badge(chk$ok, "QC schema ready", "QC schema missing")
+    tagList(
+      div(style = "display:flex;flex-wrap:wrap;align-items:center;gap:8px;", top),
+      div(
+        style = "margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;",
+        matrix_hint_chip("informational QA references / templates — NOT accreditation or batch QC evidence", "#5d4037")
+      )
+    )
   })
 
   output$pfas_pt_path_badge <- renderUI({
-    if (!lab_schema_badges_enabled()) {
-      return(iso_path_badge_screening_optional("PT pack"))
+    top <- if (!lab_schema_badges_enabled()) {
+      iso_path_badge_screening_optional("PT pack")
+    } else {
+      chk <- check_pt_dataset_schema(input$pfas_pt_path)
+      iso_badge(chk$ok, "PT schema ready", "PT schema missing")
     }
-    chk <- check_pt_dataset_schema(input$pfas_pt_path)
-    iso_badge(chk$ok, "PT schema ready", "PT schema missing")
+    tagList(
+      div(style = "display:flex;flex-wrap:wrap;align-items:center;gap:8px;", top),
+      div(
+        style = "margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;",
+        matrix_hint_chip("PT summaries / benchmarking — useful science; NOT proof of this operator's lab competence", "#283593")
+      )
+    )
   })
 
   output$iso_data_paths_status <- renderPrint({
@@ -4372,7 +5255,50 @@ server <- function(input, output, session) {
     cat("Method dataset    :", bool_mark(pf$checks[["method"]]), "\n")
     cat("QC dataset        :", bool_mark(pf$checks[["qc"]]), "\n")
     cat("PT dataset        :", bool_mark(pf$checks[["pt"]]), "\n")
+
+    print_preflight_detail <- function(title, comp) {
+      cat("\n--- ", title, " ---\n", sep = "")
+      cat("  path: ", comp$path %||% "", "\n", sep = "")
+      fn <- comp$file %||% ""
+      cat("  file: ", if (nzchar(as.character(fn))) as.character(fn) else "(none — no eligible CSV/TSV/XLS after excluding *template* names)", "\n", sep = "")
+      cat("  ok:   ", isTRUE(comp$ok), "\n", sep = "")
+      fd <- comp$found
+      if (!is.null(fd) && length(fd) > 0L) {
+        cat("  column / schema flags:\n")
+        for (nm in names(fd)) {
+          cat("    ", nm, ": ", fd[[nm]], "\n", sep = "")
+        }
+      }
+    }
+    print_preflight_detail("Reference (labels + concentration)", pf$ref)
+    print_preflight_detail("Method (LOD/LOQ + matrix + method id)", pf$method)
+    print_preflight_detail("QC (recovery, RSD, batch, analyst)", pf$qc)
+    print_preflight_detail("PT (expected or z-score + provider)", pf$pt)
+
     cat("\nLast preflight run:\n", iso_preflight_note(), "\n", sep = "")
+  })
+
+  output$ml_workflow_mode_badge <- renderUI({
+    st <- ml_workflow_train_context()
+    wm <- st$workflow_mode %||% "idle"
+    ras <- trimws(as.character(st$results_artifact_subdir %||% "")[[1]])
+    sub_note <- if (nzchar(ras)) {
+      paste0(" Metrics CSV/JSON for that run are under results/", ras, "/.")
+    } else {
+      ""
+    }
+    lab <- if (identical(wm, "screening")) {
+      "Last model train: exploratory screening (iso_governed = false)"
+    } else if (identical(wm, "evidence_governed")) {
+      "Last model train: evidence-governed (iso_governed = true)"
+    } else {
+      "Last model train: none completed in this session"
+    }
+    col <- if (identical(wm, "screening")) "#01579b" else if (identical(wm, "evidence_governed")) "#1b5e20" else "#455a64"
+    tagList(
+      tags$p(style = paste0("margin:0;font-weight:700;color:", col, ";"), lab),
+      tags$p(style = "margin:4px 0 0 0;font-size:13px;line-height:1.35;", st$note %||% "", sub_note)
+    )
   })
 
   output$qc_pt_upload_status <- renderPrint({
@@ -4395,7 +5321,510 @@ server <- function(input, output, session) {
     )
   })
 
-  observeEvent(input$btn_iso_preflight, {
+  output$tbl_matrix_pipeline_sop <- DT::renderDT({
+    sop <- file.path(PROJECT_DIR, "data", "config", "matrix_pipeline_sop.csv")
+    if (!file.exists(sop)) {
+      return(DT::datatable(
+        tibble::tibble(Note = "Missing data/config/matrix_pipeline_sop.csv"),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE, searching = FALSE, info = FALSE)
+      ))
+    }
+    df <- utils::read.csv(sop, stringsAsFactors = FALSE, check.names = FALSE)
+    DT::datatable(
+      df,
+      colnames = c("Matrix", "Canonical datasets", "Pipeline ID (software)"),
+      rownames = FALSE,
+      options = list(dom = "t", paging = FALSE, ordering = FALSE, searching = FALSE, info = FALSE)
+    )
+  })
+
+  matrix_pipeline_nonce <- reactiveVal(0L)
+  matrix_pipeline_status <- reactiveVal("Per-lane builder has not been run yet in this session.")
+
+  read_matrix_pipeline_manifest <- function(pipeline_id) {
+    p <- file.path(PROJECT_DIR, "data", "training", pipeline_id, "manifest.json")
+    if (!file.exists(p)) return(NULL)
+    tryCatch(jsonlite::fromJSON(p, simplifyVector = TRUE), error = function(e) NULL)
+  }
+
+  collect_matrix_pipeline_outputs <- function() {
+    sop <- file.path(PROJECT_DIR, "data", "config", "matrix_pipeline_sop.csv")
+    if (!file.exists(sop)) {
+      return(tibble::tibble(note = "Missing data/config/matrix_pipeline_sop.csv"))
+    }
+    df <- utils::read.csv(sop, stringsAsFactors = FALSE, check.names = FALSE)
+    rows <- lapply(seq_len(nrow(df)), function(i) {
+      pid <- trimws(as.character(df$pipeline_id[i]))
+      mat <- trimws(as.character(df$matrix[i]))
+      ds <- trimws(as.character(df$canonical_datasets[i]))
+      man <- read_matrix_pipeline_manifest(pid)
+      training_csv <- file.path("data", "training", pid, "training.csv")
+      training_exists <- file.exists(file.path(PROJECT_DIR, training_csv))
+      rows_written <- if (!is.null(man$rows_written)) as.integer(man$rows_written) else NA_integer_
+      gen_at <- if (!is.null(man$generated_at_utc)) as.character(man$generated_at_utc) else NA_character_
+      note_vec <- if (!is.null(man$notes)) as.character(man$notes) else character(0)
+      tibble::tibble(
+        Matrix = mat,
+        `Pipeline ID` = pid,
+        `Canonical datasets` = ds,
+        `Rows written` = rows_written,
+        `Training CSV exists` = training_exists,
+        `Generated at (UTC)` = gen_at %||% "",
+        Notes = if (length(note_vec)) paste(note_vec, collapse = " | ") else ""
+      )
+    })
+    do.call(rbind, rows)
+  }
+
+  output$tbl_matrix_pipeline_outputs <- DT::renderDT({
+    matrix_pipeline_nonce()
+    df <- collect_matrix_pipeline_outputs()
+    DT::datatable(
+      df,
+      rownames = FALSE,
+      options = list(dom = "t", paging = FALSE, ordering = FALSE, searching = FALSE, info = FALSE)
+    )
+  })
+
+  output$matrix_pipeline_status <- renderText({
+    matrix_pipeline_nonce()
+    matrix_pipeline_status()
+  })
+
+  resolve_pfas_python <- function() {
+    cand <- trimws(Sys.getenv("PFAS_PYTHON", unset = ""))
+    if (nzchar(cand) && file.exists(cand)) return(cand)
+    if (file.exists(LOCAL_PYTHON_DEFAULT)) return(LOCAL_PYTHON_DEFAULT)
+    onp <- suppressWarnings(Sys.which("python"))
+    if (nzchar(onp) && file.exists(onp)) return(onp)
+    NA_character_
+  }
+
+  run_matrix_pipeline_lane <- function(lane) {
+    py <- resolve_pfas_python()
+    if (is.na(py)) {
+      matrix_pipeline_status(
+        paste0("Cannot find Python executable. Set PFAS_PYTHON, install Python, or run scripts/run_matrix_pipeline.py ",
+               "from a shell directly. Requested lane: ", lane)
+      )
+      matrix_pipeline_nonce(matrix_pipeline_nonce() + 1L)
+      return(invisible(FALSE))
+    }
+    script <- file.path(PROJECT_DIR, "scripts", "run_matrix_pipeline.py")
+    if (!file.exists(script)) {
+      matrix_pipeline_status(paste0("Missing scripts/run_matrix_pipeline.py at ", script))
+      matrix_pipeline_nonce(matrix_pipeline_nonce() + 1L)
+      return(invisible(FALSE))
+    }
+    args <- c(script, "--lane", lane, "--project-root", PROJECT_DIR)
+    out <- tryCatch(
+      system2(py, args = args, stdout = TRUE, stderr = TRUE),
+      error = function(e) paste0("system2 error: ", conditionMessage(e))
+    )
+    st <- attr(out, "status")
+    status_msg <- paste(
+      paste0("[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] lane=", lane,
+             if (!is.null(st) && !identical(as.integer(st), 0L)) paste0(" (exit ", st, ")") else " (ok)"),
+      paste(out, collapse = "\n"),
+      sep = "\n"
+    )
+    matrix_pipeline_status(status_msg)
+    matrix_pipeline_nonce(matrix_pipeline_nonce() + 1L)
+    append_pipeline_log("Matrix lane '", lane, "' build: ",
+                        if (!is.null(st) && !identical(as.integer(st), 0L)) "FAIL" else "OK")
+    invisible(is.null(st) || identical(as.integer(st), 0L))
+  }
+
+  observeEvent(input$btn_lane_drinking_water, { run_matrix_pipeline_lane("drinking_water") })
+  observeEvent(input$btn_lane_serum, { run_matrix_pipeline_lane("serum") })
+  observeEvent(input$btn_lane_biosolids_sludge, { run_matrix_pipeline_lane("biosolids_sludge") })
+  observeEvent(input$btn_lane_afff, { run_matrix_pipeline_lane("afff") })
+  observeEvent(input$btn_lane_methanol_standards, { run_matrix_pipeline_lane("methanol_standards") })
+  observeEvent(input$btn_lane_air_emissions, { run_matrix_pipeline_lane("air_emissions") })
+  observeEvent(input$btn_lane_all, { run_matrix_pipeline_lane("all") })
+
+  # ------------------------------------------------------------------ #
+  # Applicability-domain (AD) enforcement                              #
+  # Backed by scripts/run_ad_guard.R (source once; lazy-loaded).       #
+  # ------------------------------------------------------------------ #
+
+  ad_guard_loaded <- reactiveVal(FALSE)
+  ad_guard_status <- reactiveVal("AD guard has not been run yet in this session.")
+  ad_guard_counts <- reactiveVal(NULL)
+  ad_guard_output_df <- reactiveVal(NULL)
+  ad_audit_nonce <- reactiveVal(0L)
+
+  ensure_ad_guard_loaded <- function() {
+    if (isTRUE(ad_guard_loaded())) return(invisible(TRUE))
+    helper <- file.path(PROJECT_DIR, "scripts", "run_ad_guard.R")
+    if (!file.exists(helper)) {
+      ad_guard_status(paste0("Missing scripts/run_ad_guard.R at ", helper))
+      return(invisible(FALSE))
+    }
+    sys.source(helper, envir = globalenv())
+    ad_guard_loaded(TRUE)
+    invisible(TRUE)
+  }
+
+  observeEvent(input$btn_ad_rebuild_all, {
+    if (!ensure_ad_guard_loaded()) return(NULL)
+    res <- tryCatch(
+      rebuild_ad_models(project_root = PROJECT_DIR, lane = "all"),
+      error = function(e) list(rc = -1L, log_text = conditionMessage(e))
+    )
+    msg <- paste(
+      paste0("[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] rebuild_ad_models all"),
+      paste0("  exit_code=", res$rc),
+      res$log_text,
+      sep = "\n"
+    )
+    ad_guard_status(msg)
+    append_pipeline_log("AD models rebuild: ",
+                        if (identical(as.integer(res$rc %||% -1L), 0L)) "OK" else "FAIL")
+    ad_audit_nonce(ad_audit_nonce() + 1L)
+  })
+
+  observeEvent(input$btn_ad_refresh_audit, {
+    ad_audit_nonce(ad_audit_nonce() + 1L)
+  })
+
+  observeEvent(input$btn_ad_run_guard, {
+    if (!ensure_ad_guard_loaded()) return(NULL)
+    fi <- input$ad_input_csv
+    if (is.null(fi) || is.null(fi$datapath) || !file.exists(fi$datapath)) {
+      ad_guard_status("No candidate CSV uploaded. Pick a file first.")
+      return(NULL)
+    }
+    lane <- trimws(as.character(input$ad_lane_select %||% ""))
+    mode <- as.character(input$ad_mode %||% "strict")
+    out_csv <- file.path(dirname(fi$datapath),
+                         paste0(tools::file_path_sans_ext(basename(fi$datapath)),
+                                ".ad_annotated.csv"))
+
+    res <- tryCatch(
+      run_ad_guard(
+        input_csv = fi$datapath,
+        output_csv = out_csv,
+        lane = if (nzchar(lane)) lane else NULL,
+        mode = mode,
+        project_root = PROJECT_DIR,
+        audit = TRUE
+      ),
+      error = function(e) list(rc = -1L, log_text = conditionMessage(e),
+                               output_csv = out_csv, summary = list())
+    )
+
+    counts <- res$summary$counts %||% list()
+    ad_guard_counts(counts)
+    msg <- paste(
+      paste0("[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] AD guard  lane=",
+             if (nzchar(lane)) lane else "(auto)", "  mode=", mode, "  rc=", res$rc),
+      res$log_text,
+      sep = "\n"
+    )
+    ad_guard_status(msg)
+
+    if (!is.null(res$output_csv) && file.exists(res$output_csv)) {
+      df <- tryCatch(
+        utils::read.csv(res$output_csv, stringsAsFactors = FALSE, check.names = FALSE),
+        error = function(e) NULL
+      )
+      if (!is.null(df)) {
+        ad_guard_output_df(utils::head(df, 200))
+      }
+    } else {
+      ad_guard_output_df(NULL)
+    }
+
+    rejected <- as.integer(counts$reject %||% 0L)
+    append_pipeline_log("AD guard ", mode, " on ", basename(fi$name),
+                        " -> rejected=", rejected,
+                        if (rejected > 0L) " (refusal active)" else "")
+    ad_audit_nonce(ad_audit_nonce() + 1L)
+  })
+
+  output$ad_guard_status <- renderText({ ad_guard_status() })
+
+  output$ad_guard_counts <- renderUI({
+    counts <- ad_guard_counts()
+    if (is.null(counts) || !length(counts)) {
+      return(tags$div(class = "text-muted",
+                      "Counts will appear here after the guard runs."))
+    }
+    pill <- function(label, n, bg) {
+      tags$span(
+        style = sprintf("display:inline-block;padding:6px 10px;margin:2px 4px 2px 0;border-radius:14px;background:%s;color:#fff;font-weight:600;", bg),
+        sprintf("%s: %d", label, as.integer(n %||% 0L))
+      )
+    }
+    tags$div(
+      style = "margin:6px 0 8px 0;",
+      pill("in_domain", counts$in_domain %||% 0L, "#2e7d32"),
+      pill("warning",   counts$warning   %||% 0L, "#ef6c00"),
+      pill("reject",    counts$reject    %||% 0L, "#c62828"),
+      if (!is.null(counts$no_lane) && as.integer(counts$no_lane %||% 0L) > 0L)
+        pill("no_lane", counts$no_lane, "#455a64")
+    )
+  })
+
+  output$tbl_ad_guard_output <- DT::renderDT({
+    df <- ad_guard_output_df()
+    if (is.null(df) || !nrow(df)) {
+      return(DT::datatable(
+        tibble::tibble(Note = "Upload a CSV and run the AD guard to populate this table."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE,
+                       searching = FALSE, info = FALSE)
+      ))
+    }
+    show_cols <- intersect(c("pipeline_lane", "analyte", "result_value_numeric",
+                             "result_unit", "ad_status", "ad_distance", "ad_reason",
+                             "reference_lane", "training_range_version",
+                             "ad_model_version", "ad_method"), colnames(df))
+    if (!length(show_cols)) show_cols <- colnames(df)[seq_len(min(10, ncol(df)))]
+    DT::datatable(
+      df[, show_cols, drop = FALSE],
+      rownames = FALSE,
+      options = list(pageLength = 15, scrollX = TRUE)
+    ) |>
+      DT::formatStyle(
+        "ad_status",
+        target = "row",
+        backgroundColor = DT::styleEqual(
+          c("reject", "warning", "in_domain"),
+          c("#fdecea", "#fff4e5", "#e8f5e9")
+        )
+      )
+  })
+
+  output$tbl_ad_audit <- DT::renderDT({
+    ad_audit_nonce()
+    if (!ensure_ad_guard_loaded()) {
+      return(DT::datatable(
+        tibble::tibble(Note = "AD helper not loaded; click 'Rebuild AD models' first."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE,
+                       searching = FALSE, info = FALSE)
+      ))
+    }
+    df <- tryCatch(read_ad_audit(project_root = PROJECT_DIR, tail_n = 100L),
+                   error = function(e) data.frame(error = conditionMessage(e)))
+    if (!is.data.frame(df) || !nrow(df)) {
+      return(DT::datatable(
+        tibble::tibble(Note = "No AD decisions logged yet (data/audit/ad_decisions.jsonl is empty)."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE,
+                       searching = FALSE, info = FALSE)
+      ))
+    }
+    DT::datatable(
+      df,
+      rownames = FALSE,
+      options = list(pageLength = 10, order = list(list(0, "desc")), scrollX = TRUE)
+    )
+  })
+
+  # ------------------------------------------------------------------ #
+  # Sealed external blind-validation harness                           #
+  # ------------------------------------------------------------------ #
+
+  bv_loaded <- reactiveVal(FALSE)
+  bv_status <- reactiveVal("No blind-validation action taken in this session.")
+  bv_last_metrics <- reactiveVal(NULL)
+  bv_nonce <- reactiveVal(0L)
+
+  ensure_bv_loaded <- function() {
+    if (isTRUE(bv_loaded())) return(invisible(TRUE))
+    helper <- file.path(PROJECT_DIR, "scripts", "run_blind_validation.R")
+    if (!file.exists(helper)) {
+      bv_status(paste0("Missing scripts/run_blind_validation.R at ", helper))
+      return(invisible(FALSE))
+    }
+    sys.source(helper, envir = globalenv())
+    bv_loaded(TRUE)
+    invisible(TRUE)
+  }
+
+  bv_refresh_submission_choices <- function() {
+    if (!ensure_bv_loaded()) return(invisible(NULL))
+    info <- tryCatch(bv_list(project_root = PROJECT_DIR),
+                     error = function(e) list(submissions = character(0)))
+    updateSelectInput(session, "bv_submission_id", choices = info$submissions,
+                      selected = if (length(info$submissions))
+                        info$submissions[length(info$submissions)] else NULL)
+  }
+
+  observeEvent(input$btn_bv_refresh, {
+    bv_refresh_submission_choices()
+    bv_nonce(bv_nonce() + 1L)
+  })
+
+  observeEvent(input$btn_bv_seal, {
+    if (!ensure_bv_loaded()) return(NULL)
+    fi <- input$bv_input_csv
+    if (is.null(fi) || is.null(fi$datapath)) {
+      bv_status("Upload a candidate CSV first.")
+      return(NULL)
+    }
+    if (!nzchar(input$bv_submitted_by %||% "") ||
+        !nzchar(input$bv_model_version %||% "")) {
+      bv_status("Provide both 'Submitted by' and 'Model version'.")
+      return(NULL)
+    }
+    res <- tryCatch(
+      bv_build_pack(
+        input_csv = fi$datapath,
+        lane = input$bv_lane,
+        truth_column = input$bv_truth_col,
+        submitted_by = input$bv_submitted_by,
+        model_version = input$bv_model_version,
+        predicted_score_column = input$bv_score_col,
+        predicted_label_column = input$bv_label_col,
+        note = input$bv_note,
+        project_root = PROJECT_DIR
+      ),
+      error = function(e) list(rc = -1L, log = conditionMessage(e),
+                               parsed = list(status = "ERROR"))
+    )
+    msg <- paste(
+      paste0("[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] seal rc=", res$rc),
+      res$log,
+      sep = "\n"
+    )
+    bv_status(msg)
+    if (identical(res$parsed$status, "sealed")) {
+      append_pipeline_log("Blind-validation seal: ", res$parsed$submission_id)
+      bv_refresh_submission_choices()
+    } else {
+      append_pipeline_log("Blind-validation seal FAILED")
+    }
+    bv_nonce(bv_nonce() + 1L)
+  })
+
+  bv_run_score <- function(force) {
+    if (!ensure_bv_loaded()) return(NULL)
+    sub_id <- trimws(as.character(input$bv_submission_id %||% ""))
+    if (!nzchar(sub_id)) {
+      bv_status("Pick a sealed submission to score.")
+      return(NULL)
+    }
+    res <- tryCatch(
+      bv_score(sub_id, force = force, project_root = PROJECT_DIR),
+      error = function(e) list(rc = -1L, log = conditionMessage(e), parsed = list())
+    )
+    msg <- paste(
+      paste0("[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] score rc=", res$rc,
+             if (force) " (forced)" else ""),
+      res$log,
+      sep = "\n"
+    )
+    bv_status(msg)
+    if (identical(res$parsed$status, "REVEALED") ||
+        identical(res$parsed$status, "ALREADY_REVEALED")) {
+      bv_last_metrics(res$parsed$metrics)
+      append_pipeline_log("Blind-validation reveal: ", sub_id,
+                          if (isTRUE(res$parsed$ad_policy_drift) ||
+                              isTRUE(res$parsed$threshold_drift))
+                            " (freeze drift recorded)" else "")
+    } else if (identical(res$parsed$status, "REFUSED")) {
+      bv_last_metrics(NULL)
+      append_pipeline_log("Blind-validation REFUSED: ",
+                          res$parsed$reason %||% "unknown")
+    }
+    bv_nonce(bv_nonce() + 1L)
+  }
+
+  observeEvent(input$btn_bv_score,       { bv_run_score(force = FALSE) })
+  observeEvent(input$btn_bv_force_score, { bv_run_score(force = TRUE)  })
+
+  output$bv_status <- renderText({ bv_status() })
+
+  output$bv_score_pills <- renderUI({
+    m <- bv_last_metrics()
+    if (is.null(m) || !length(m)) {
+      return(tags$div(class = "text-muted",
+                      "Metrics will appear here after the next reveal."))
+    }
+    pill <- function(label, val, bg) {
+      v <- if (is.null(val)) "NA" else
+        if (is.numeric(val) || (is.character(val) && grepl("^[-0-9.]+$", val)))
+          format(round(as.numeric(val), 4), nsmall = 0, scientific = FALSE)
+      else as.character(val)
+      tags$span(
+        style = sprintf("display:inline-block;padding:6px 10px;margin:2px 4px 2px 0;border-radius:14px;background:%s;color:#fff;font-weight:600;", bg),
+        sprintf("%s: %s", label, v)
+      )
+    }
+    tags$div(
+      style = "margin:6px 0 10px 0;",
+      pill("ROC AUC",      m$roc_auc,          "#1565c0"),
+      pill("precision",    m$precision,        "#2e7d32"),
+      pill("recall",       m$recall,           "#2e7d32"),
+      pill("F1",           m$f1,               "#558b2f"),
+      pill("flags / 10k",  m$flags_per_10k,    "#6d4c41"),
+      pill("FP / TP",      m$FP_per_TP,        "#bf360c"),
+      pill("AD in_domain", m$ad_in_domain_count, "#2e7d32"),
+      pill("AD warning",   m$ad_warning_count, "#ef6c00"),
+      pill("AD reject",    m$ad_reject_count,  "#c62828")
+    )
+  })
+
+  output$tbl_bv_submissions <- DT::renderDT({
+    bv_nonce()
+    if (!ensure_bv_loaded()) {
+      return(DT::datatable(
+        tibble::tibble(Note = "Blind-validation helper not loaded yet."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE,
+                       searching = FALSE, info = FALSE)
+      ))
+    }
+    df <- tryCatch(bv_read_submissions_index(project_root = PROJECT_DIR, tail_n = 100L),
+                   error = function(e) data.frame())
+    if (!is.data.frame(df) || !nrow(df)) {
+      return(DT::datatable(
+        tibble::tibble(Note = "No submissions sealed yet."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE,
+                       searching = FALSE, info = FALSE)
+      ))
+    }
+    DT::datatable(df, rownames = FALSE,
+                  options = list(pageLength = 8, scrollX = TRUE,
+                                 order = list(list(1, "desc"))))
+  })
+
+  output$tbl_bv_reveals <- DT::renderDT({
+    bv_nonce()
+    if (!ensure_bv_loaded()) {
+      return(DT::datatable(
+        tibble::tibble(Note = "Blind-validation helper not loaded yet."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE,
+                       searching = FALSE, info = FALSE)
+      ))
+    }
+    df <- tryCatch(bv_read_reveals_index(project_root = PROJECT_DIR, tail_n = 100L),
+                   error = function(e) data.frame())
+    if (!is.data.frame(df) || !nrow(df)) {
+      return(DT::datatable(
+        tibble::tibble(Note = "No reveals yet."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE,
+                       searching = FALSE, info = FALSE)
+      ))
+    }
+    DT::datatable(df, rownames = FALSE,
+                  options = list(pageLength = 8, scrollX = TRUE,
+                                 order = list(list(1, "desc")))) |>
+      DT::formatStyle("ad_policy_drift",
+                      target = "row",
+                      backgroundColor = DT::styleEqual(
+                        c("TRUE", "FALSE"), c("#fff4e5", "#ffffff")))
+  })
+
+  iso_preflight_button_handler <- function() {
     pf <- run_iso_preflight_check()
     failed <- names(pf$checks)[!pf$checks]
     if (isTRUE(pf$ok)) {
@@ -4412,7 +5841,10 @@ server <- function(input, output, session) {
       )
     } else {
       iso_preflight_note(paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), " BLOCK (", paste(failed, collapse = ", "), ")"))
-      append_pipeline_log("ISO preflight BLOCK: ", paste(failed, collapse = ", "))
+      append_pipeline_log(
+        "ISO preflight BLOCK: ", paste(failed, collapse = ", "),
+        " | ", iso_preflight_failed_paths_note(pf)
+      )
       showNotification(paste0("ISO preflight blocked: ", paste(failed, collapse = ", ")), type = "error")
       write_audit(
         "pfas_pipeline",
@@ -4424,6 +5856,14 @@ server <- function(input, output, session) {
       )
     }
     pfas_results_nonce(pfas_results_nonce() + 1L)
+  }
+
+  observeEvent(input$btn_iso_preflight, {
+    iso_preflight_button_handler()
+  })
+
+  observeEvent(input$btn_pfas_pipeline_iso_preflight, {
+    iso_preflight_button_handler()
   })
 
   observeEvent(input$btn_bootstrap_source_folders, {
@@ -4501,13 +5941,15 @@ server <- function(input, output, session) {
     external_upload_normalized(NULL)
     external_upload_read_error("")
     external_upload_strict_result(NULL)
+    external_reference_preflight(NULL)
     # Reset any sticky prior mappings so new uploads re-run auto-detection.
     map_keys <- c(
       "source_dataset", "sample_id", "matrix", "date", "analyte", "cas",
       "result_value", "unit", "qualifier", "mdl", "rl", "detect_flag",
       "state", "county", "region", "facility_water_type", "sample_point_type",
       "method_id", "collection_year", "collection_month", "pws_size", "facility_id", "sample_point_id",
-      "latitude", "longitude", "health_endpoint", "health_value"
+      "latitude", "longitude", "health_endpoint", "health_value",
+      REFERENCE_EXTRA_MAP_KEYS
     )
     for (k in map_keys) {
       try(updateSelectInput(session, paste0("map_", k), selected = ""), silent = TRUE)
@@ -4547,6 +5989,186 @@ server <- function(input, output, session) {
     external_upload_read_error("")
     external_upload_raw(dat)
     showNotification(paste("Loaded upload:", f$name %||% "", "rows:", nrow(dat)), type = "message")
+    if (isTRUE(detect_icis_air_bulk_program_table(names(dat), f$name %||% ""))) {
+      showNotification(
+        paste(
+          "ICIS-AIR program metadata detected. PFAS occurrence auto-mapping is DISABLED for this file.",
+          "Validate / Normalize / Save / Train will refuse. Use scripts/filter_icis_air_pfas.py or OTM-50 for air measurements."
+        ),
+        type = "error",
+        duration = 20
+      )
+      # Hard reset: blank every PFAS-occurrence map dropdown so prior
+      # auto-detect picks (pollutant_code -> result_value, CAS -> state, etc.)
+      # cannot survive into validate/save.
+      for (k in PFAS_OCCURRENCE_MAP_FIELDS) {
+        try(updateSelectInput(session, paste0("map_", k), selected = ""), silent = TRUE)
+      }
+    }
+  })
+
+  # Derived: which semantic-type lane is this upload routed to?
+  # Used by get_upload_mapping() to control which fields auto-fill, and by
+  # btn_external_* handlers to refuse hard when the lane does not allow
+  # PFAS-occurrence training.
+  upload_dataset_semantic_type <- reactive({
+    df <- external_upload_raw()
+    nm <- external_upload_name() %||% ""
+    if (is.null(df) || !is.data.frame(df) || ncol(df) < 1L) {
+      return("pfas_occurrence_or_other")
+    }
+    if (isTRUE(detect_icis_air_bulk_program_table(names(df), nm))) {
+      return("air_program_metadata")
+    }
+    "pfas_occurrence_or_other"
+  })
+
+  # True when the current upload is governance/program metadata that must NOT
+  # be normalized through the PFAS occurrence schema.
+  upload_is_metadata_lane <- reactive({
+    sem <- upload_dataset_semantic_type()
+    identical(sem, "air_program_metadata") ||
+      identical(sem, "biosolids_program_metadata")
+  })
+
+  # Convenience helper for the action handlers: refuse with one consistent
+  # message + audit entry, and return TRUE so callers can early-return.
+  refuse_pfas_op_on_metadata_lane <- function(op_label) {
+    sem <- upload_dataset_semantic_type()
+    if (!isTRUE(upload_is_metadata_lane())) return(FALSE)
+    msg <- paste0(
+      op_label,
+      " blocked: this upload is '", sem,
+      "', not PFAS occurrence data. Use scripts/filter_icis_air_pfas.py for ",
+      "curated air program reference, or OTM-50 for air emissions measurements."
+    )
+    external_upload_save_note(msg)
+    showNotification(msg, type = "error", duration = 18)
+    try(
+      write_audit(
+        "external_upload",
+        "icis_air_metadata_refusal",
+        "op_refused_metadata_lane",
+        op_id(),
+        msg,
+        list(
+          operation = op_label,
+          semantic_type = sem,
+          file_name = external_upload_name() %||% ""
+        )
+      ),
+      silent = TRUE
+    )
+    TRUE
+  }
+
+  output$icis_air_external_upload_banner <- renderUI({
+    df <- external_upload_raw()
+    nm <- external_upload_name() %||% ""
+    if (is.null(df) || !is.data.frame(df) || ncol(df) < 1L) {
+      return(NULL)
+    }
+    if (!isTRUE(detect_icis_air_bulk_program_table(names(df), nm))) {
+      return(NULL)
+    }
+    tags$div(
+      class = "alert",
+      style = paste0(
+        "background:#ffebee;border:2px solid #c62828;color:#4e342e;",
+        "padding:14px 16px;border-radius:4px;margin:10px 0 12px 0;"
+      ),
+      tags$p(
+        style = "margin:0 0 10px 0;font-size:15px;",
+        tags$strong(style = "color:#b71c1c;", "ICIS-AIR metadata dataset detected. Automatic PFAS occurrence mapping disabled."),
+        tags$span(
+          style = "font-size:11px;color:#6d4c41;margin-left:8px;",
+          paste0("(", ICIS_AIR_UPLOAD_BANNER_VERSION, ")")
+        )
+      ),
+      tags$p(
+        style = "margin:0 0 8px 0;",
+        "Column headers match the EPA ",
+        tags$code("ICIS-AIR_POLLUTANTS"),
+        " program listing (facility × reported pollutant). ",
+        tags$strong("This is not a PFAS-in-air concentration table."),
+        " Rows are governance metadata (a facility ",
+        tags$em("reports"),
+        " or ",
+        tags$em("permits"),
+        " a pollutant), not analytical results."
+      ),
+      tags$p(
+        style = "margin:0 0 8px 0;",
+        tags$strong("Mapping safeguards now active:"),
+        tags$ul(
+          style = "margin:6px 0 0 18px;padding:0;",
+          tags$li(
+            tags$code("pollutant_code"),
+            " is blocked from ",
+            tags$code("result_value"),
+            " (a regulatory code is not a concentration)."
+          ),
+          tags$li(
+            tags$code("chemical_abstract_service_nmbr"),
+            " is blocked from ",
+            tags$code("state"),
+            " (a CAS number is not a geography)."
+          ),
+          tags$li(
+            "All occurrence fields (",
+            tags$code("result_value"),
+            ", ",
+            tags$code("unit"),
+            ", ",
+            tags$code("analyte"),
+            ", ",
+            tags$code("date"),
+            ", ",
+            tags$code("mdl"),
+            ", ",
+            tags$code("rl"),
+            ", ",
+            tags$code("detect_flag"),
+            ", ",
+            tags$code("state"),
+            ", ...) are force-blanked on load."
+          ),
+          tags$li(
+            tags$strong("Validate / Normalize / Save / Train refuse with HTTP-style hard errors"),
+            " — the file cannot enter PFAS training or threshold analysis."
+          )
+        )
+      ),
+      tags$p(
+        style = "margin:0 0 8px 0;",
+        tags$strong("Use instead: "),
+        tags$ul(
+          style = "margin:6px 0 0 18px;padding:0;",
+          tags$li(
+            "Curated PFAS-relevant slice: ",
+            tags$code("python scripts/filter_icis_air_pfas.py"),
+            " → ",
+            tags$code("data/processed/epa_icis_air/icis_air_pfas_pollutants.csv"),
+            " (",
+            tags$em("air program reference / governance joins — still not concentrations"),
+            ")."
+          ),
+          tags$li(
+            "Measured stack / source emissions: OTM-50 workbooks (",
+            tags$code("air_emissions"),
+            " lane; see ",
+            tags$code("data/external/epa_otm50/README.md"),
+            ")."
+          )
+        )
+      ),
+      tags$p(
+        style = "margin:0;font-size:12px;color:#5d4037;",
+        tags$strong("Semantic type: "),
+        tags$code("air_program_metadata"),
+        ". Each upload semantic type now has its own mapping policy; concentration and metadata never share the normalization mapper."
+      )
+    )
   })
 
   output$external_file_meta <- renderPrint({
@@ -4584,6 +6206,30 @@ server <- function(input, output, session) {
     cat("Extension:", ext, "\n")
     cat("Rows:", nrow(df), "\n")
     cat("Columns:", ncol(df), "\n")
+  })
+
+  output$external_reference_preflight_status <- renderPrint({
+    cat("Reference material preflight (governance)\n")
+    cat("-------------------------------------------\n")
+    cat(
+      "PASS: required maps + numeric uncertainty; REVIEW: provenance/matrix notes; ",
+      "BLOCK: bench table as occurrence type, or missing required reference fields.\n\n"
+    )
+    pf <- external_reference_preflight()
+    if (is.null(pf)) {
+      cat("No preflight result yet — upload a file, set Dataset type + Map columns, then click Validate.\n")
+      return(invisible(NULL))
+    }
+    cat("Status:", pf$status %||% "unknown", "\n")
+    if (length(pf$codes)) {
+      cat("Codes:", paste(pf$codes, collapse = ", "), "\n")
+    }
+    if (length(pf$messages)) {
+      cat("\nDetail:\n")
+      for (m in pf$messages) {
+        cat(" - ", m, "\n", sep = "")
+      }
+    }
   })
 
   output$tbl_external_preview <- renderDT({
@@ -4666,6 +6312,12 @@ server <- function(input, output, session) {
         scores <- scores + ifelse(safe_detect(cn_norm, "sample|well|station|pws|^id$|_id$|id_"), 30, 0)
         scores <- scores - ifelse(safe_detect(cn_norm, "result|value|concentration"), 40, 0)
         scores <- scores - ifelse(safe_detect(cn_norm, "name|contaminant|chemical|pesticide"), 35, 0)
+      } else if (identical(field_name, "uncertainty")) {
+        numeric_rate <- vapply(cn, function(cname) mean(!is.na(parse_num(df[[cname]]))), numeric(1))
+        scores <- scores + 100 * numeric_rate
+        scores <- scores + ifelse(safe_detect(cn_norm, "uncertainty|expanded|u_exp|std|error|k2"), 45, 0)
+      } else if (identical(field_name, "reference_id")) {
+        scores <- scores + ifelse(safe_detect(cn_norm, "reference|srm|rm|nist|document|catalog|material|source"), 55, 0)
       }
       idx <- which.max(scores)
       if (length(idx) == 0 || !is.finite(scores[[idx]]) || scores[[idx]] <= 0) return("")
@@ -4687,20 +6339,14 @@ server <- function(input, output, session) {
       )
     }
     opts <- c("(not mapped)" = "", stats::setNames(cols, cols))
-    fields <- c(
-      "source_dataset", "sample_id", "matrix", "date", "analyte", "cas",
-      "result_value", "unit", "qualifier", "mdl", "rl", "detect_flag",
-      "state", "county", "region", "facility_water_type", "sample_point_type",
-      "method_id", "collection_year", "collection_month", "pws_size", "facility_id", "sample_point_id",
-      "latitude", "longitude", "health_endpoint", "health_value"
-    )
+    fields <- CORE_EXTERNAL_MAP_KEYS
     labels <- c(
       source_dataset = "source_dataset",
       sample_id = "sample_id",
       matrix = "matrix",
       date = "sample_date/date",
       analyte = "analyte",
-      cas = "cas",
+      cas = "cas (optional)",
       result_value = "result_value",
       unit = "result_unit",
       qualifier = "qualifier",
@@ -4709,52 +6355,71 @@ server <- function(input, output, session) {
       detect_flag = "detect_flag",
       state = "state",
       county = "county",
-      region = "region",
       facility_water_type = "FacilityWaterType",
       sample_point_type = "SamplePointType",
       method_id = "MethodID",
       collection_year = "CollectionYear",
-      collection_month = "CollectionMonth",
-      pws_size = "PWSSize",
       facility_id = "FacilityID",
       sample_point_id = "SamplePointID",
       latitude = "latitude",
-      longitude = "longitude",
-      health_endpoint = "health_endpoint",
-      health_value = "health_value"
+      longitude = "longitude"
     )
     aliases <- list(
-      source_dataset = c("source_dataset", "source dataset", "dataset", "source", "source_name"),
-      sample_id = c("sample_id", "sample id", "sample", "id", "seqn", "station", "pwsid", "pws_id", "samplepointid"),
-      matrix = c("matrix", "sample_matrix", "sample type"),
-      date = c("sample_date", "sample date", "collection_date", "collection date", "date"),
-      analyte = c("analyte", "analyte_name", "parameter", "parameter_name", "constituent", "contaminant", "chemical", "chemical_name", "compound"),
-      cas = c("cas", "casrn", "cas_number"),
+      source_dataset = c("source_dataset", "source dataset", "dataset", "source", "source_name", "program", "datasource", "study"),
+      sample_id = c(
+        "sample_id", "sample id", "sample", "id", "seqn", "station", "pwsid", "pws_id", "samplepointid",
+        "sampleid", "sample_number", "samplenumber", "lab_sample_id", "labsampleid", "submission_id", "submissionid",
+        "sample_identifier", "sampleidentifier", "public_water_system_id", "pwsidentifier", "water_system_no", "watersystemno"
+      ),
+      matrix = c("matrix", "sample_matrix", "sample type", "sampletype", "matrixtype", "media", "media_type"),
+      date = c(
+        "sample_date", "sample date", "collection_date", "collection date", "date", "activity_start_date",
+        "activitystartdate", "collectiondate", "date_collected", "datecollected", "sample_collection_date"
+      ),
+      analyte = c(
+        "analyte", "analyte_name", "parameter", "parameter_name", "constituent", "contaminant", "chemical", "chemical_name", "compound",
+        "contaminant_name", "constituent_name", "analytename", "parametercode", "parameter_code", "pollutant"
+      ),
+      cas = c("cas", "casrn", "cas_number", "cas_num", "casregistrynumber"),
       result_value = c(
         "result_value", "result value", "result", "result_clean", "resultclean", "result_ngl", "result ngl",
-        "concentration", "concentration_ng_l", "concentration_ngl", "value", "value_ngl", "reported", "reported_result"
+        "concentration", "concentration_ng_l", "concentration_ngl", "value", "value_ngl", "reported", "reported_result",
+        "analyticalresultvalue", "analytical_result", "resultamount", "measurement_value", "level", "amount", "reading",
+        "gm_result"
       ),
-      unit = c("result_unit", "result unit", "unit", "units", "uom"),
-      qualifier = c("qualifier", "flag", "result_flag", "censor"),
-      mdl = c("mdl", "method_detection_limit", "detection_limit"),
-      rl = c("rl", "reporting_limit", "report_limit"),
-      detect_flag = c("detect_flag", "detect", "detected"),
-      state = c("state", "state_abbr"),
-      county = c("county"),
-      region = c("region"),
-      facility_water_type = c("facilitywatertype", "facility_water_type"),
-      sample_point_type = c("samplepointtype", "sample_point_type"),
-      method_id = c("methodid", "method_id"),
-      collection_year = c("collectionyear", "collection_year", "year"),
-      collection_month = c("collectionmonth", "collection_month", "month"),
-      pws_size = c("pwssize", "pws_size"),
-      facility_id = c("facilityid", "facility_id"),
-      sample_point_id = c("samplepointid", "sample_point_id"),
-      latitude = c("latitude", "lat"),
-      longitude = c("longitude", "lon", "lng"),
-      health_endpoint = c("health_endpoint", "endpoint"),
-      health_value = c("health_value")
+      unit = c(
+        "result_unit", "result unit", "unit", "units", "uom", "result_units", "units_desc", "unit_desc",
+        "gm_result_unit"
+      ),
+      qualifier = c(
+        "qualifier", "flag", "result_flag", "censor", "result_qualifier", "lab_qualifier", "detection_qualifier",
+        "gm_result_modifier", "sample_event_result_type", "result_type", "result_qualifier_code", "qualifier_code"
+      ),
+      mdl = c("mdl", "method_detection_limit", "detection_limit", "method_detection_level", "minimum_reporting_level"),
+      rl = c("rl", "reporting_limit", "report_limit", "practical_quantitation_limit", "pql", "reporting_level"),
+      detect_flag = c("detect_flag", "detect", "detected", "detection_indicator", "is_detected"),
+      state = c("state", "state_abbr", "state_code", "st", "stateprovince", "state_province"),
+      county = c("county", "county_name", "countyname", "administrative_area"),
+      facility_water_type = c("facilitywatertype", "facility_water_type", "water_type", "sourcetype", "source_type"),
+      sample_point_type = c("samplepointtype", "sample_point_type", "location_type", "point_type"),
+      method_id = c("methodid", "method_id", "analytical_method", "analyticalmethod", "method_code", "methodcode", "analytical_method_id"),
+      collection_year = c("collectionyear", "collection_year", "year", "sample_year", "calendar_year"),
+      facility_id = c("facilityid", "facility_id", "facility_code", "site_id", "siteid", "pws_id_number"),
+      sample_point_id = c("samplepointid", "sample_point_id", "monitoring_point", "station_id", "stationid"),
+      latitude = c("latitude", "lat", "lat_measure", "latmeasure", "dec_lat", "y_coord"),
+      longitude = c("longitude", "lon", "lng", "long_measure", "longmeasure", "dec_lon", "x_coord")
     )
+    if (identical(trimws(input$external_dataset_type %||% ""), REFERENCE_MATERIAL_DATASET_TYPE)) {
+      fields <- c(fields, REFERENCE_EXTRA_MAP_KEYS)
+      labels <- c(labels, c(
+        uncertainty = "uncertainty (expanded U)",
+        reference_id = "reference_id / catalog (SRM/RM)"
+      ))
+      aliases <- c(aliases, list(
+        uncertainty = c("uncertainty", "expanded_uncertainty", "u_expanded", "u", "u_exp", "expanded_u"),
+        reference_id = c("reference_id", "reference_material", "srm_id", "document_id", "reference_source", "catalog_id")
+      ))
+    }
     guessed <- setNames(lapply(fields, function(k) choose_col(k, aliases[[k]] %||% k)), fields)
     # Schema-specific fallback for common GAMA/GM-style exports (case-insensitive).
     col_by_norm <- function(nm) {
@@ -5403,7 +7068,12 @@ server <- function(input, output, session) {
   output$tbl_model_cards <- renderDT(render_dt(model_cards, 8))
   output$pfas_metrics_status <- renderPrint({
     pfas_results_nonce()
-    m <- read_results_json("nhanes_model_metrics.json")
+    rp <- pfas_resolve_train_metrics_paths()
+    if (nzchar(rp$banner %||% "")) {
+      cat(rp$banner, "\n\n")
+    }
+    subdir_arg <- if (nzchar(rp$subdir %||% "")) rp$subdir else NULL
+    m <- read_results_json("nhanes_model_metrics.json", results_subdir = subdir_arg)
     task_counts <- read_training_csv("model_matrix_task_counts.csv")
 
     matrix_n_train <- NA_integer_
@@ -5446,7 +7116,8 @@ server <- function(input, output, session) {
     }
 
     if (is.null(m) && is.na(matrix_n_train) && is.na(matrix_n_test)) {
-      cat("No PFAS exceedance model metrics found.\nRun: python scripts/train_pfas_model.py\n")
+      cat("No PFAS exceedance model metrics found in results/ or results/screening/.\n")
+      cat("Run: 9) Train (Evidence-Governed) or Screening — Train (Exploratory); python scripts/train_pfas_model.py\n")
       return(invisible(NULL))
     }
 
@@ -5480,7 +7151,11 @@ server <- function(input, output, session) {
       }
     }
 
-    metrics_path <- file.path(PROJECT_DIR, "results", "nhanes_model_metrics.json")
+    metrics_path <- if (nzchar(rp$subdir %||% "")) {
+      file.path(PROJECT_DIR, "results", rp$subdir, "nhanes_model_metrics.json")
+    } else {
+      file.path(PROJECT_DIR, "results", "nhanes_model_metrics.json")
+    }
     matrix_counts_path <- file.path(PROJECT_DIR, "data", "training", "model_matrix_task_counts.csv")
     if (file.exists(matrix_counts_path) && file.exists(metrics_path)) {
       mt_metrics <- file.info(metrics_path)$mtime
@@ -5579,7 +7254,12 @@ server <- function(input, output, session) {
 
   render_task_metrics <- function(task_key) {
     pfas_results_nonce()
-    m <- read_results_json("nhanes_model_metrics_by_task.json")
+    rp <- pfas_resolve_train_metrics_paths()
+    if (nzchar(rp$banner %||% "")) {
+      cat(rp$banner, "\n\n")
+    }
+    subdir_arg <- if (nzchar(rp$subdir %||% "")) rp$subdir else NULL
+    m <- read_results_json("nhanes_model_metrics_by_task.json", results_subdir = subdir_arg)
     if (is.null(m) || is.null(m[[task_key]])) {
       cat("No metrics yet.\nRun: 9) Train PFAS Exceedance Model\n")
       return(invisible(NULL))
@@ -5608,7 +7288,9 @@ server <- function(input, output, session) {
   })
   output$tbl_pfas_task_comparison <- renderDT({
     pfas_results_nonce()
-    m <- read_results_json("nhanes_model_metrics_by_task.json")
+    rp <- pfas_resolve_train_metrics_paths()
+    subdir_arg <- if (nzchar(rp$subdir %||% "")) rp$subdir else NULL
+    m <- read_results_json("nhanes_model_metrics_by_task.json", results_subdir = subdir_arg)
     if (is.null(m) || length(m) == 0) {
       return(DT::datatable(
         tibble::tibble(note = "No per-task metrics found. Run: 9) Train PFAS Exceedance Model"),
@@ -5697,8 +7379,10 @@ server <- function(input, output, session) {
   })
   output$pfas_last_training_status <- renderPrint({
     pfas_results_nonce()
-    res_dir <- file.path(PROJECT_DIR, "results")
-    if (!dir.exists(res_dir)) {
+    res_root <- file.path(PROJECT_DIR, "results")
+    res_screen <- file.path(PROJECT_DIR, "results", "screening")
+    dirs <- unique(c(res_root, res_screen)[dir.exists(c(res_root, res_screen))])
+    if (length(dirs) == 0L) {
       cat("No results directory found.\n")
       return(invisible(NULL))
     }
@@ -5709,19 +7393,32 @@ server <- function(input, output, session) {
       "nhanes_feature_importance.csv",
       "nhanes_test_predictions.csv"
     )
-    primary_paths <- file.path(res_dir, primary)
+    primary_paths <- unlist(lapply(dirs, function(d) file.path(d, primary)), use.names = FALSE)
     existing_primary <- primary_paths[file.exists(primary_paths)]
 
-    task_metric_files <- list.files(
-      res_dir,
-      pattern = "^nhanes_model_metrics_task_.*\\.json$",
-      full.names = TRUE
+    task_metric_files <- unlist(
+      lapply(dirs, function(d) {
+        if (!dir.exists(d)) {
+          return(character(0))
+        }
+        list.files(d, pattern = "^nhanes_model_metrics_task_.*\\.json$", full.names = TRUE)
+      }),
+      use.names = FALSE
     )
 
     all_files <- c(existing_primary, task_metric_files)
     if (length(all_files) == 0) {
-      cat("No training artifacts found in results/.\n")
-      cat("Run local step 9 (Train PFAS Exceedance Model) and redeploy results artifacts.\n")
+      cat("No Python train metric files yet under results/ or results/screening/\n")
+      cat("(expected: nhanes_model_metrics.json, nhanes_model_metrics_by_task.json, feature importance, test predictions).\n")
+      mc <- file.path(PROJECT_DIR, "data", "training", "model_matrix_task_counts.csv")
+      if (file.exists(mc)) {
+        cat(
+          "\nNote: model_matrix_task_counts.csv exists. The ML summary above may show n_train/n_test ",
+          "from that matrix file even though Python metrics artifacts have not been written.\n",
+          sep = ""
+        )
+      }
+      cat("\nRun step 9 (Evidence-Governed) or Screening — Train (Exploratory) to emit metrics JSON/CSV.\n")
       return(invisible(NULL))
     }
 
@@ -5775,7 +7472,9 @@ server <- function(input, output, session) {
   })
   output$tbl_pfas_feature_importance <- renderDT({
     pfas_results_nonce()
-    df <- read_results_csv("nhanes_feature_importance.csv")
+    rp <- pfas_resolve_train_metrics_paths()
+    subdir_arg <- if (nzchar(rp$subdir %||% "")) rp$subdir else NULL
+    df <- read_results_csv("nhanes_feature_importance.csv", results_subdir = subdir_arg)
     if (is.null(df) || nrow(df) == 0) {
       return(DT::datatable(tibble::tibble(note = "Run python scripts/train_pfas_model.py to generate feature importance."), rownames = FALSE))
     }
@@ -5797,7 +7496,9 @@ server <- function(input, output, session) {
   })
   output$tbl_pfas_test_predictions <- renderDT({
     pfas_results_nonce()
-    df <- read_results_csv("nhanes_test_predictions.csv")
+    rp <- pfas_resolve_train_metrics_paths()
+    subdir_arg <- if (nzchar(rp$subdir %||% "")) rp$subdir else NULL
+    df <- read_results_csv("nhanes_test_predictions.csv", results_subdir = subdir_arg)
     if (is.null(df) || nrow(df) == 0) {
       return(DT::datatable(tibble::tibble(note = "Run python scripts/train_pfas_model.py to generate test predictions."), rownames = FALSE))
     }
@@ -5805,13 +7506,10 @@ server <- function(input, output, session) {
   })
 
   get_upload_mapping <- reactive({
-    keys <- c(
-      "source_dataset", "sample_id", "matrix", "date", "analyte", "cas",
-      "result_value", "unit", "qualifier", "mdl", "rl", "detect_flag",
-      "state", "county", "region", "facility_water_type", "sample_point_type",
-      "method_id", "collection_year", "collection_month", "pws_size", "facility_id", "sample_point_id",
-      "latitude", "longitude", "health_endpoint", "health_value"
-    )
+    keys <- CORE_EXTERNAL_MAP_KEYS
+    if (identical(trimws(input$external_dataset_type %||% ""), REFERENCE_MATERIAL_DATASET_TYPE)) {
+      keys <- c(keys, REFERENCE_EXTRA_MAP_KEYS)
+    }
     vals <- lapply(keys, function(k) input[[paste0("map_", k)]] %||% "")
     names(vals) <- keys
     # Guard against sticky bad picks in UI state.
@@ -5837,6 +7535,18 @@ server <- function(input, output, session) {
 
     # Backend auto-detect fallback (independent of UI state), case-insensitive.
     df <- external_upload_raw()
+    # --- Semantic-type-aware mapping enforcement -----------------------
+    # When the upload is governance/program metadata (e.g. ICIS-AIR), the
+    # PFAS occurrence mapper must NOT auto-populate fields like result_value,
+    # state, unit, etc. We force them blank here regardless of any auto-detect
+    # results, regardless of any sticky UI picks, and regardless of dataset_type
+    # the user selected. The downstream button handlers refuse separately.
+    if (isTRUE(upload_is_metadata_lane())) {
+      for (k in PFAS_OCCURRENCE_MAP_FIELDS) {
+        if (k %in% names(vals)) vals[[k]] <- ""
+      }
+      return(vals)
+    }
     if (!is.null(df) && is.data.frame(df) && ncol(df) > 0) {
       cn <- names(df)
       norm <- function(x) tolower(gsub("[^a-z0-9]+", "", trimws(as.character(x))))
@@ -5926,9 +7636,6 @@ server <- function(input, output, session) {
       if (!nzchar(vals$county %||% "")) {
         vals$county <- col_by_alias(c("county"))
       }
-      if (!nzchar(vals$region %||% "")) {
-        vals$region <- col_by_alias(c("region"))
-      }
       if (!nzchar(vals$facility_water_type %||% "")) {
         vals$facility_water_type <- col_by_alias(c("facilitywatertype", "facility_water_type"))
       }
@@ -5940,12 +7647,6 @@ server <- function(input, output, session) {
       }
       if (!nzchar(vals$collection_year %||% "")) {
         vals$collection_year <- col_by_alias(c("collectionyear", "collection_year", "year"))
-      }
-      if (!nzchar(vals$collection_month %||% "")) {
-        vals$collection_month <- col_by_alias(c("collectionmonth", "collection_month", "month"))
-      }
-      if (!nzchar(vals$pws_size %||% "")) {
-        vals$pws_size <- col_by_alias(c("pwssize", "pws_size"))
       }
       if (!nzchar(vals$facility_id %||% "")) {
         vals$facility_id <- col_by_alias(c("facilityid", "facility_id"))
@@ -5961,6 +7662,18 @@ server <- function(input, output, session) {
         vals$qualifier <- col_by_norm("gm_result_modifier")
         if (!nzchar(vals$qualifier)) vals$qualifier <- col_by_alias(c("qualifier", "modifier", "flag"))
       }
+      if (identical(trimws(input$external_dataset_type %||% ""), REFERENCE_MATERIAL_DATASET_TYPE)) {
+        if (!nzchar(vals$uncertainty %||% "")) {
+          vals$uncertainty <- col_by_alias(c(
+            "uncertainty", "expanded_uncertainty", "u_expanded", "u", "u_exp", "expanded_u"
+          ))
+        }
+        if (!nzchar(vals$reference_id %||% "")) {
+          vals$reference_id <- col_by_alias(c(
+            "reference_id", "reference_material", "srm_id", "document_id", "catalog_id", "reference_source"
+          ))
+        }
+      }
       # Final hard-stop: identifier-like columns must never survive as result_value.
       if (nzchar(vals$result_value %||% "") && isTRUE(is_bad_result_col(vals$result_value))) {
         vals$result_value <- ""
@@ -5972,7 +7685,9 @@ server <- function(input, output, session) {
   observeEvent(input$btn_external_validate, {
     df <- external_upload_raw()
     req(!is.null(df))
+    if (refuse_pfas_op_on_metadata_lane("Validate")) return(invisible(NULL))
     ds_type <- input$external_dataset_type %||% "unknown/custom"
+    external_reference_preflight(NULL)
     raw_sha <- ""
     uf <- normalize_shiny_file_upload(input$external_ml_file)
     if (!is.null(uf) && nzchar(uf$datapath)) {
@@ -6027,17 +7742,75 @@ server <- function(input, output, session) {
 
     norm <- normalize_upload_schema_with_wide_fallback(df, mapping, ds_type)
 
-    missing_required <- sum(is.na(norm$analyte) | norm$analyte == "" | is.na(norm$result_value))
+    ref_pf <- run_reference_material_preflight(norm, mapping, df, ds_type, external_upload_name() %||% "")
+    external_reference_preflight(ref_pf)
+    if (identical(ref_pf$status, "BLOCK")) {
+      sch_res <- list(
+        ok = FALSE,
+        schema_version = schema_cfg$schema_version,
+        row_count = as.integer(nrow(norm)),
+        rows_pass = 0L,
+        rows_fail = as.integer(max(nrow(norm), 1L)),
+        metrics = list(reference_material_preflight = ref_pf),
+        violations = list(list(
+          rule = "REFERENCE_PREFLIGHT_BLOCK",
+          detail = paste(ref_pf$messages, collapse = " | ")
+        )),
+        run_id = NA_character_
+      )
+      sch_done <- persist_upload_validation_run(con, "validate_ui", sch_res, op_id(), external_upload_name() %||% "", raw_sha, ds_type)
+      external_upload_strict_result(sch_done)
+      audit_strict(sch_done, "Reference material preflight BLOCK")
+      showNotification(
+        paste0("Reference material preflight BLOCK: ", ref_pf$messages[[1]]),
+        type = "error",
+        duration = 16
+      )
+      return(invisible(NULL))
+    }
+
+    nrmv <- nrow(norm)
+    qv_heur <- if (nrmv > 0L) tolower(trimws(as.character(norm$qualifier %||% rep("", nrmv)))) else character(0)
+    qv_heur[is.na(qv_heur)] <- ""
+    nd_from_qual_heur <- if (nrmv > 0L) {
+      safe_detect(qv_heur, "^<|\\bnd\\b|non[- ]?detect|\\bbdl\\b|not\\s+detected|\\babsent\\b|^u\\b|^uj\\b")
+    } else {
+      logical(0)
+    }
+    nd_from_detect_heur <- if (nrmv > 0L && "detect_flag" %in% names(norm)) {
+      dfv <- suppressWarnings(as.integer(norm$detect_flag))
+      !is.na(dfv) & dfv == 0L
+    } else {
+      rep(FALSE, nrmv)
+    }
+    nd_row_heur <- nd_from_qual_heur | nd_from_detect_heur
+    missing_required <- if (nrmv == 0L) {
+      0L
+    } else {
+      sum(
+        is.na(norm$analyte) | trimws(as.character(norm$analyte %||% "")) == "" |
+          (is.na(norm$result_value) & !nd_row_heur),
+        na.rm = TRUE
+      )
+    }
     numeric_invalid <- 0L
     if (nzchar(mapped_result_col) && (mapped_result_col %in% names(df))) {
       raw_vals <- trimws(as.character(df[[mapped_result_col]]))
       raw_vals[raw_vals %in% c("", "NA", "N/A", "na", "n/a", "NULL", "null")] <- NA_character_
-      parsed_vals <- suppressWarnings(as.numeric(gsub("^\\s*[<>]\\s*|,", "", raw_vals)))
+      parsed_vals <- parse_external_upload_numeric(raw_vals)
       numeric_invalid <- sum(!is.na(raw_vals) & is.na(parsed_vals), na.rm = TRUE)
     }
     dup_n <- sum(duplicated(paste(norm$sample_id, norm$sample_date, norm$analyte, norm$result_value, sep = "||")))
-    allowed_units <- c("ng/l", "ug/l", "mg/l", "ng/ml", "ug/ml", "mg/ml", "ppb", "ppt", "pg/l")
-    unit_clean <- tolower(trimws(norm$result_unit %||% ""))
+    au <- schema_cfg$allowed_result_units %||% default_external_upload_schema()$allowed_result_units
+    allowed_units <- unique(normalize_external_result_unit_for_schema(as.character(au)))
+    if (identical(ds_type, REFERENCE_MATERIAL_DATASET_TYPE)) {
+      extra_ref <- c(
+        "ug/kg", "mg/kg", "ng/kg", "g/kg", "ug/g", "mg/g", "ng/g", "g/g",
+        "ppm", "ppt", "ppb", "ppq", "ng/l", "ug/l", "mg/l", "mg/ml", "ug/ml", "ng/ml"
+      )
+      allowed_units <- unique(c(allowed_units, normalize_external_result_unit_for_schema(extra_ref)))
+    }
+    unit_clean <- normalize_external_result_unit_for_schema(norm$result_unit %||% "")
     unsupported_units <- sum(nzchar(unit_clean) & !(unit_clean %in% allowed_units), na.rm = TRUE)
     nd_count <- sum(safe_detect(tolower(trimws(norm$qualifier %||% "")), "^<|nd|non.?detect|bdl|u\\b|uj\\b"), na.rm = TRUE)
 
@@ -6083,7 +7856,7 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
 
-    sch_res <- strict_validate_normalized_external(norm, schema_cfg)
+    sch_res <- strict_validate_normalized_external(norm, schema_cfg, ds_type)
     sch_done <- persist_upload_validation_run(con, "validate_ui", sch_res, op_id(), external_upload_name() %||% "", raw_sha, ds_type)
     external_upload_strict_result(sch_done)
     audit_strict(sch_done, "Strict schema validation (Validate button)")
@@ -6097,21 +7870,32 @@ server <- function(input, output, session) {
         duration = 14
       )
     } else {
-      showNotification("Validation completed (heuristic + strict schema PASS).", type = "message")
+      if (identical(ref_pf$status, "REVIEW")) {
+        showNotification(
+          paste0("Validation PASS with REVIEW: ", ref_pf$messages[[1]]),
+          type = "warning",
+          duration = 14
+        )
+      } else {
+        showNotification("Validation completed (heuristic + strict schema PASS).", type = "message")
+      }
     }
   })
 
   observeEvent(input$btn_external_normalize, {
     df <- external_upload_raw()
     req(!is.null(df))
+    if (refuse_pfas_op_on_metadata_lane("Normalize")) return(invisible(NULL))
     mapping <- get_upload_mapping()
     norm <- normalize_upload_schema_with_wide_fallback(df, mapping, input$external_dataset_type %||% "unknown/custom")
     external_upload_normalized(norm)
     external_upload_strict_result(NULL)
+    external_reference_preflight(NULL)
     showNotification("Normalization completed. Re-run Validate for strict schema + SQLite record.", type = "message")
   })
 
   observeEvent(input$btn_external_save, {
+    if (refuse_pfas_op_on_metadata_lane("Save")) return(invisible(NULL))
     mapping <- get_upload_mapping()
     mapped_result_col <- trimws(as.character(mapping$result_value %||% ""))
     if (nzchar(mapped_result_col) && isTRUE(is_identifier_like_result_col(mapped_result_col))) {
@@ -6137,13 +7921,36 @@ server <- function(input, output, session) {
     req(!is.null(norm), nrow(norm) > 0)
 
     ds_type <- input$external_dataset_type %||% "unknown/custom"
+    df0 <- external_upload_raw()
+    if (!is.null(df0)) {
+      ref_pf <- run_reference_material_preflight(norm, mapping, df0, ds_type, external_upload_name() %||% "")
+      external_reference_preflight(ref_pf)
+      if (identical(ref_pf$status, "BLOCK")) {
+        external_upload_save_note(
+          paste0("Save blocked: reference material preflight BLOCK — ", ref_pf$messages[[1]])
+        )
+        showNotification(
+          paste0("Save blocked: reference material preflight. ", ref_pf$messages[[1]]),
+          type = "error",
+          duration = 16
+        )
+        return(invisible(NULL))
+      }
+      if (identical(ref_pf$status, "REVIEW")) {
+        showNotification(
+          paste0("Save: reference material preflight REVIEW — ", ref_pf$messages[[1]]),
+          type = "warning",
+          duration = 12
+        )
+      }
+    }
     raw_sha <- ""
     uf <- normalize_shiny_file_upload(input$external_ml_file)
     if (!is.null(uf) && nzchar(uf$datapath)) {
       raw_sha <- external_upload_raw_digest(uf$datapath)
     }
     schema_cfg <- load_external_upload_schema()
-    sch_res <- strict_validate_normalized_external(norm, schema_cfg)
+    sch_res <- strict_validate_normalized_external(norm, schema_cfg, ds_type)
     sch_gate <- persist_upload_validation_run(con, "save_gate", sch_res, op_id(), external_upload_name() %||% "", raw_sha, ds_type)
     external_upload_strict_result(sch_gate)
 
@@ -6174,6 +7981,16 @@ server <- function(input, output, session) {
     norm <- norm %>%
       distinct(sample_id, sample_date, analyte, result_value, .keep_all = TRUE)
     dedup_removed <- rows_before_dedup - nrow(norm)
+    if (nrow(norm) == 0L) {
+      external_upload_save_note(
+        "Save blocked: 0 rows after de-duplication (sample_id, sample_date, analyte, result_value). Check keys and data quality."
+      )
+      showNotification(
+        "Save blocked: no rows left after de-duplication. Adjust mapping or source data.",
+        type = "error"
+      )
+      return(invisible(NULL))
+    }
     usable_rows <- sum(
       !is.na(norm$analyte) & nzchar(trimws(as.character(norm$analyte))) & !is.na(norm$result_value),
       na.rm = TRUE
@@ -6195,9 +8012,15 @@ server <- function(input, output, session) {
       substr(digest::digest(as.character(runif(1)), serialize = FALSE), 1, 6)
     )
     ts <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
-    norm$upload_id <- upload_id
-    norm$uploaded_at <- ts
-    norm$source_dataset <- ifelse(is.na(norm$source_dataset) | norm$source_dataset == "", input$external_dataset_type %||% "unknown/custom", norm$source_dataset)
+    n_norm_rows <- nrow(norm)
+    # Length must match nrow(norm): assigning a scalar to a 0-row frame triggers
+    # "[<-: replacement has 1 row, data has 0".
+    norm$upload_id <- rep_len(upload_id, n_norm_rows)
+    norm$uploaded_at <- rep_len(ts, n_norm_rows)
+    ds_fallback <- input$external_dataset_type %||% "unknown/custom"
+    src_ds <- as.character(norm$source_dataset)
+    empty_ds <- is.na(src_ds) | src_ds == ""
+    norm$source_dataset <- ifelse(empty_ds, rep_len(ds_fallback, n_norm_rows), src_ds)
     external_upload_normalized(norm)
 
     dir_uploads <- file.path(PROJECT_DIR, "data", "external_uploads")
@@ -6224,26 +8047,40 @@ server <- function(input, output, session) {
       data.frame(stringsAsFactors = FALSE, check.names = FALSE)
     }
 
+    # Base data.frames only: tibble/dplyr subsetting can make [[<- fail on 0-row binds.
+    master <- as.data.frame(master, stringsAsFactors = FALSE)
+    norm <- as.data.frame(norm, stringsAsFactors = FALSE)
+    nr_master <- nrow(master)
+    nr_norm <- nrow(norm)
+    if (length(nr_master) != 1L || is.na(nr_master) || nr_master < 0L) {
+      nr_master <- 0L
+    }
+    if (length(nr_norm) != 1L || is.na(nr_norm) || nr_norm < 0L) {
+      nr_norm <- 0L
+    }
+
     for (cn in upload_schema_cols) {
       if (!cn %in% names(master)) {
-        master[[cn]] <- rep(NA_character_, nrow(master))
+        master[[cn]] <- rep(NA_character_, nr_master)
       }
 
       if (!cn %in% names(norm)) {
-        norm[[cn]] <- rep(NA_character_, nrow(norm))
+        norm[[cn]] <- rep(NA_character_, nr_norm)
       }
     }
 
-    master_aligned <- master[, upload_schema_cols, drop = FALSE]
-    norm_aligned <- norm[, upload_schema_cols, drop = FALSE]
+    master_aligned <- as.data.frame(master[, upload_schema_cols, drop = FALSE], stringsAsFactors = FALSE)
+    norm_aligned <- as.data.frame(norm[, upload_schema_cols, drop = FALSE], stringsAsFactors = FALSE)
+    nr_ma <- nrow(master_aligned)
+    nr_na <- nrow(norm_aligned)
 
     for (cn in upload_schema_cols) {
       if (!cn %in% names(master_aligned)) {
-        master_aligned[[cn]] <- rep(NA_character_, nrow(master_aligned))
+        master_aligned[[cn]] <- rep(NA_character_, nr_ma)
       }
 
       if (!cn %in% names(norm_aligned)) {
-        norm_aligned[[cn]] <- rep(NA_character_, nrow(norm_aligned))
+        norm_aligned[[cn]] <- rep(NA_character_, nr_na)
       }
     }
 
@@ -6317,6 +8154,7 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$btn_external_train, {
+    if (refuse_pfas_op_on_metadata_lane("Train (Evidence-Governed)")) return(invisible(NULL))
     if (!enforce_iso_preflight("External train")) return(invisible(NULL))
     # Use in-process execution for R steps to avoid runtime issues resolving subprocess Rscript.
     ok_m <- run_r_script_in_process("prepare_multisource_training.R", "prepare_multisource_training.R")
@@ -6324,6 +8162,8 @@ server <- function(input, output, session) {
     py_exec <- resolve_python_exec(input$pfas_python_exec %||% "")
     python_available <- nzchar(py_exec)
     ok_t <- if (ok_b && python_available) run_python_step() else FALSE
+    overall_ok <- ok_m && ok_b && (!python_available || ok_t)
+    record_train_workflow_context("evidence_governed", TRUE, overall_ok)
 
     if (ok_m && ok_b && (!python_available || ok_t)) {
       if (!python_available) {
@@ -6370,10 +8210,100 @@ server <- function(input, output, session) {
     }
   })
 
+  observeEvent(input$btn_external_train_screening, {
+    if (refuse_pfas_op_on_metadata_lane("Screening — Train (Exploratory)")) return(invisible(NULL))
+    oid <- op_id()
+    append_pipeline_log(
+      "SCREENING exploratory: External train (prepare_multisource + matrix + python) — ISO preflight skipped by explicit user action."
+    )
+    write_audit(
+      "pfas_pipeline",
+      "screening_external_train",
+      "screening_train_started",
+      oid,
+      "Exploratory external-linked train started",
+      list(
+        workflow_mode = "screening",
+        validation_scope = "exploratory",
+        iso_governed = FALSE,
+        route = "external_upload_train"
+      )
+    )
+    ex <- pfas_screening_train_extra_env()
+    ok_m <- run_r_script_in_process("prepare_multisource_training.R", "prepare_multisource_training.R", extra_env = ex)
+    ok_b <- if (ok_m) run_r_script_in_process("build_model_matrix.R", "build_model_matrix.R", extra_env = ex) else FALSE
+    py_exec <- resolve_python_exec(input$pfas_python_exec %||% "")
+    python_available <- nzchar(py_exec)
+    ok_t <- if (ok_b && python_available) run_python_step(extra_env = ex) else FALSE
+    overall_ok <- ok_m && ok_b && (!python_available || ok_t)
+    write_audit(
+      "pfas_pipeline",
+      "screening_external_train",
+      if (overall_ok) "screening_train_completed" else "screening_train_failed",
+      oid,
+      if (overall_ok) "Exploratory external-linked train finished" else "Exploratory external-linked train failed",
+      list(
+        workflow_mode = "screening",
+        validation_scope = "exploratory",
+        iso_governed = FALSE,
+        success = overall_ok,
+        ok_prepare = ok_m,
+        ok_matrix = ok_b,
+        ok_python = ok_t,
+        python_skipped = !python_available
+      )
+    )
+    record_train_workflow_context("screening", FALSE, overall_ok)
+
+    if (ok_m && ok_b && (!python_available || ok_t)) {
+      if (!python_available) {
+        showNotification(
+          "Data refresh completed (prepare + matrix). Python executable not found, so model retrain was skipped.",
+          type = "warning",
+          duration = 10
+        )
+      } else if (!ok_t) {
+        showNotification(
+          "Data refresh completed, but Python model retrain failed. Check PFAS pipeline log.",
+          type = "warning",
+          duration = 10
+        )
+      } else {
+        showNotification("Screening (exploratory) training completed from uploaded/merged sources.", type = "message")
+      }
+      pfas_results_nonce(pfas_results_nonce() + 1L)
+    } else if (!ok_m) {
+      showNotification(
+        paste0(
+          "Screening train failed at prepare_multisource_training.R: ",
+          pipeline_last_error() %||% "unknown error"
+        ),
+        type = "error",
+        duration = 12
+      )
+    } else if (!ok_b) {
+      showNotification(
+        paste0(
+          "Screening train failed at build_model_matrix.R: ",
+          pipeline_last_error() %||% "unknown error"
+        ),
+        type = "error",
+        duration = 12
+      )
+    } else {
+      showNotification(
+        paste0("Screening train failed: ", pipeline_last_error() %||% "unknown error"),
+        type = "error",
+        duration = 12
+      )
+    }
+  })
+
   observeEvent(input$train_pfas_model, {
     if (!enforce_iso_preflight("PFAS model training")) return(invisible(NULL))
     py_exec <- resolve_python_exec(input$pfas_python_exec %||% "")
     if (!nzchar(py_exec)) {
+      record_train_workflow_context("evidence_governed", TRUE, FALSE)
       showNotification(
         "Python executable not found. Set 'Python executable' then retry PFAS model training.",
         type = "error",
@@ -6382,11 +8312,71 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
     ok <- run_python_step()
+    record_train_workflow_context("evidence_governed", TRUE, ok)
     if (ok) {
       showNotification("PFAS exceedance model training completed.", type = "message")
       pfas_results_nonce(pfas_results_nonce() + 1L)
     } else {
       showNotification("PFAS model training failed; check PFAS pipeline log.", type = "error")
+    }
+  })
+
+  observeEvent(input$train_pfas_model_screening, {
+    oid <- op_id()
+    append_pipeline_log(
+      "SCREENING exploratory: train_pfas_model.py — ISO preflight skipped by explicit user action (not evidence-governed)."
+    )
+    write_audit(
+      "pfas_pipeline",
+      "screening_train",
+      "screening_train_started",
+      oid,
+      "Exploratory screening PFAS model train started",
+      list(
+        workflow_mode = "screening",
+        validation_scope = "exploratory",
+        iso_governed = FALSE,
+        python_step = "train_pfas_model.py"
+      )
+    )
+    py_exec <- resolve_python_exec(input$pfas_python_exec %||% "")
+    if (!nzchar(py_exec)) {
+      write_audit(
+        "pfas_pipeline",
+        "screening_train",
+        "screening_train_failed",
+        oid,
+        "Exploratory screening PFAS model train aborted (Python not configured)",
+        list(workflow_mode = "screening", validation_scope = "exploratory", iso_governed = FALSE, reason = "no_python")
+      )
+      record_train_workflow_context("screening", FALSE, FALSE)
+      showNotification(
+        "Python executable not found. Set 'Python executable' then retry exploratory screening train.",
+        type = "error",
+        duration = 10
+      )
+      return(invisible(NULL))
+    }
+    ok <- run_python_step(extra_env = pfas_screening_train_extra_env())
+    write_audit(
+      "pfas_pipeline",
+      "screening_train",
+      if (ok) "screening_train_completed" else "screening_train_failed",
+      oid,
+      if (ok) "Exploratory screening PFAS model train finished" else "Exploratory screening PFAS model train failed",
+      list(
+        workflow_mode = "screening",
+        validation_scope = "exploratory",
+        iso_governed = FALSE,
+        success = ok
+      )
+    )
+    record_train_workflow_context("screening", FALSE, ok)
+    if (ok) {
+      showNotification("Exploratory screening train finished (not ISO-governed).", type = "message")
+      pfas_results_nonce(pfas_results_nonce() + 1L)
+    } else {
+      showNotification("Exploratory screening train failed; check PFAS pipeline log.", type = "error")
     }
   })
 
@@ -6471,6 +8461,27 @@ server <- function(input, output, session) {
     }
   })
 
+  observeEvent(input$btn_nist_reference_validation, {
+    ok <- run_nist_reference_validation_step()
+    write_audit(
+      "pfas_pipeline",
+      "nist_reference_validation",
+      ifelse(ok, "execute_success", "execute_failure"),
+      op_id(),
+      ifelse(ok, "NIST reference validation completed", "NIST reference validation failed"),
+      list(error = pipeline_last_error() %||% "")
+    )
+    if (ok) {
+      showNotification(
+        "NIST SRM 1957 Table A2 reference-data validation completed (non-certified benchmarking only; see results/nist_reference_validation_report.json).",
+        type = "message"
+      )
+      pfas_results_nonce(pfas_results_nonce() + 1L)
+    } else {
+      showNotification(paste0("NIST reference validation failed: ", pipeline_last_error() %||% "unknown error"), type = "error")
+    }
+  })
+
   observeEvent(input$btn_qc_validation_check, {
     ok <- step_qc_validation_check()
     write_audit(
@@ -6547,11 +8558,21 @@ server <- function(input, output, session) {
     rep <- external_upload_report()
     mapping <- get_upload_mapping()
     cat("Mapping engine version:", MAPPING_ENGINE_VERSION, "\n")
-    cat("Current mapping\n")
-    cat("analyte     :", mapping$analyte %||% "", "\n")
-    cat("result_value:", mapping$result_value %||% "", "\n")
-    cat("sample_id   :", mapping$sample_id %||% "", "\n")
-    cat("state       :", mapping$state %||% "", "\n\n")
+    cat("Current mapping (ISO/PFAS core MVP — same order as Map dropdowns)\n")
+    map_keys_show <- CORE_EXTERNAL_MAP_KEYS
+    if (identical(trimws(input$external_dataset_type %||% ""), REFERENCE_MATERIAL_DATASET_TYPE)) {
+      map_keys_show <- c(map_keys_show, REFERENCE_EXTRA_MAP_KEYS)
+    }
+    for (k in map_keys_show) {
+      v <- mapping[[k]]
+      if (is.null(v) || length(v) == 0) {
+        v <- ""
+      } else {
+        v <- paste(as.character(v), collapse = ", ")
+      }
+      cat(sprintf("%-26s: %s\n", k, v))
+    }
+    cat("\n")
     mapped_result_col <- trimws(as.character(mapping$result_value %||% ""))
     if (nzchar(mapped_result_col) && isTRUE(is_identifier_like_result_col(mapped_result_col))) {
       cat("WARNING: result_value appears to be an identifier column and is invalid for training.\n\n")
@@ -6567,6 +8588,13 @@ server <- function(input, output, session) {
     cat("Duplicate rows:", rep$duplicate_rows, "\n")
     cat("Unsupported units:", rep$unsupported_units, "\n")
     cat("Non-detect qualifier rows:", rep$non_detect_qualifier_rows, "\n")
+    rpf <- external_reference_preflight()
+    if (!is.null(rpf)) {
+      cat("\nReference material preflight:", rpf$status %||% "?", "\n")
+      if (length(rpf$messages)) {
+        for (m in rpf$messages) cat("  ", m, "\n", sep = "")
+      }
+    }
   })
 
   output$external_strict_schema_status <- renderPrint({
@@ -6728,13 +8756,14 @@ server <- function(input, output, session) {
     ok7 <- if (ok6) run_r_script_step("build_model_matrix.R", "build_model_matrix.R") else FALSE
     ok8 <- if (ok7) run_python_step() else FALSE
     ok9 <- if (ok8) run_pfas_prediction_step() else FALSE
-    ok10 <- if (ok9) step_validate_reference_dataset() else FALSE
+    ok9a <- if (ok8) run_nist_reference_validation_step() else FALSE
+    ok10 <- if (ok9 && ok9a) step_validate_reference_dataset() else FALSE
     ok11 <- if (ok10) step_qc_validation_check() else FALSE
     ok12 <- if (ok11) step_applicability_domain_check() else FALSE
     ok13 <- if (ok12) step_external_pt_validation() else FALSE
     ok14 <- if (ok13) step_generate_iso_compliance_report() else FALSE
     ok15 <- if (ok14) run_ml_validation_report_step() else FALSE
-    if (ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7 && ok8 && ok9 && ok10 && ok11 && ok12 && ok13 && ok14 && ok15) {
+    if (ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7 && ok8 && ok9 && ok9a && ok10 && ok11 && ok12 && ok13 && ok14 && ok15) {
       append_pipeline_log("Pipeline completed successfully.")
       write_audit(
         "pfas_pipeline",
@@ -6752,6 +8781,7 @@ server <- function(input, output, session) {
           matrix = ok7,
           train = ok8,
           predict = ok9,
+          nist_reference_validation = ok9a,
           validate_reference_dataset = ok10,
           qc_validation_check = ok11,
           applicability_domain_check = ok12,
@@ -6779,6 +8809,7 @@ server <- function(input, output, session) {
           matrix = ok7,
           train = ok8,
           predict = ok9,
+          nist_reference_validation = ok9a,
           validate_reference_dataset = ok10,
           qc_validation_check = ok11,
           applicability_domain_check = ok12,
@@ -7202,6 +9233,37 @@ server <- function(input, output, session) {
       return(DT::datatable(tibble::tibble(message = "No GLP audit rows yet."), rownames = FALSE))
     }
     DT::datatable(df, options = list(pageLength = 15, scrollX = TRUE, order = list(list(0, "desc"))), rownames = FALSE)
+  })
+
+  output$iso_score_text <- renderPrint({
+    if (!file.exists(iso_json_path)) {
+      cat("ISO readiness score file not found.\n")
+      return(invisible(NULL))
+    }
+    x <- jsonlite::fromJSON(iso_json_path)
+    cat("Readiness score:", x$score, "\n")
+    cat("Rating:", x$rating, "\n")
+    cat("Critical open findings:", x$open_critical, "\n")
+    cat("High open findings:", x$open_high, "\n")
+  })
+
+  output$iso_blindspots_table <- DT::renderDataTable({
+    if (!file.exists(iso_csv_path)) {
+      return(data.frame(message = "No ISO blind spot report found"))
+    }
+    utils::read.csv(iso_csv_path, stringsAsFactors = FALSE, check.names = FALSE)
+  })
+
+  output$iso_disclaimer <- renderUI({
+    if (!file.exists(iso_json_path)) {
+      return(NULL)
+    }
+    x <- jsonlite::fromJSON(iso_json_path)
+    tags$div(
+      style = "margin-top:15px;color:#aa0000;",
+      tags$strong("Disclaimer: "),
+      x$disclaimer
+    )
   })
 
   output$tbl_legacy_audit <- renderDT({
