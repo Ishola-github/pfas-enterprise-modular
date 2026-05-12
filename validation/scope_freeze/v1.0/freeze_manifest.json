@@ -1,13 +1,13 @@
 {
   "schema": "scope_freeze_manifest/v1",
   "freeze_version": "v1.0",
-  "status": "frozen",
-  "built_at_utc": "2026-05-12T19:30:42Z",
-  "git_head_sha": "9b3bb7c0a9f17c3eb87655c4352f4fd03935ed78",
-  "operator": "Sunday Ishola",
-  "scientific_reviewer": "<independent reviewer>",
+  "status": "draft",
+  "built_at_utc": "2026-05-12T20:15:26Z",
+  "git_head_sha": "f189185c7d7d131a1e79ab0616ebe9ed53a1c497",
+  "operator": null,
+  "scientific_reviewer": null,
   "regulatory_liaison": null,
-  "note": "Pre-pilot freeze for SBIR submission",
+  "note": "Refresh manifest to align git_head_sha with commit containing all governed files; reviewer pending.",
   "files": {
     "scope_document": {
       "path": "SCOPE_AND_INTENDED_USE.md",
@@ -101,10 +101,10 @@
     }
   ],
   "smoke_status": {
-    "windows": "pass",
-    "rstudio": "pass",
-    "docker_ubuntu": "pass",
-    "wsl_ubuntu": "pass"
+    "windows": "pending",
+    "rstudio": "pending",
+    "docker_ubuntu": "pending",
+    "wsl_ubuntu": "pending"
   },
   "scope_doc_sections": {
     "count": 17,

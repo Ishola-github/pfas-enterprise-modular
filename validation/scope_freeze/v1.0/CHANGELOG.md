@@ -8,3 +8,4 @@ Append-only. One row per `build_scope_freeze.py` invocation against
 | _(populated automatically on first `python scripts/build_scope_freeze.py --version v1.0`)_ | | | |
 | 2026-05-12T19:24:58Z | draft | _(unset)_ | Initial draft freeze produced alongside scope-document v1.0 DRAFT. |
 | 2026-05-12T19:30:42Z | frozen | Sunday Ishola | Pre-pilot freeze for SBIR submission |
+| 2026-05-12T20:15:26Z | draft | _(unset)_ | Refresh manifest to align git_head_sha with commit containing all governed files; reviewer pending. |
