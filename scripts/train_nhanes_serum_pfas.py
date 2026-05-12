@@ -25,10 +25,12 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -45,12 +47,141 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def resolve_train_results_dir(project_root: Path) -> Path:
+    """
+    Default: project_root / 'results'.
+    When Shiny exploratory screening train sets PFAS_TRAIN_RESULTS_SUBDIR=screening,
+    metrics CSV/JSON are written under project_root / 'results' / 'screening' so they
+    are not mistaken for evidence-governed validation artifacts in results/.
+    """
+    raw = (os.environ.get("PFAS_TRAIN_RESULTS_SUBDIR") or "").strip()
+    if not raw or any(ch in raw for ch in ("/", "\\", "..")) or not raw.replace("_", "").replace("-", "").isalnum():
+        d = project_root / "results"
+    else:
+        d = project_root / "results" / raw
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def _json_float(x: float | None) -> float | None:
     if x is None:
         return None
     if isinstance(x, float) and (math.isnan(x) or math.isinf(x)):
         return None
     return float(x)
+
+
+# Bumped when label audit / traceability contract changes (Shiny label integrity dashboard).
+TRAIN_SCRIPT_SEMVER = "3.2.4"
+
+
+def file_sha256(path: Path) -> str | None:
+    if not path.is_file():
+        return None
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return f"sha256:{h.hexdigest()}"
+
+
+def write_label_derivation_audit(
+    *,
+    results_dir: Path,
+    pfas_path: Path,
+    demo_path: Path | None,
+    inq_path: Path,
+    no_inq: bool,
+    burden_quantile: float,
+    burden_threshold_ng_ml: float,
+    lod_mask_codes: set[float],
+    no_lod_mask: bool,
+    n_pfas_rows: int,
+    n_merged_after_demo: int,
+    n_modeled_cohort: int,
+    n_positive_labels: int,
+    n_negative_labels: int,
+    lbx_columns: list[str],
+    positive_rate_modeled: float,
+) -> None:
+    """
+    ISO/traceability-oriented record of how training labels were derived.
+    NHANES serum bridge: quantile of summed LBX burden — not UCMR/MCL limit joins.
+    """
+    excluded_no_demo = max(0, n_pfas_rows - n_merged_after_demo)
+    excluded_zero_detect = max(0, n_merged_after_demo - n_modeled_cohort)
+    excluded_total = excluded_no_demo + excluded_zero_detect
+
+    src_hashes: dict[str, str | None] = {
+        "pfas_xpt": file_sha256(pfas_path),
+        "demo_xpt": file_sha256(demo_path) if demo_path else None,
+    }
+    if not no_inq and inq_path.is_file():
+        src_hashes["inq_xpt"] = file_sha256(inq_path)
+
+    threshold_rule = (
+        f"high_serum_pfas_burden_flag=1 iff serum_pfas_burden_sum_ng_per_ml >= {burden_threshold_ng_ml:.10g} "
+        f"(empirical {burden_quantile} quantile of the burden sum among participants with >=1 quantified LBX analyte)."
+    )
+
+    audit: dict = {
+        "label_definition_version": "v1",
+        "train_script_version": TRAIN_SCRIPT_SEMVER,
+        "script_version": TRAIN_SCRIPT_SEMVER,
+        "pipeline_kind": "nhanes_serum_high_burden_quantile",
+        "threshold_rule": threshold_rule,
+        "burden_quantile": float(burden_quantile),
+        "serum_pfas_burden_threshold_ng_per_ml": float(burden_threshold_ng_ml),
+        "label_column": "high_serum_pfas_burden_flag",
+        "source_dataset": "NHANES CDC laboratory PFAS serum (P_PFAS) + demographics (P_DEMO); optional P_INQ",
+        "source_files": {
+            "pfas_xpt": str(pfas_path.resolve()),
+            "demo_xpt": str(demo_path.resolve()) if demo_path else None,
+            "inq_xpt": str(inq_path.resolve()) if (not no_inq and inq_path.is_file()) else None,
+        },
+        "source_file_hashes": src_hashes,
+        "n_lbx_analytes_used": len(lbx_columns),
+        "lbx_columns": lbx_columns,
+        "n_positive": int(n_positive_labels),
+        "n_negative": int(n_negative_labels),
+        "n_modeled_cohort_rows": int(n_modeled_cohort),
+        "n_pfas_participants_deduped": int(n_pfas_rows),
+        "n_after_demo_inner_join": int(n_merged_after_demo),
+        "excluded_rows": int(excluded_total),
+        "excluded_breakdown": {
+            "no_demographics_match": int(excluded_no_demo),
+            "zero_quantified_serum_analytes": int(excluded_zero_detect),
+        },
+        "missing_value_policy": (
+            "Per-participant burden = numpy.nansum of cleaned LBX columns; NaN LBX contributes 0 to sum. "
+            "Participants with serum_pfas_detected_analyte_count==0 are excluded from the modeled training cohort."
+        ),
+        "non_detect_policy": (
+            "Paired NHANES comment codes (LBD*L): LBX values masked when flag in "
+            f"{sorted(lod_mask_codes)} (disabled={no_lod_mask}). Sub-1e-30 float sentinels nulled."
+        ),
+        "unit_conversion_rule": (
+            "No unit conversion in trainer; concentrations as published in NHANES XPT (PFAS laboratory documentation; typically ng/mL)."
+        ),
+        "missing_limit_after_join": 0,
+        "limit_join_note": (
+            "NHANES serum burden pipeline does not join regulatory MCL/health advisory limits; "
+            "missing_limit_after_join is 0 by definition. UCMR/MCL-style label audits live in multisource builders."
+        ),
+        "positive_rate_after_derive": float(positive_rate_modeled),
+        "top_analytes_missing_limit_among_rows_with_result": {},
+        "top_analytes_missing_limit_note": (
+            "Empty: serum-quantile labels do not use per-analyte regulatory limits. "
+            "Histogram applies to UCMR-style exceedance pipelines."
+        ),
+        "created_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "operator": (os.environ.get("PFAS_OPERATOR") or os.environ.get("USERNAME") or "").strip() or None,
+        "results_artifact_subdir": results_dir.name if results_dir.name != "results" else "",
+    }
+
+    out = results_dir / "label_derivation_audit.json"
+    out.write_text(json.dumps(audit, indent=2), encoding="utf-8")
+    print(f"Wrote label derivation audit: {out}")
 
 
 def default_pfas_path() -> Path:
@@ -198,7 +329,18 @@ def main() -> int:
     inq_path = Path(args.inq_xpt).expanduser()
 
     print(f"Loading PFAS table: {pfas_path}")
-    pfas = load_xpt(pfas_path)
+    try:
+        pfas = load_xpt(pfas_path)
+    except FileNotFoundError:
+        print(
+            "\nNHANES serum PFAS XPT not found. Step 9 / train_pfas_model.py always runs the NHANES serum bridge "
+            "(not the UCMR upload table).\n"
+            f"  Expected: {pfas_path}\n"
+            "  Fix: run Shiny step 1) Download baseline NHANES + ECHO note, or run download_nhanes_pfas.ps1, "
+            "or copy CDC P_PFAS_*.XPT under data/raw/nhanes_pfas/.\n",
+            file=sys.stderr,
+        )
+        return 1
     if "SEQN" not in pfas.columns:
         raise ValueError("Expected SEQN in PFAS file")
     pfas = pfas.drop_duplicates(subset=["SEQN"], keep="first")
@@ -405,10 +547,33 @@ def main() -> int:
         f"FPR among true negatives: {fpr_holdout_s})."
     )
 
-    results_dir = PROJECT_ROOT / "results"
-    results_dir.mkdir(parents=True, exist_ok=True)
+    results_dir = resolve_train_results_dir(PROJECT_ROOT)
+    ra_sub = ""
+    if results_dir != PROJECT_ROOT / "results":
+        ra_sub = results_dir.name
+
+    write_label_derivation_audit(
+        results_dir=results_dir,
+        pfas_path=pfas_path,
+        demo_path=demo_path,
+        inq_path=inq_path,
+        no_inq=args.no_inq,
+        burden_quantile=float(args.burden_quantile),
+        burden_threshold_ng_ml=float(thresh),
+        lod_mask_codes=mask_codes,
+        no_lod_mask=bool(args.no_lod_mask),
+        n_pfas_rows=int(len(pfas)),
+        n_merged_after_demo=int(len(merged)),
+        n_modeled_cohort=int(len(merged_model)),
+        n_positive_labels=int(np.sum(y == 1)),
+        n_negative_labels=int(np.sum(y == 0)),
+        lbx_columns=lbx_cols,
+        positive_rate_modeled=float(np.mean(y)) if len(y) > 0 else float("nan"),
+    )
+
     metrics_payload = {
         "train_script_version": "nhanes_serum_pfas_bridge_v1",
+        "results_artifact_subdir": ra_sub,
         "accuracy": float(accuracy_score(y_test, pred)),
         "auc": _json_float(auc_val),
         "n_train": int(len(idx_train)),

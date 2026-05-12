@@ -1,0 +1,8 @@
+This software is a PFAS drinking-water screening and
+sample-prioritization decision-support tool.
+
+It is intended to assist analyst review and workflow triage.
+
+It does not replace EPA 533, EPA 537.1, EPA 1633,
+LC-MS/MS confirmation, ISO/IEC 17025 laboratory reporting,
+or regulatory compliance determination.

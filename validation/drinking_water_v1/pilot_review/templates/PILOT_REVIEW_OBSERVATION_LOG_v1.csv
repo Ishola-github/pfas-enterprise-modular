@@ -1,0 +1,4 @@
+session_id,reviewer_id,task_id,start_utc,end_utc,duration_minutes,task_completed,confusion_points,analyst_time_saved_estimate_minutes,false_positive_burden_note,applicability_message_understood,facilitator_notes
+S01,R01,T1,,,,PENDING,,,PENDING,
+S01,R01,T2,,,,PENDING,,,PENDING,
+S01,R01,T3,,,,PENDING,,,PENDING,

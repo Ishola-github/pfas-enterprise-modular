@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 PFAS Enterprise / Shiny entrypoint: absorbs CLI flags the dashboard passes through and runs the
-NHANES serum high-burden model (`train_nhanes_serum_pfas.py`), which writes `results/nhanes_model_metrics.json`.
+NHANES serum high-burden model (`train_nhanes_serum_pfas.py`), which writes metrics under `results/`
+or, when the dashboard sets `PFAS_TRAIN_RESULTS_SUBDIR=screening`, under `results/screening/`.
 """
 
 from __future__ import annotations
