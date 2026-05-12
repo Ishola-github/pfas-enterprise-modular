@@ -1,0 +1,15 @@
+Validated only for (v1 scope):
+
+- Drinking water
+- EPA 533 / 537.1 style data
+- UCMR5-like structures
+
+Not in v1 applicability domain (do not claim validation here yet):
+
+- Serum
+- Sludge
+- Air
+- Tissues
+- Biosolids
+
+The app should warn or block when inputs fall outside the declared domain; document behavior in software validation results.

@@ -18,14 +18,15 @@ Inputs (drop under project data/):
   - Limits table:  data/config/ucmr_analyte_limits_ngl.csv       (CASRN + limit_ng_l)
 
 Output (one merged training table — all UCMR inputs concatenated, labeled):
-  - data/training/ucmr_exceedance_labeled.csv
-  - data/training/ucmr_exceedance_manifest.json
-  Exceedance: PFAS_Risk_Flag == 1 when conc_ng_l >= limit_ng_l (and not nondetect).
+  - Default: data/training/ucmr_exceedance_labeled.csv and ucmr_exceedance_manifest.json
+  - Optional namespace: set PFAS_UCMR_TRAINING_SUBDIR=screening (single path segment) to write under
+    data/training/screening/ so exploratory UCMR builds do not overwrite the canonical training table.
 
 Environment overrides:
-  PFAS_UCMR_GLOB        single glob e.g. "*.txt" or "UCMR5*.txt" (if unset, uses .csv + .txt)
-  PFAS_BRIDGE_CSV       override bridge path
-  PFAS_LIMITS_CSV       override limits path
+  PFAS_UCMR_GLOB              single glob e.g. "*.txt" or "UCMR5*.txt" (if unset, uses .csv + .txt)
+  PFAS_UCMR_TRAINING_SUBDIR   e.g. screening → outputs under data/training/<subdir>/
+  PFAS_BRIDGE_CSV             override bridge path
+  PFAS_LIMITS_CSV             override limits path
 """
 from __future__ import annotations
 
@@ -295,6 +296,21 @@ def _ucmr_glob_cli_default() -> str:
     return v if v else UCMR_GLOB_DEFAULT
 
 
+def ucmr_training_output_dir(root: Path) -> Path:
+    """
+    Default <root>/data/training.
+    With PFAS_UCMR_TRAINING_SUBDIR=screening (alphanumeric + _ - only), writes under
+    <root>/data/training/screening/ so large exploratory UCMR tables stay separate.
+    """
+    raw = (os.environ.get("PFAS_UCMR_TRAINING_SUBDIR") or "").strip()
+    if not raw or any(ch in raw for ch in ("/", "\\", ".")) or not raw.replace("_", "").replace("-", "").isalnum():
+        d = root / "data" / "training"
+    else:
+        d = root / "data" / "training" / raw
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument(
@@ -356,8 +372,9 @@ def main() -> int:
 
     bridge_path = _resolve_input(args.bridge_csv, default_bridge_csv_path(root))
     limits_path = _resolve_input(args.limits_csv, root / "data" / "config" / "ucmr_analyte_limits_ngl.csv")
-    out_csv = _resolve_input(args.out_csv, root / "data" / "training" / "ucmr_exceedance_labeled.csv")
-    out_manifest = root / "data" / "training" / "ucmr_exceedance_manifest.json"
+    train_out = ucmr_training_output_dir(root)
+    out_csv = _resolve_input(args.out_csv, train_out / "ucmr_exceedance_labeled.csv")
+    out_manifest = out_csv.parent / "ucmr_exceedance_manifest.json"
 
     if not bridge_path.is_file():
         c1 = root / "data" / "external" / "comptox" / "pfasmaster_bridge.csv"
@@ -601,6 +618,7 @@ def main() -> int:
         },
         "outputs": {
             "training_csv": str(out_csv),
+            "training_artifact_subdir": (os.environ.get("PFAS_UCMR_TRAINING_SUBDIR") or "").strip(),
             "labeled_rows": int(len(final_df)),
             "labeled_distribution": final_df["PFAS_Risk_Flag"].value_counts(dropna=False).to_dict(),
             "bridge_match_rate": float(final_df["bridge_matched"].astype(bool).mean()) if len(final_df) else 0.0,

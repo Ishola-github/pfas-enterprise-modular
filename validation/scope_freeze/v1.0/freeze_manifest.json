@@ -1,0 +1,132 @@
+{
+  "schema": "scope_freeze_manifest/v1",
+  "freeze_version": "v1.0",
+  "status": "frozen",
+  "built_at_utc": "2026-05-12T19:30:42Z",
+  "git_head_sha": "9b3bb7c0a9f17c3eb87655c4352f4fd03935ed78",
+  "operator": "Sunday Ishola",
+  "scientific_reviewer": "<independent reviewer>",
+  "regulatory_liaison": null,
+  "note": "Pre-pilot freeze for SBIR submission",
+  "files": {
+    "scope_document": {
+      "path": "SCOPE_AND_INTENDED_USE.md",
+      "sha256": "dbcf5639c87068e4787ef38dadeeba527199bdb3dac6dc0fb36137485716e83c",
+      "bytes": 29985
+    },
+    "matrix_pipeline_sop_csv": {
+      "path": "data/config/matrix_pipeline_sop.csv",
+      "sha256": "e3dafe6c7b32e0ceff91ecff0cd59e65f8c5698ceb19bb86b883e14b42bdc316",
+      "rows": 6
+    },
+    "reference_registry_csv": {
+      "path": "data/reference/registry/reference_registry.csv",
+      "sha256": "23cd9d9b0e48c751afd5f9fb40940fdf04228c0389a9c2430814d57889320289",
+      "rows": 17
+    },
+    "ucmr_analyte_limits_csv": {
+      "path": "data/config/ucmr_analyte_limits_ngl.csv",
+      "sha256": "f88fb8f613e693a0f03f37fe270b03c143bd26cfd44a0e74355321d18e69bb48",
+      "rows": 5
+    }
+  },
+  "supported_matrix_lanes": [
+    {
+      "matrix": "drinking water",
+      "canonical_datasets": "UCMR5",
+      "pipeline_id": "drinking_water"
+    },
+    {
+      "matrix": "serum",
+      "canonical_datasets": "NHANES + SRM 1957",
+      "pipeline_id": "serum"
+    },
+    {
+      "matrix": "biosolids/sludge",
+      "canonical_datasets": "Method 1633 + EPA biosolids",
+      "pipeline_id": "biosolids_sludge"
+    },
+    {
+      "matrix": "AFFF",
+      "canonical_datasets": "RM 8690",
+      "pipeline_id": "afff"
+    },
+    {
+      "matrix": "methanol standards",
+      "canonical_datasets": "RM 8446",
+      "pipeline_id": "methanol_standards"
+    },
+    {
+      "matrix": "air emissions",
+      "canonical_datasets": "OTM-50",
+      "pipeline_id": "air_emissions"
+    }
+  ],
+  "ad_models": [
+    {
+      "lane": "afff",
+      "path": "data/ad_models/afff/ad_model.json",
+      "ad_method": "per_analyte_envelope_v1",
+      "sha256": "5b86a3a866e96825f2ffcc07804923b265bd024e1aba8033e3e553e56fa02e5e"
+    },
+    {
+      "lane": "air_emissions",
+      "path": "data/ad_models/air_emissions/ad_model.json",
+      "ad_method": "per_analyte_envelope_v1",
+      "sha256": "c3ab48aa80c592a7e207db8cb96ad3681279447d78405471952ddf3529da3998"
+    },
+    {
+      "lane": "biosolids_sludge",
+      "path": "data/ad_models/biosolids_sludge/ad_model.json",
+      "ad_method": "categorical_coverage_v1",
+      "sha256": "977915c0782d0f782aa8395d0b79b611dc4276c41e9c88c5e9960c2026c83fe8"
+    },
+    {
+      "lane": "drinking_water",
+      "path": "data/ad_models/drinking_water/ad_model.json",
+      "ad_method": "per_analyte_envelope_v1",
+      "sha256": "a83f74d9452c0d1521362aeab7f085e9421fc1d78b163f08fd1d1195d1bbeaa2"
+    },
+    {
+      "lane": "methanol_standards",
+      "path": "data/ad_models/methanol_standards/ad_model.json",
+      "ad_method": "per_analyte_envelope_v1",
+      "sha256": "5be0e03833326660f944f96eef39c64f76a9fb5cdd1d01f3bbf4901a1499ef35"
+    },
+    {
+      "lane": "serum",
+      "path": "data/ad_models/serum/ad_model.json",
+      "ad_method": "per_analyte_envelope_v1",
+      "sha256": "92bc6d3e5bc42c36414cc1d14ab2fe602a397de574ff373f309c382faeafc802"
+    }
+  ],
+  "smoke_status": {
+    "windows": "pass",
+    "rstudio": "pass",
+    "docker_ubuntu": "pass",
+    "wsl_ubuntu": "pass"
+  },
+  "scope_doc_sections": {
+    "count": 17,
+    "list": [
+      "1. System Purpose",
+      "2. Supported Matrices",
+      "3. Supported Analytical Contexts",
+      "4. Unsupported Use Cases",
+      "5. Screening vs Confirmatory Separation",
+      "6. Matrix Isolation Requirements",
+      "7. Applicability Domain (AD) Policy",
+      "8. Governance and Provenance",
+      "9. External Validation Status",
+      "10. Regulatory and Accreditation Limitations",
+      "11. Human Review Requirements",
+      "12. Data Source Lineage",
+      "13. Threshold Governance",
+      "14. Environmental vs Physiological Separation",
+      "15. Air / Biosolids Metadata Limitation Statements",
+      "16. SaaS Operational Limitations",
+      "17. Future Validation Roadmap"
+    ]
+  },
+  "ad_models_index_sha256": "ca784d5cea8b315c9d6d2e331df451136c14b3360ba9c78a3a1674001b0b614b"
+}

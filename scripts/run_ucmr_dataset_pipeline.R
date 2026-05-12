@@ -1,6 +1,29 @@
 #!/usr/bin/env Rscript
+# Args: [PROJECT_ROOT] [optional: screening]
+# - Default writes data/training/ucmr_exceedance_labeled.csv
+# - Second arg "screening" (or env PFAS_UCMR_TRAINING_SUBDIR=screening) writes under data/training/screening/
 args <- commandArgs(trailingOnly = TRUE)
-root <- if (length(args) >= 1L) normalizePath(args[[1]], winslash = "/", mustWork = FALSE) else normalizePath(getwd(), winslash = "/", mustWork = FALSE)
+if (length(args) >= 1L) {
+  arg1 <- trimws(args[[1]])
+  if (grepl("path(/|\\\\)to(/|\\\\)project", arg1, ignore.case = TRUE)) {
+    stop(
+      "PROJECT_ROOT must be your real project folder, not the documentation example path/to/project.\n",
+      "Example: Rscript scripts/run_ucmr_dataset_pipeline.R \"C:/Users/you/.../PFAS_on_R_Studio\" screening\n",
+      "That folder must contain scripts/build_ucmr_exceedance_dataset.py."
+    )
+  }
+  if (!dir.exists(arg1)) {
+    stop("PROJECT_ROOT is not an existing directory: ", arg1)
+  }
+}
+root <- if (length(args) >= 1L) {
+  rp <- normalizePath(trimws(args[[1]]), winslash = "/", mustWork = FALSE)
+  if (is.na(rp)) stop("PROJECT_ROOT could not be resolved: ", args[[1]])
+  rp
+} else normalizePath(getwd(), winslash = "/", mustWork = FALSE)
+if (length(args) >= 2L && identical(tolower(trimws(args[[2]])), "screening")) {
+  Sys.setenv(PFAS_UCMR_TRAINING_SUBDIR = "screening")
+}
 
 py <- Sys.getenv("PFAS_PYTHON", unset = "")
 if (!nzchar(trimws(py))) {
@@ -10,7 +33,10 @@ if (!nzchar(trimws(py))) {
 
 script <- file.path(root, "scripts", "build_ucmr_exceedance_dataset.py")
 if (!file.exists(script)) {
-  stop("Missing scripts/build_ucmr_exceedance_dataset.py under: ", root)
+  stop(
+    "Missing scripts/build_ucmr_exceedance_dataset.py under: ", root, "\n",
+    "Confirm PROJECT_ROOT is the repo root (folder that contains scripts/)."
+  )
 }
 
 argv <- c(script, "--project-root", root)
