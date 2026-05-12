@@ -1,0 +1,7 @@
+matrix,canonical_datasets,pipeline_id
+drinking water,UCMR5,drinking_water
+serum,NHANES + SRM 1957,serum
+biosolids/sludge,Method 1633 + EPA biosolids,biosolids_sludge
+AFFF,RM 8690,afff
+methanol standards,RM 8446,methanol_standards
+air emissions,OTM-50,air_emissions

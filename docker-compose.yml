@@ -1,0 +1,55 @@
+# PFAS Enterprise 5 — operational FastAPI service.
+#
+# Usage (the same on Windows, macOS, Linux):
+#
+#   1. Create .env from .env.example and set a real PFAS_API_KEYS value.
+#        cp .env.example .env
+#        python -c "import secrets; print('PFAS_API_KEYS=ops:' + secrets.token_urlsafe(24))"  # paste into .env
+#
+#   2. Bring up the stack.
+#        docker compose up -d --build
+#
+#   3. Verify the AD-gated API is alive at http://localhost:8000.
+#        python scripts/smoke_docker_compose.py
+#
+#   4. Tear down.
+#        docker compose down
+#
+# Scope: this file deliberately runs ONE service. The Shiny analyst console
+# (LatestPFAS.R) is intentionally NOT containerised — it remains the
+# research/exploratory surface (see api/README.md "Surface" table).
+
+services:
+  pfas-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pfas-enterprise/api:5.0.0
+    container_name: pfas-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      PORT: "8000"
+      PFAS_API_LOG_JSON: "true"
+      PFAS_API_AD_STRICT_REFUSAL: "true"
+      PFAS_API_EXPOSE_PATHS: "false"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request, sys;
+          sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',
+          timeout=3).status == 200 else 1)"
+      interval: 20s
+      timeout: 5s
+      start_period: 15s
+      retries: 5
+    # No bind mount of the source tree — the image is the deployable.
+    # If you need to inspect logs as a file (in addition to stdout), uncomment:
+    # volumes:
+    #   - ./logs:/app/logs
+    # and set PFAS_API_ACCESS_LOG=logs/api_access.jsonl in .env.

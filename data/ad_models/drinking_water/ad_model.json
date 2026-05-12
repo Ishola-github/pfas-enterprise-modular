@@ -1,0 +1,356 @@
+{
+  "pipeline_lane": "drinking_water",
+  "ad_model_version": "1.0.0",
+  "training_csv": "data/training/drinking_water/training.csv",
+  "training_csv_sha256": "a3f363e4fd574600896cd8d7d9b9b28bf456b9414d7860794b8af41dcfb5b547",
+  "training_csv_rows": 20000,
+  "training_range_version": "a3f363e4fd57",
+  "sop_separation_note": "SOP \u00a76: this AD model is bound to its lane. Do not use it to gate predictions for any other pipeline_lane. Predictions outside this envelope must be REFUSED (ad_status='reject'), not silently warned about.",
+  "ad_method": "per_analyte_envelope_v1",
+  "value_lane": true,
+  "thresholds": {
+    "warning_z": 2.0,
+    "reject_z": 3.0
+  },
+  "global": {
+    "n_training_rows": 20000,
+    "n_analytical_rows": 20000,
+    "n_detect_rows": 400,
+    "n_nondetect_rows": 19600,
+    "n_analytes_with_envelope": 9,
+    "unit_set": [
+      "ng/L"
+    ],
+    "method_set": [
+      "EPA_UCMR5_method"
+    ],
+    "source_set": [
+      "EPA_UCMR5"
+    ]
+  },
+  "analytes": {
+    "PFHpA": {
+      "cas_rn": "PFHpA",
+      "analyte_short_name": "pfhpa",
+      "primary_source": "EPA_UCMR5",
+      "units": [
+        "ng/L"
+      ],
+      "methods": [
+        "EPA_UCMR5_method"
+      ],
+      "linear": {
+        "n": 12,
+        "min": 3.3,
+        "max": 7.6,
+        "mean": 4.3999999999999995,
+        "std": 1.37234592334926,
+        "p05": 3.3,
+        "p25": 3.5,
+        "p50": 3.8499999999999996,
+        "p75": 4.475,
+        "p95": 6.994999999999999
+      },
+      "log10": {
+        "n": 12,
+        "min": 0.5185139398778874,
+        "max": 0.8808135922807914,
+        "mean": 0.6258348526489314,
+        "std": 0.11810600089555363,
+        "p05": 0.5185139398778874,
+        "p25": 0.5440680443502757,
+        "p50": 0.5854241018216546,
+        "p75": 0.6442579964065078,
+        "p95": 0.8434684626799267
+      }
+    },
+    "PFOA": {
+      "cas_rn": "335671",
+      "analyte_short_name": "pfoa",
+      "primary_source": "EPA_UCMR5",
+      "units": [
+        "ng/L"
+      ],
+      "methods": [
+        "EPA_UCMR5_method"
+      ],
+      "linear": {
+        "n": 23,
+        "min": 4.5,
+        "max": 19.2,
+        "mean": 7.726086956521739,
+        "std": 3.809737796672507,
+        "p05": 4.81,
+        "p25": 5.25,
+        "p50": 6.1000000000000005,
+        "p75": 9.2,
+        "p95": 15.889999999999999
+      },
+      "log10": {
+        "n": 23,
+        "min": 0.6532125137753437,
+        "max": 1.2833012287035497,
+        "mean": 0.8482520114898368,
+        "std": 0.1737670428575929,
+        "p05": 0.6821367216408798,
+        "p25": 0.7201396066177941,
+        "p50": 0.785329835010767,
+        "p75": 0.9637621704375143,
+        "p95": 1.2007560919964884
+      }
+    },
+    "PFHxA": {
+      "cas_rn": "PFHxA",
+      "analyte_short_name": "pfhxa",
+      "primary_source": "EPA_UCMR5",
+      "units": [
+        "ng/L"
+      ],
+      "methods": [
+        "EPA_UCMR5_method"
+      ],
+      "linear": {
+        "n": 31,
+        "min": 3.0,
+        "max": 21.6,
+        "mean": 7.135483870967741,
+        "std": 4.454685708988782,
+        "p05": 3.0,
+        "p25": 3.9000000000000004,
+        "p50": 5.8999999999999995,
+        "p75": 8.649999999999999,
+        "p95": 16.75
+      },
+      "log10": {
+        "n": 31,
+        "min": 0.47712125471966244,
+        "max": 1.334453751150931,
+        "mean": 0.7861611989528947,
+        "std": 0.23288906068242374,
+        "p05": 0.47712125471966244,
+        "p25": 0.5904927903933652,
+        "p50": 0.7708520116421441,
+        "p75": 0.9361364231121025,
+        "p95": 1.2200608015939018
+      }
+    },
+    "PFBA": {
+      "cas_rn": "PFBA",
+      "analyte_short_name": "pfba",
+      "primary_source": "EPA_UCMR5",
+      "units": [
+        "ng/L"
+      ],
+      "methods": [
+        "EPA_UCMR5_method"
+      ],
+      "linear": {
+        "n": 16,
+        "min": 6.2,
+        "max": 37.1,
+        "mean": 10.7875,
+        "std": 7.21611694403576,
+        "p05": 6.2749999999999995,
+        "p25": 7.125,
+        "p50": 8.649999999999999,
+        "p75": 11.125,
+        "p95": 20.299999999999997
+      },
+      "log10": {
+        "n": 16,
+        "min": 0.7923916894982539,
+        "max": 1.5693739096150459,
+        "mean": 0.9794752375407676,
+        "std": 0.18871062813962033,
+        "p05": 0.7976033344647497,
+        "p25": 0.8523781289758091,
+        "p50": 0.9361364231121025,
+        "p75": 1.0462189739570718,
+        "p95": 1.2678314784648934
+      }
+    },
+    "PFBS": {
+      "cas_rn": "PFBS",
+      "analyte_short_name": "pfbs",
+      "primary_source": "EPA_UCMR5",
+      "units": [
+        "ng/L"
+      ],
+      "methods": [
+        "EPA_UCMR5_method"
+      ],
+      "linear": {
+        "n": 39,
+        "min": 3.0,
+        "max": 88.3,
+        "mean": 21.710256410256413,
+        "std": 20.877982450809395,
+        "p05": 3.0,
+        "p25": 5.550000000000001,
+        "p50": 12.0,
+        "p75": 24.9,
+        "p95": 61.570000000000014
+      },
+      "log10": {
+        "n": 39,
+        "min": 0.47712125471966244,
+        "max": 1.9459607035775686,
+        "mean": 1.1334723329114536,
+        "std": 0.43734371586619225,
+        "p05": 0.47712125471966244,
+        "p25": 0.7428607132407901,
+        "p50": 1.0791812460476249,
+        "p75": 1.396185337370352,
+        "p95": 1.7886178669381818
+      }
+    },
+    "PFPeA": {
+      "cas_rn": "PFPeA",
+      "analyte_short_name": "pfpea",
+      "primary_source": "EPA_UCMR5",
+      "units": [
+        "ng/L"
+      ],
+      "methods": [
+        "EPA_UCMR5_method"
+      ],
+      "linear": {
+        "n": 35,
+        "min": 3.0,
+        "max": 32.800000000000004,
+        "mean": 10.251428571428571,
+        "std": 8.243763753063678,
+        "p05": 3.3,
+        "p25": 3.95,
+        "p50": 6.0,
+        "p75": 17.5,
+        "p95": 25.699999999999974
+      },
+      "log10": {
+        "n": 35,
+        "min": 0.47712125471966244,
+        "max": 1.5158738437116792,
+        "mean": 0.8889547265867614,
+        "std": 0.3149912641308559,
+        "p05": 0.5185139398778874,
+        "p25": 0.5965622991772308,
+        "p50": 0.7781512503836436,
+        "p75": 1.2428607132407898,
+        "p95": 1.4047544787082864
+      }
+    },
+    "lithium": {
+      "cas_rn": "lithium",
+      "analyte_short_name": "lithium",
+      "primary_source": "EPA_UCMR5",
+      "units": [
+        "ng/L"
+      ],
+      "methods": [
+        "EPA_UCMR5_method"
+      ],
+      "linear": {
+        "n": 196,
+        "min": 9010.0,
+        "max": 540000.0,
+        "mean": 66866.42857142857,
+        "std": 74967.69529781015,
+        "p05": 10475.0,
+        "p25": 21350.0,
+        "p50": 50150.0,
+        "p75": 77125.0,
+        "p95": 194000.0
+      },
+      "log10": {
+        "n": 196,
+        "min": 3.954724790979063,
+        "max": 5.732393759822968,
+        "mean": 4.645840545632631,
+        "std": 0.3897376347645678,
+        "p05": 4.020150309127149,
+        "p25": 4.329394295244081,
+        "p50": 4.700268994695973,
+        "p75": 4.88719346950594,
+        "p95": 5.287784538296228
+      }
+    },
+    "PFHxS": {
+      "cas_rn": "PFHxS",
+      "analyte_short_name": "pfhxs",
+      "primary_source": "EPA_UCMR5",
+      "units": [
+        "ng/L"
+      ],
+      "methods": [
+        "EPA_UCMR5_method"
+      ],
+      "linear": {
+        "n": 26,
+        "min": 3.0,
+        "max": 18.5,
+        "mean": 7.2807692307692315,
+        "std": 4.804566676272228,
+        "p05": 3.1500000000000004,
+        "p25": 4.125,
+        "p50": 4.75,
+        "p75": 8.75,
+        "p95": 17.475
+      },
+      "log10": {
+        "n": 26,
+        "min": 0.47712125471966244,
+        "max": 1.2671717284030137,
+        "mean": 0.7857492989652588,
+        "std": 0.24441070736720955,
+        "p05": 0.49814975534517636,
+        "p25": 0.6154002151392768,
+        "p50": 0.6766695476556523,
+        "p75": 0.9419866169235185,
+        "p95": 1.2423835284586509
+      }
+    },
+    "PFOS": {
+      "cas_rn": "1763231",
+      "analyte_short_name": "pfos",
+      "primary_source": "EPA_UCMR5",
+      "units": [
+        "ng/L"
+      ],
+      "methods": [
+        "EPA_UCMR5_method"
+      ],
+      "linear": {
+        "n": 22,
+        "min": 4.1000000000000005,
+        "max": 46.300000000000004,
+        "mean": 16.62727272727273,
+        "std": 13.922877896671357,
+        "p05": 4.205,
+        "p25": 5.65,
+        "p50": 11.5,
+        "p75": 19.4,
+        "p95": 44.68999999999999
+      },
+      "log10": {
+        "n": 22,
+        "min": 0.6127838567197356,
+        "max": 1.665580991017953,
+        "mean": 1.0801341152067838,
+        "std": 0.34862829036688414,
+        "p05": 0.6237602486569848,
+        "p25": 0.7331890417987228,
+        "p50": 1.060286965602925,
+        "p75": 1.2866257574295363,
+        "p95": 1.6502101475243862
+      }
+    }
+  },
+  "refusal_rules": [
+    "analyte not in training set -> reject (reason: analyte_unseen)",
+    "unit not in training unit_set -> reject (reason: unit_mismatch)",
+    "value <= 0 and not flagged ND -> reject (reason: invalid_value)",
+    "log10 |z| > reject_z -> reject (reason: value_out_of_range)",
+    "warning_z < log10 |z| <= reject_z -> warning (reason: value_warning)",
+    "no envelope for analyte (n < 2 detects) -> warning (reason: sparse_training)"
+  ]
+}

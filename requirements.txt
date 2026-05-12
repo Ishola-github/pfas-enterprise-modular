@@ -1,8 +1,20 @@
-pandas
-fastapi
-uvicorn
-sqlalchemy
-psycopg2-binary
-reportlab
-requests
-python-multipart
+# Direct deps for the operational FastAPI service (api/).
+# Pinned to versions verified end-to-end on 2026-05-12 in:
+#   - Windows external PowerShell  (24/24 PASS)
+#   - Windows RStudio Console      (24/24 PASS)
+#   - Docker (Ubuntu 24.04)        (24/24 PASS)
+#   - Native Ubuntu 24.04.3 LTS    (24/24 PASS)
+# Update only with a re-run of `scripts/smoke_api.py` + `scripts/smoke_docker_compose.py`.
+fastapi==0.136.1
+uvicorn==0.46.0
+httpx==0.28.1
+python-multipart==0.0.28
+python-dotenv==1.2.2
+
+# Data + persistence path (not strictly required by /v1/predict; kept for parity
+# with the rest of the repo).
+pandas==3.0.3
+sqlalchemy==2.0.49
+psycopg2-binary==2.9.12
+reportlab==4.5.1
+requests==2.34.0

@@ -1,0 +1,601 @@
+{
+  "pipeline_lane": "afff",
+  "ad_model_version": "1.0.0",
+  "training_csv": "data/training/afff/training.csv",
+  "training_csv_sha256": "ce2e3139c08a8d363339ab53f9a8a5bbe364dc8e31daafc1dc58927c7538a030",
+  "training_csv_rows": 16,
+  "training_range_version": "ce2e3139c08a",
+  "sop_separation_note": "SOP \u00a76: this AD model is bound to its lane. Do not use it to gate predictions for any other pipeline_lane. Predictions outside this envelope must be REFUSED (ad_status='reject'), not silently warned about.",
+  "ad_method": "per_analyte_envelope_v1",
+  "value_lane": true,
+  "thresholds": {
+    "warning_z": 2.0,
+    "reject_z": 3.0
+  },
+  "global": {
+    "n_training_rows": 16,
+    "n_analytical_rows": 16,
+    "n_detect_rows": 16,
+    "n_nondetect_rows": 0,
+    "n_analytes_with_envelope": 16,
+    "unit_set": [
+      "ug/g"
+    ],
+    "method_set": [
+      "LC-MS/MS"
+    ],
+    "source_set": [
+      "NIST_RM8690"
+    ]
+  },
+  "analytes": {
+    "Perfluorobutanoic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFBA",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.104,
+        "max": 0.104,
+        "mean": 0.104,
+        "std": 0.0,
+        "p05": 0.104,
+        "p25": 0.104,
+        "p50": 0.104,
+        "p75": 0.104,
+        "p95": 0.104
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.9829666607012196,
+        "max": -0.9829666607012196,
+        "mean": -0.9829666607012196,
+        "std": 0.0,
+        "p05": -0.9829666607012196,
+        "p25": -0.9829666607012196,
+        "p50": -0.9829666607012196,
+        "p75": -0.9829666607012196,
+        "p95": -0.9829666607012196
+      }
+    },
+    "Perfluorohexanoic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHxA",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.295,
+        "max": 0.295,
+        "mean": 0.295,
+        "std": 0.0,
+        "p05": 0.295,
+        "p25": 0.295,
+        "p50": 0.295,
+        "p75": 0.295,
+        "p95": 0.295
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.530177984021837,
+        "max": -0.530177984021837,
+        "mean": -0.530177984021837,
+        "std": 0.0,
+        "p05": -0.530177984021837,
+        "p25": -0.530177984021837,
+        "p50": -0.530177984021837,
+        "p75": -0.530177984021837,
+        "p95": -0.530177984021837
+      }
+    },
+    "Perfluoroheptanoic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHpA",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.0918,
+        "max": 0.0918,
+        "mean": 0.0918,
+        "std": 0.0,
+        "p05": 0.0918,
+        "p25": 0.0918,
+        "p50": 0.0918,
+        "p75": 0.0918,
+        "p95": 0.0918
+      },
+      "log10": {
+        "n": 1,
+        "min": -1.0371573187987575,
+        "max": -1.0371573187987575,
+        "mean": -1.0371573187987575,
+        "std": 0.0,
+        "p05": -1.0371573187987575,
+        "p25": -1.0371573187987575,
+        "p50": -1.0371573187987575,
+        "p75": -1.0371573187987575,
+        "p95": -1.0371573187987575
+      }
+    },
+    "Perfluorooctanoic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFOA",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.317,
+        "max": 0.317,
+        "mean": 0.317,
+        "std": 0.0,
+        "p05": 0.317,
+        "p25": 0.317,
+        "p50": 0.317,
+        "p75": 0.317,
+        "p95": 0.317
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.4989407377822485,
+        "max": -0.4989407377822485,
+        "mean": -0.4989407377822485,
+        "std": 0.0,
+        "p05": -0.4989407377822485,
+        "p25": -0.4989407377822485,
+        "p50": -0.4989407377822485,
+        "p75": -0.4989407377822485,
+        "p95": -0.4989407377822485
+      }
+    },
+    "Perfluoropropanesulfonic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFPrS",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.302,
+        "max": 0.302,
+        "mean": 0.302,
+        "std": 0.0,
+        "p05": 0.302,
+        "p25": 0.302,
+        "p50": 0.302,
+        "p75": 0.302,
+        "p95": 0.302
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.5199930570428494,
+        "max": -0.5199930570428494,
+        "mean": -0.5199930570428494,
+        "std": 0.0,
+        "p05": -0.5199930570428494,
+        "p25": -0.5199930570428494,
+        "p50": -0.5199930570428494,
+        "p75": -0.5199930570428494,
+        "p95": -0.5199930570428494
+      }
+    },
+    "Perfluorobutanesulfonic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFBS",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.473,
+        "max": 0.473,
+        "mean": 0.473,
+        "std": 0.0,
+        "p05": 0.473,
+        "p25": 0.473,
+        "p50": 0.473,
+        "p75": 0.473,
+        "p95": 0.473
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.32513885926218844,
+        "max": -0.32513885926218844,
+        "mean": -0.32513885926218844,
+        "std": 0.0,
+        "p05": -0.32513885926218844,
+        "p25": -0.32513885926218844,
+        "p50": -0.32513885926218844,
+        "p75": -0.32513885926218844,
+        "p95": -0.32513885926218844
+      }
+    },
+    "Perfluoropentanesulfonic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFPeS",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.409,
+        "max": 0.409,
+        "mean": 0.409,
+        "std": 0.0,
+        "p05": 0.409,
+        "p25": 0.409,
+        "p50": 0.409,
+        "p75": 0.409,
+        "p95": 0.409
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.38827669199265824,
+        "max": -0.38827669199265824,
+        "mean": -0.38827669199265824,
+        "std": 0.0,
+        "p05": -0.38827669199265824,
+        "p25": -0.38827669199265824,
+        "p50": -0.38827669199265824,
+        "p75": -0.38827669199265824,
+        "p95": -0.38827669199265824
+      }
+    },
+    "Perfluorohexanesulfonic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHxS",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 2.64,
+        "max": 2.64,
+        "mean": 2.64,
+        "std": 0.0,
+        "p05": 2.64,
+        "p25": 2.64,
+        "p50": 2.64,
+        "p75": 2.64,
+        "p95": 2.64
+      },
+      "log10": {
+        "n": 1,
+        "min": 0.42160392686983106,
+        "max": 0.42160392686983106,
+        "mean": 0.42160392686983106,
+        "std": 0.0,
+        "p05": 0.42160392686983106,
+        "p25": 0.42160392686983106,
+        "p50": 0.42160392686983106,
+        "p75": 0.42160392686983106,
+        "p95": 0.42160392686983106
+      }
+    },
+    "Perfluoroheptanesulfonic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHpS",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.315,
+        "max": 0.315,
+        "mean": 0.315,
+        "std": 0.0,
+        "p05": 0.315,
+        "p25": 0.315,
+        "p50": 0.315,
+        "p75": 0.315,
+        "p95": 0.315
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.5016894462103995,
+        "max": -0.5016894462103995,
+        "mean": -0.5016894462103995,
+        "std": 0.0,
+        "p05": -0.5016894462103995,
+        "p25": -0.5016894462103995,
+        "p50": -0.5016894462103995,
+        "p75": -0.5016894462103995,
+        "p95": -0.5016894462103995
+      }
+    },
+    "Perfluorooctanesulfonic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFOS",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 19.4,
+        "max": 19.4,
+        "mean": 19.4,
+        "std": 0.0,
+        "p05": 19.4,
+        "p25": 19.4,
+        "p50": 19.4,
+        "p75": 19.4,
+        "p95": 19.4
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.287801729930226,
+        "max": 1.287801729930226,
+        "mean": 1.287801729930226,
+        "std": 0.0,
+        "p05": 1.287801729930226,
+        "p25": 1.287801729930226,
+        "p50": 1.287801729930226,
+        "p75": 1.287801729930226,
+        "p95": 1.287801729930226
+      }
+    },
+    "Perfluorobutane Sulfonamide": {
+      "cas_rn": "",
+      "analyte_short_name": "PFBSA",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.0356,
+        "max": 0.0356,
+        "mean": 0.0356,
+        "std": 0.0,
+        "p05": 0.0356,
+        "p25": 0.0356,
+        "p50": 0.0356,
+        "p75": 0.0356,
+        "p95": 0.0356
+      },
+      "log10": {
+        "n": 1,
+        "min": -1.448550002027125,
+        "max": -1.448550002027125,
+        "mean": -1.448550002027125,
+        "std": 0.0,
+        "p05": -1.448550002027125,
+        "p25": -1.448550002027125,
+        "p50": -1.448550002027125,
+        "p75": -1.448550002027125,
+        "p95": -1.448550002027125
+      }
+    },
+    "Perfluorohexane Sulfonamide": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHxSA",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.035,
+        "max": 0.035,
+        "mean": 0.035,
+        "std": 0.0,
+        "p05": 0.035,
+        "p25": 0.035,
+        "p50": 0.035,
+        "p75": 0.035,
+        "p95": 0.035
+      },
+      "log10": {
+        "n": 1,
+        "min": -1.4559319556497243,
+        "max": -1.4559319556497243,
+        "mean": -1.4559319556497243,
+        "std": 0.0,
+        "p05": -1.4559319556497243,
+        "p25": -1.4559319556497243,
+        "p50": -1.4559319556497243,
+        "p75": -1.4559319556497243,
+        "p95": -1.4559319556497243
+      }
+    },
+    "6:2 Fluorotelomer Sulfonic Acid": {
+      "cas_rn": "",
+      "analyte_short_name": "6:2 FTS",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.222,
+        "max": 0.222,
+        "mean": 0.222,
+        "std": 0.0,
+        "p05": 0.222,
+        "p25": 0.222,
+        "p50": 0.222,
+        "p75": 0.222,
+        "p95": 0.222
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.6536470255493614,
+        "max": -0.6536470255493614,
+        "mean": -0.6536470255493614,
+        "std": 0.0,
+        "p05": -0.6536470255493614,
+        "p25": -0.6536470255493614,
+        "p50": -0.6536470255493614,
+        "p75": -0.6536470255493614,
+        "p95": -0.6536470255493614
+      }
+    },
+    "Perfluorohexane Sulfonamido Amine": {
+      "cas_rn": "",
+      "analyte_short_name": "N-AP-FHxSA",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 9.12,
+        "max": 9.12,
+        "mean": 9.12,
+        "std": 0.0,
+        "p05": 9.12,
+        "p25": 9.12,
+        "p50": 9.12,
+        "p75": 9.12,
+        "p95": 9.12
+      },
+      "log10": {
+        "n": 1,
+        "min": 0.9599948383284161,
+        "max": 0.9599948383284161,
+        "mean": 0.9599948383284161,
+        "std": 0.0,
+        "p05": 0.9599948383284161,
+        "p25": 0.9599948383284161,
+        "p50": 0.9599948383284161,
+        "p75": 0.9599948383284161,
+        "p95": 0.9599948383284161
+      }
+    },
+    "N-TAmP-FHxSA": {
+      "cas_rn": "",
+      "analyte_short_name": "N-TAmP-FHxSA",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.293,
+        "max": 0.293,
+        "mean": 0.293,
+        "std": 0.0,
+        "p05": 0.293,
+        "p25": 0.293,
+        "p50": 0.293,
+        "p75": 0.293,
+        "p95": 0.293
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.5331323796458906,
+        "max": -0.5331323796458906,
+        "mean": -0.5331323796458906,
+        "std": 0.0,
+        "p05": -0.5331323796458906,
+        "p25": -0.5331323796458906,
+        "p50": -0.5331323796458906,
+        "p75": -0.5331323796458906,
+        "p95": -0.5331323796458906
+      }
+    },
+    "6:2 Fluorotelomer Sulfonamide Propyl Betaine": {
+      "cas_rn": "",
+      "analyte_short_name": "6:2 FTAB",
+      "primary_source": "NIST_RM8690",
+      "units": [
+        "ug/g"
+      ],
+      "methods": [
+        "LC-MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 2.5,
+        "max": 2.5,
+        "mean": 2.5,
+        "std": 0.0,
+        "p05": 2.5,
+        "p25": 2.5,
+        "p50": 2.5,
+        "p75": 2.5,
+        "p95": 2.5
+      },
+      "log10": {
+        "n": 1,
+        "min": 0.3979400086720376,
+        "max": 0.3979400086720376,
+        "mean": 0.3979400086720376,
+        "std": 0.0,
+        "p05": 0.3979400086720376,
+        "p25": 0.3979400086720376,
+        "p50": 0.3979400086720376,
+        "p75": 0.3979400086720376,
+        "p95": 0.3979400086720376
+      }
+    }
+  },
+  "refusal_rules": [
+    "analyte not in training set -> reject (reason: analyte_unseen)",
+    "unit not in training unit_set -> reject (reason: unit_mismatch)",
+    "value <= 0 and not flagged ND -> reject (reason: invalid_value)",
+    "log10 |z| > reject_z -> reject (reason: value_out_of_range)",
+    "warning_z < log10 |z| <= reject_z -> warning (reason: value_warning)",
+    "no envelope for analyte (n < 2 detects) -> warning (reason: sparse_training)"
+  ]
+}

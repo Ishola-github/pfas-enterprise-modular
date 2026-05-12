@@ -1,0 +1,604 @@
+{
+  "pipeline_lane": "serum",
+  "ad_model_version": "1.0.0",
+  "training_csv": "data/training/serum/training.csv",
+  "training_csv_sha256": "e5b74701097bdd9ad77f0def7afa9523f6cbcbb396831852ae857271fb48342b",
+  "training_csv_rows": 27619,
+  "training_range_version": "e5b74701097b",
+  "sop_separation_note": "SOP \u00a76: this AD model is bound to its lane. Do not use it to gate predictions for any other pipeline_lane. Predictions outside this envelope must be REFUSED (ad_status='reject'), not silently warned about.",
+  "ad_method": "per_analyte_envelope_v1",
+  "value_lane": true,
+  "thresholds": {
+    "warning_z": 2.0,
+    "reject_z": 3.0
+  },
+  "global": {
+    "n_training_rows": 27619,
+    "n_analytical_rows": 27619,
+    "n_detect_rows": 21092,
+    "n_nondetect_rows": 6527,
+    "n_analytes_with_envelope": 16,
+    "unit_set": [
+      "ng/mL",
+      "ug/kg"
+    ],
+    "method_set": [
+      "CDC_NHANES_PFAS",
+      "LC/MS/MS"
+    ],
+    "source_set": [
+      "CDC_NHANES",
+      "NIST_SRM1957"
+    ]
+  },
+  "analytes": {
+    "LBXMFOS": {
+      "cas_rn": "",
+      "analyte_short_name": "MFOS",
+      "primary_source": "CDC_NHANES",
+      "units": [
+        "ng/mL"
+      ],
+      "methods": [
+        "CDC_NHANES_PFAS"
+      ],
+      "linear": {
+        "n": 3031,
+        "min": 0.1,
+        "max": 19.3,
+        "mean": 1.650412405146816,
+        "std": 1.6921536651725129,
+        "p05": 0.3,
+        "p25": 0.6,
+        "p50": 1.1,
+        "p75": 2.1,
+        "p95": 5.1
+      },
+      "log10": {
+        "n": 3031,
+        "min": -1.0,
+        "max": 1.2855573090077739,
+        "mean": 0.04629466220780007,
+        "std": 0.3869763117149059,
+        "p05": -0.5228787452803376,
+        "p25": -0.2218487496163564,
+        "p50": 0.04139268515822508,
+        "p75": 0.3222192947339193,
+        "p95": 0.7075701760979364
+      }
+    },
+    "LBXNFOA": {
+      "cas_rn": "",
+      "analyte_short_name": "NFOA",
+      "primary_source": "CDC_NHANES",
+      "units": [
+        "ng/mL"
+      ],
+      "methods": [
+        "CDC_NHANES_PFAS"
+      ],
+      "linear": {
+        "n": 3058,
+        "min": 0.1,
+        "max": 52.8,
+        "mean": 1.619228253760628,
+        "std": 1.7043407608986494,
+        "p05": 0.4,
+        "p25": 0.8,
+        "p50": 1.3,
+        "p75": 1.9,
+        "p95": 3.7
+      },
+      "log10": {
+        "n": 3058,
+        "min": -1.0,
+        "max": 1.7226339225338123,
+        "mean": 0.09623506820227043,
+        "std": 0.30750545936399254,
+        "p05": -0.3979400086720376,
+        "p25": -0.09691001300805639,
+        "p50": 0.11394335230683679,
+        "p75": 0.2787536009528289,
+        "p95": 0.568201724066995
+      }
+    },
+    "LBXNFOS": {
+      "cas_rn": "",
+      "analyte_short_name": "NFOS",
+      "primary_source": "CDC_NHANES",
+      "units": [
+        "ng/mL"
+      ],
+      "methods": [
+        "CDC_NHANES_PFAS"
+      ],
+      "linear": {
+        "n": 3059,
+        "min": 0.1,
+        "max": 95.1,
+        "mean": 4.50045766590389,
+        "std": 6.38264337375234,
+        "p05": 0.7,
+        "p25": 1.5,
+        "p50": 2.7,
+        "p75": 5.1,
+        "p95": 13.7
+      },
+      "log10": {
+        "n": 3059,
+        "min": -1.0,
+        "max": 1.9781805169374138,
+        "mean": 0.4478612318802888,
+        "std": 0.4050018793288429,
+        "p05": -0.1549019599857432,
+        "p25": 0.17609125905568124,
+        "p50": 0.43136376415898736,
+        "p75": 0.7075701760979364,
+        "p95": 1.1367205671564067
+      }
+    },
+    "LBXPFHS": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHS",
+      "primary_source": "CDC_NHANES",
+      "units": [
+        "ng/mL"
+      ],
+      "methods": [
+        "CDC_NHANES_PFAS"
+      ],
+      "linear": {
+        "n": 3030,
+        "min": 0.1,
+        "max": 48.8,
+        "mean": 1.5875247524752474,
+        "std": 2.1736152934930293,
+        "p05": 0.3,
+        "p25": 0.6,
+        "p50": 1.1,
+        "p75": 1.9,
+        "p95": 4.0
+      },
+      "log10": {
+        "n": 3030,
+        "min": -1.0,
+        "max": 1.6884198220027107,
+        "mean": 0.02119454083463674,
+        "std": 0.3781025952872075,
+        "p05": -0.5228787452803376,
+        "p25": -0.2218487496163564,
+        "p50": 0.04139268515822508,
+        "p75": 0.2787536009528289,
+        "p95": 0.6020599913279624
+      }
+    },
+    "LBXPFNA": {
+      "cas_rn": "",
+      "analyte_short_name": "PFNA",
+      "primary_source": "CDC_NHANES",
+      "units": [
+        "ng/mL"
+      ],
+      "methods": [
+        "CDC_NHANES_PFAS"
+      ],
+      "linear": {
+        "n": 2912,
+        "min": 0.1,
+        "max": 7.0,
+        "mean": 0.6785714285714286,
+        "std": 0.5956639502280258,
+        "p05": 0.2,
+        "p25": 0.3,
+        "p50": 0.5,
+        "p75": 0.8,
+        "p95": 1.7
+      },
+      "log10": {
+        "n": 2912,
+        "min": -1.0,
+        "max": 0.8450980400142568,
+        "mean": -0.28571723824426126,
+        "std": 0.3157060124952967,
+        "p05": -0.6989700043360187,
+        "p25": -0.5228787452803376,
+        "p50": -0.3010299956639812,
+        "p75": -0.09691001300805639,
+        "p95": 0.23044892137827394
+      }
+    },
+    "LBXPFDE": {
+      "cas_rn": "",
+      "analyte_short_name": "PFDE",
+      "primary_source": "CDC_NHANES",
+      "units": [
+        "ng/mL"
+      ],
+      "methods": [
+        "CDC_NHANES_PFAS"
+      ],
+      "linear": {
+        "n": 2479,
+        "min": 0.1,
+        "max": 7.3,
+        "mean": 0.3247277127874143,
+        "std": 0.4631626512045281,
+        "p05": 0.1,
+        "p25": 0.1,
+        "p50": 0.2,
+        "p75": 0.3,
+        "p95": 0.9
+      },
+      "log10": {
+        "n": 2479,
+        "min": -1.0,
+        "max": 0.8633228601204559,
+        "mean": -0.6357764453467427,
+        "std": 0.3093256778215038,
+        "p05": -1.0,
+        "p25": -1.0,
+        "p50": -0.6989700043360187,
+        "p75": -0.5228787452803376,
+        "p95": -0.045757490560675115
+      }
+    },
+    "LBXPFUA": {
+      "cas_rn": "",
+      "analyte_short_name": "PFUA",
+      "primary_source": "CDC_NHANES",
+      "units": [
+        "ng/mL"
+      ],
+      "methods": [
+        "CDC_NHANES_PFAS"
+      ],
+      "linear": {
+        "n": 1796,
+        "min": 0.1,
+        "max": 4.8,
+        "mean": 0.2603563474387528,
+        "std": 0.3055330257261495,
+        "p05": 0.1,
+        "p25": 0.1,
+        "p50": 0.2,
+        "p75": 0.3,
+        "p95": 0.7
+      },
+      "log10": {
+        "n": 1796,
+        "min": -1.0,
+        "max": 0.6812412373755872,
+        "mean": -0.7156886217631558,
+        "std": 0.29732853215469524,
+        "p05": -1.0,
+        "p25": -1.0,
+        "p50": -0.6989700043360187,
+        "p75": -0.5228787452803376,
+        "p95": -0.1549019599857432
+      }
+    },
+    "LBXBFOA": {
+      "cas_rn": "",
+      "analyte_short_name": "BFOA",
+      "primary_source": "CDC_NHANES",
+      "units": [
+        "ng/mL"
+      ],
+      "methods": [
+        "CDC_NHANES_PFAS"
+      ],
+      "linear": {
+        "n": 192,
+        "min": 0.1,
+        "max": 0.7,
+        "mean": 0.17760416666666667,
+        "std": 0.09392200655848565,
+        "p05": 0.1,
+        "p25": 0.1,
+        "p50": 0.2,
+        "p75": 0.2,
+        "p95": 0.3
+      },
+      "log10": {
+        "n": 192,
+        "min": -1.0,
+        "max": -0.1549019599857432,
+        "mean": -0.7956778376884603,
+        "std": 0.19001442799167123,
+        "p05": -1.0,
+        "p25": -1.0,
+        "p50": -0.6989700043360187,
+        "p75": -0.6989700043360187,
+        "p95": -0.5228787452803376
+      }
+    },
+    "LBXMPAH": {
+      "cas_rn": "",
+      "analyte_short_name": "MPAH",
+      "primary_source": "CDC_NHANES",
+      "units": [
+        "ng/mL"
+      ],
+      "methods": [
+        "CDC_NHANES_PFAS"
+      ],
+      "linear": {
+        "n": 1528,
+        "min": 0.1,
+        "max": 4.5,
+        "mean": 0.287303664921466,
+        "std": 0.36668681722110097,
+        "p05": 0.1,
+        "p25": 0.1,
+        "p50": 0.2,
+        "p75": 0.3,
+        "p95": 0.8
+      },
+      "log10": {
+        "n": 1528,
+        "min": -1.0,
+        "max": 0.6532125137753437,
+        "mean": -0.694303873461209,
+        "std": 0.32269424145538655,
+        "p05": -1.0,
+        "p25": -1.0,
+        "p50": -0.6989700043360187,
+        "p75": -0.5228787452803376,
+        "p95": -0.09691001300805638
+      }
+    },
+    "Tridecafluoroheptanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHpA",
+      "primary_source": "NIST_SRM1957",
+      "units": [
+        "ug/kg"
+      ],
+      "methods": [
+        "LC/MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.305,
+        "max": 0.305,
+        "mean": 0.305,
+        "std": 0.0,
+        "p05": 0.305,
+        "p25": 0.305,
+        "p50": 0.305,
+        "p75": 0.305,
+        "p95": 0.305
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.5157001606532142,
+        "max": -0.5157001606532142,
+        "mean": -0.5157001606532142,
+        "std": 0.0,
+        "p05": -0.5157001606532142,
+        "p25": -0.5157001606532142,
+        "p50": -0.5157001606532142,
+        "p75": -0.5157001606532142,
+        "p95": -0.5157001606532142
+      }
+    },
+    "Pentadecafluorooctanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFOA",
+      "primary_source": "NIST_SRM1957",
+      "units": [
+        "ug/kg"
+      ],
+      "methods": [
+        "LC/MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 5.0,
+        "max": 5.0,
+        "mean": 5.0,
+        "std": 0.0,
+        "p05": 5.0,
+        "p25": 5.0,
+        "p50": 5.0,
+        "p75": 5.0,
+        "p95": 5.0
+      },
+      "log10": {
+        "n": 1,
+        "min": 0.6989700043360189,
+        "max": 0.6989700043360189,
+        "mean": 0.6989700043360189,
+        "std": 0.0,
+        "p05": 0.6989700043360189,
+        "p25": 0.6989700043360189,
+        "p50": 0.6989700043360189,
+        "p75": 0.6989700043360189,
+        "p95": 0.6989700043360189
+      }
+    },
+    "Heptadecafluorononanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFNA",
+      "primary_source": "NIST_SRM1957",
+      "units": [
+        "ug/kg"
+      ],
+      "methods": [
+        "LC/MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.878,
+        "max": 0.878,
+        "mean": 0.878,
+        "std": 0.0,
+        "p05": 0.878,
+        "p25": 0.878,
+        "p50": 0.878,
+        "p75": 0.878,
+        "p95": 0.878
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.05650548409389743,
+        "max": -0.05650548409389743,
+        "mean": -0.05650548409389743,
+        "std": 0.0,
+        "p05": -0.05650548409389743,
+        "p25": -0.05650548409389743,
+        "p50": -0.05650548409389743,
+        "p75": -0.05650548409389743,
+        "p95": -0.05650548409389743
+      }
+    },
+    "Nonadecafluorodecanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFDA",
+      "primary_source": "NIST_SRM1957",
+      "units": [
+        "ug/kg"
+      ],
+      "methods": [
+        "LC/MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.39,
+        "max": 0.39,
+        "mean": 0.39,
+        "std": 0.0,
+        "p05": 0.39,
+        "p25": 0.39,
+        "p50": 0.39,
+        "p75": 0.39,
+        "p95": 0.39
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.4089353929735008,
+        "max": -0.4089353929735008,
+        "mean": -0.4089353929735008,
+        "std": 0.0,
+        "p05": -0.4089353929735008,
+        "p25": -0.4089353929735008,
+        "p50": -0.4089353929735008,
+        "p75": -0.4089353929735008,
+        "p95": -0.4089353929735008
+      }
+    },
+    "Perfluoroundecanoic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFUnA",
+      "primary_source": "NIST_SRM1957",
+      "units": [
+        "ug/kg"
+      ],
+      "methods": [
+        "LC/MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 0.172,
+        "max": 0.172,
+        "mean": 0.172,
+        "std": 0.0,
+        "p05": 0.172,
+        "p25": 0.172,
+        "p50": 0.172,
+        "p75": 0.172,
+        "p95": 0.172
+      },
+      "log10": {
+        "n": 1,
+        "min": -0.7644715530924511,
+        "max": -0.7644715530924511,
+        "mean": -0.7644715530924511,
+        "std": 0.0,
+        "p05": -0.7644715530924511,
+        "p25": -0.7644715530924511,
+        "p50": -0.7644715530924511,
+        "p75": -0.7644715530924511,
+        "p95": -0.7644715530924511
+      }
+    },
+    "Perfluorohexanesulfonic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFHxS",
+      "primary_source": "NIST_SRM1957",
+      "units": [
+        "ug/kg"
+      ],
+      "methods": [
+        "LC/MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 4.0,
+        "max": 4.0,
+        "mean": 4.0,
+        "std": 0.0,
+        "p05": 4.0,
+        "p25": 4.0,
+        "p50": 4.0,
+        "p75": 4.0,
+        "p95": 4.0
+      },
+      "log10": {
+        "n": 1,
+        "min": 0.6020599913279624,
+        "max": 0.6020599913279624,
+        "mean": 0.6020599913279624,
+        "std": 0.0,
+        "p05": 0.6020599913279624,
+        "p25": 0.6020599913279624,
+        "p50": 0.6020599913279624,
+        "p75": 0.6020599913279624,
+        "p95": 0.6020599913279624
+      }
+    },
+    "Perfluorooctanesulfonic acid": {
+      "cas_rn": "",
+      "analyte_short_name": "PFOS",
+      "primary_source": "NIST_SRM1957",
+      "units": [
+        "ug/kg"
+      ],
+      "methods": [
+        "LC/MS/MS"
+      ],
+      "linear": {
+        "n": 1,
+        "min": 21.1,
+        "max": 21.1,
+        "mean": 21.1,
+        "std": 0.0,
+        "p05": 21.1,
+        "p25": 21.1,
+        "p50": 21.1,
+        "p75": 21.1,
+        "p95": 21.1
+      },
+      "log10": {
+        "n": 1,
+        "min": 1.3242824552976926,
+        "max": 1.3242824552976926,
+        "mean": 1.3242824552976926,
+        "std": 0.0,
+        "p05": 1.3242824552976926,
+        "p25": 1.3242824552976926,
+        "p50": 1.3242824552976926,
+        "p75": 1.3242824552976926,
+        "p95": 1.3242824552976926
+      }
+    }
+  },
+  "refusal_rules": [
+    "analyte not in training set -> reject (reason: analyte_unseen)",
+    "unit not in training unit_set -> reject (reason: unit_mismatch)",
+    "value <= 0 and not flagged ND -> reject (reason: invalid_value)",
+    "log10 |z| > reject_z -> reject (reason: value_out_of_range)",
+    "warning_z < log10 |z| <= reject_z -> warning (reason: value_warning)",
+    "no envelope for analyte (n < 2 detects) -> warning (reason: sparse_training)"
+  ]
+}
