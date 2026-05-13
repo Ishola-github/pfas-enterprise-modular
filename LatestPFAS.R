@@ -1498,6 +1498,11 @@ ui_dashboard <- dashboardPage(
     sidebarMenu(
       menuItem("Home / Overview", tabName = "home", icon = icon("home")),
       menuItem("Data & Endpoints", tabName = "data", icon = icon("database")),
+      menuItem(
+        "Governance & lineage",
+        tabName = "governance_lineage",
+        icon = icon("diagram-project")
+      ),
       menuItem("Data Collection", tabName = "collection", icon = icon("edit")),
       menuItem("Representations", tabName = "representations", icon = icon("project-diagram")),
       menuItem("Modeling", tabName = "modeling", icon = icon("cogs")),
@@ -1711,6 +1716,142 @@ ui_dashboard <- dashboardPage(
             ),
             verbatimTextOutput("ucmr_pipeline_status", placeholder = TRUE),
             DTOutput("ucmr_pipeline_priority_tbl")
+          )
+        )
+      ),
+      tabItem(
+        tabName = "governance_lineage",
+        fluidRow(
+          box(
+            width = 12,
+            title = "Cross-matrix governance control center",
+            status = "primary",
+            solidHeader = TRUE,
+            tags$p(
+              style = "margin-bottom:8px;",
+              tags$strong("Operational visibility — not executive BI."),
+              " Read-only roll-up of matrix lanes, provenance files, manifests, AD refusal history, ",
+              "threshold reproducibility, SQLite QA trails, and blind-validation index tails. ",
+              "Purpose: governed workflow review and audit readiness; ",
+              tags$em("not"),
+              " generic analytics dashboards."
+            ),
+            tags$p(
+              style = "margin-bottom:8px;font-size:0.95em;color:#424242;",
+              "Sources: ",
+              code("data/config/matrix_pipeline_sop.csv"), ", ",
+              code("data/ad_models/index.json"), ", per-lane ",
+              code("data/training/<lane>/manifest.json"), ", ",
+              code("data/reference/registry/reference_registry.csv"), ", ",
+              code("data/audit/ad_decisions.jsonl"), ", ",
+              code("pfas_collection.sqlite"), " (audit / upload validation), ",
+              code("validation/blind_external/manifests/*.jsonl"), ", ",
+              code("validation/scope_freeze/*/freeze_manifest.json"), ". ",
+              "CLI mirror (CI / operators): ",
+              code("python scripts/governance_operational_snapshot.py --project-root . --pretty"), "."
+            ),
+            fluidRow(
+              column(3, actionButton("btn_governance_refresh", "Refresh all panels", class = "btn-info")),
+              column(
+                9,
+                helpText(
+                  "Click refresh after lane builds, AD runs, registry edits, or external blind-validation actions. ",
+                  "Matrix isolation enforcement remains in R training prep + Python API; this tab surfaces evidence only."
+                )
+              )
+            )
+          )
+        ),
+        fluidRow(
+          box(
+            width = 6,
+            title = "Matrix inventory (SOP + AD index)",
+            status = "info",
+            solidHeader = TRUE,
+            DT::dataTableOutput("tbl_governance_matrix_inventory")
+          ),
+          box(
+            width = 6,
+            title = "Per-lane manifest / training build status",
+            status = "info",
+            solidHeader = TRUE,
+            DT::dataTableOutput("tbl_governance_manifest_status")
+          )
+        ),
+        fluidRow(
+          box(
+            width = 7,
+            title = "Reference registry lineage (registered artifacts)",
+            status = "warning",
+            solidHeader = TRUE,
+            DT::dataTableOutput("tbl_governance_registry")
+          ),
+          box(
+            width = 5,
+            title = "Threshold & scope-freeze reproducibility",
+            status = "warning",
+            solidHeader = TRUE,
+            verbatimTextOutput("txt_governance_threshold_scope", placeholder = TRUE)
+          )
+        ),
+        fluidRow(
+          box(
+            width = 6,
+            title = "AD refusal trends (recent audit tail)",
+            status = "danger",
+            solidHeader = TRUE,
+            helpText(
+              "Aggregates the last ",
+              tags$strong("5,000"),
+              " lines of ",
+              code("data/audit/ad_decisions.jsonl"), " by ",
+              code("reference_lane"), " and ",
+              code("ad_status"), "."
+            ),
+            DT::dataTableOutput("tbl_governance_ad_trends")
+          ),
+          box(
+            width = 6,
+            title = "Blind-validation submissions (index tail)",
+            status = "danger",
+            solidHeader = TRUE,
+            verbatimTextOutput("txt_governance_blind_tail", placeholder = TRUE)
+          )
+        ),
+        fluidRow(
+          box(
+            width = 6,
+            title = "SQLite reviewer / QA activity (audit_log tail)",
+            status = "success",
+            solidHeader = TRUE,
+            DT::dataTableOutput("tbl_governance_sqlite_audit")
+          ),
+          box(
+            width = 6,
+            title = "Upload validation & ingestion QA (SQLite)",
+            status = "success",
+            solidHeader = TRUE,
+            DT::dataTableOutput("tbl_governance_upload_validation"),
+            tags$hr(),
+            tags$strong("Runs with failures or non-OK status (ingestion risk):"),
+            DT::dataTableOutput("tbl_governance_ingestion_failures")
+          )
+        ),
+        fluidRow(
+          box(
+            width = 6,
+            title = "Export / results artifact recency (results/)",
+            status = "primary",
+            solidHeader = TRUE,
+            helpText("Newest JSON/CSV under ", code("results/"), " (max 20 files). Not a full provenance chain — quick operational trace."),
+            DT::dataTableOutput("tbl_governance_results_recent")
+          ),
+          box(
+            width = 6,
+            title = "Matrix isolation checks (evidence)",
+            status = "primary",
+            solidHeader = TRUE,
+            verbatimTextOutput("txt_governance_matrix_isolation", placeholder = TRUE)
           )
         )
       ),
@@ -5377,6 +5518,160 @@ server <- function(input, output, session) {
     do.call(rbind, rows)
   }
 
+  governance_nonce <- reactiveVal(0L)
+
+  collect_governance_matrix_inventory <- function() {
+    sop <- file.path(PROJECT_DIR, "data", "config", "matrix_pipeline_sop.csv")
+    if (!file.exists(sop)) {
+      return(tibble::tibble(Note = "Missing data/config/matrix_pipeline_sop.csv"))
+    }
+    s <- utils::read.csv(sop, stringsAsFactors = FALSE, check.names = FALSE)
+    idx_path <- file.path(PROJECT_DIR, "data", "ad_models", "index.json")
+    lanes_df <- NULL
+    if (file.exists(idx_path)) {
+      lanes_df <- tryCatch({
+        js <- jsonlite::fromJSON(idx_path, simplifyDataFrame = TRUE)
+        if (!is.null(js$lanes) && is.data.frame(js$lanes)) js$lanes else NULL
+      }, error = function(e) NULL)
+    }
+    pid <- trimws(as.character(s$pipeline_id))
+    ad_method <- rep(NA_character_, length(pid))
+    ad_version <- rep(NA_character_, length(pid))
+    ad_sha12 <- rep(NA_character_, length(pid))
+    idx_status <- rep(NA_character_, length(pid))
+    if (!is.null(lanes_df) && nrow(lanes_df) > 0L) {
+      pl <- trimws(as.character(lanes_df$pipeline_lane))
+      for (i in seq_along(pid)) {
+        hit <- which(pl == pid[[i]])
+        if (length(hit) == 1L) {
+          j <- hit[[1]]
+          ad_method[[i]] <- as.character(lanes_df$ad_method[j] %||% "")
+          ad_version[[i]] <- as.character(lanes_df$ad_model_version[j] %||% "")
+          sha <- as.character(lanes_df$ad_model_sha256[j] %||% "")
+          ad_sha12[[i]] <- if (nzchar(sha)) substr(sha, 1L, 12L) else ""
+          idx_status[[i]] <- as.character(lanes_df$status[j] %||% "")
+        }
+      }
+    }
+    tibble::tibble(
+      Matrix = trimws(as.character(s$matrix)),
+      `Pipeline ID` = pid,
+      `Canonical datasets` = trimws(as.character(s$canonical_datasets)),
+      `AD index status` = idx_status,
+      `AD method` = ad_method,
+      `AD model version` = ad_version,
+      `AD model SHA (12)` = ad_sha12
+    )
+  }
+
+  collect_governance_registry_table <- function() {
+    reg <- file.path(PROJECT_DIR, "data", "reference", "registry", "reference_registry.csv")
+    if (!file.exists(reg)) {
+      return(tibble::tibble(Note = "Missing reference_registry.csv"))
+    }
+    df <- utils::read.csv(reg, stringsAsFactors = FALSE, check.names = FALSE)
+    keep <- intersect(
+      names(df),
+      c("source_org", "document_type", "document_id", "matrix_domain", "local_path", "sha256", "intended_use")
+    )
+    if (!length(keep)) return(tibble::tibble(Note = "Unexpected registry schema"))
+    out <- df[, keep, drop = FALSE]
+    if ("sha256" %in% names(out)) {
+      out$sha256 <- vapply(as.character(out$sha256), function(x) {
+        if (is.na(x) || !nzchar(x)) return("")
+        if (nchar(x) > 12L) paste0(substr(x, 1L, 12L), "\u2026") else x
+      }, character(1L))
+    }
+    out
+  }
+
+  governance_threshold_and_scope_text <- function() {
+    ucmr <- file.path(PROJECT_DIR, "data", "config", "ucmr_analyte_limits_ngl.csv")
+    th <- if (file.exists(ucmr)) {
+      h <- tryCatch(
+        digest::digest(file = ucmr, algo = "sha256", serialize = FALSE),
+        error = function(e) "digest_error"
+      )
+      paste0("UCMR analyte limits file: ", basename(ucmr),
+             "\n  SHA-256 (full): ", h,
+             "\n  threshold_version prefix (first 12): ", substr(h, 1L, 12L))
+    } else {
+      "UCMR analyte limits file: (missing) data/config/ucmr_analyte_limits_ngl.csv"
+    }
+    mf <- file.path(PROJECT_DIR, "validation", "scope_freeze", "v1.0", "freeze_manifest.json")
+    sc <- if (file.exists(mf)) {
+      js <- tryCatch(jsonlite::fromJSON(mf, simplifyVector = TRUE), error = function(e) NULL)
+      if (is.null(js)) {
+        "\nScope freeze v1.0 manifest: (unreadable JSON)"
+      } else {
+        paste0(
+          "\nScope freeze v1.0 manifest: ", basename(mf),
+          "\n  status: ", js$status %||% "?",
+          "\n  git_head_sha: ", js$git_head_sha %||% "?",
+          "\n  built_at_utc: ", js$built_at_utc %||% "?",
+          "\n  operator: ", js$operator %||% "null",
+          "\n  scientific_reviewer: ", js$scientific_reviewer %||% "null"
+        )
+      }
+    } else {
+      "\nScope freeze: no validation/scope_freeze/v1.0/freeze_manifest.json in this checkout."
+    }
+    paste(th, sc, sep = "")
+  }
+
+  governance_blind_index_tail <- function() {
+    p <- file.path(
+      PROJECT_DIR, "validation", "blind_external", "manifests", "submissions_index.jsonl"
+    )
+    if (!file.exists(p)) {
+      return("(no file) validation/blind_external/manifests/submissions_index.jsonl")
+    }
+    lines <- readLines(p, warn = FALSE)
+    if (!length(lines)) return("(empty submissions index)")
+    tail_lines <- tail(lines, 15L)
+    paste(tail_lines, collapse = "\n")
+  }
+
+  governance_results_recent <- function() {
+    rd <- file.path(PROJECT_DIR, "results")
+    if (!dir.exists(rd)) {
+      return(tibble::tibble(Note = "No results/ directory"))
+    }
+    pat <- "\\.(json|csv)$"
+    ff <- list.files(rd, pattern = pat, full.names = TRUE, recursive = FALSE, ignore.case = TRUE)
+    if (!length(ff)) return(tibble::tibble(Note = "No JSON/CSV files directly under results/"))
+    info <- file.info(ff)
+    info$path <- ff
+    info$name <- basename(ff)
+    ord <- order(info$mtime, decreasing = TRUE)
+    info <- info[ord, , drop = FALSE]
+    info <- head(info, 20L)
+    tibble::tibble(
+      file = info$name,
+      `modified (local)` = format(info$mtime, usetz = TRUE),
+      bytes = as.integer(info$size)
+    )
+  }
+
+  governance_matrix_isolation_text <- function() {
+    sop <- file.path(PROJECT_DIR, "data", "config", "matrix_pipeline_sop.csv")
+    sop_m <- if (file.exists(sop)) format(file.info(sop)$mtime, usetz = TRUE) else "(missing)"
+    summ <- file.path(PROJECT_DIR, "data", "training", "matrix_pipeline_summary.json")
+    summ_l <- if (file.exists(summ)) format(file.info(summ)$mtime, usetz = TRUE) else "(missing)"
+    paste0(
+      "SOP CSV last modified: ", sop_m,
+      "\nmatrix_pipeline_summary.json last modified: ", summ_l,
+      "\n",
+      "\nEnforcement (not re-run from this tab):",
+      "\n  * R: prepare_multisource_training.R :: enforce_sop_single_pipeline()",
+      "\n  * Python: scripts/run_matrix_pipeline.py (per-lane training.csv + manifest.json)",
+      "\n  * API: POST /v1/predict requires matrix_lane; unknown lane -> 400 ad_lane_unknown",
+      "\n  * Shiny upload: semantic-type hard-block for program-metadata lanes (ICIS-AIR bulk, etc.)",
+      "\n",
+      "\nRegression evidence: scripts/smoke_sop_matrix_separation.R"
+    )
+  }
+
   output$tbl_matrix_pipeline_outputs <- DT::renderDT({
     matrix_pipeline_nonce()
     df <- collect_matrix_pipeline_outputs()
@@ -5390,6 +5685,175 @@ server <- function(input, output, session) {
   output$matrix_pipeline_status <- renderText({
     matrix_pipeline_nonce()
     matrix_pipeline_status()
+  })
+
+  observeEvent(input$btn_governance_refresh, {
+    governance_nonce(governance_nonce() + 1L)
+  })
+
+  output$tbl_governance_matrix_inventory <- DT::renderDT({
+    governance_nonce()
+    df <- collect_governance_matrix_inventory()
+    DT::datatable(
+      df,
+      rownames = FALSE,
+      options = list(pageLength = 12, scrollX = TRUE, dom = "ftip")
+    )
+  })
+
+  output$tbl_governance_manifest_status <- DT::renderDT({
+    governance_nonce()
+    df <- collect_matrix_pipeline_outputs()
+    DT::datatable(
+      df,
+      rownames = FALSE,
+      options = list(pageLength = 12, scrollX = TRUE, dom = "ftip")
+    )
+  })
+
+  output$tbl_governance_registry <- DT::renderDT({
+    governance_nonce()
+    df <- collect_governance_registry_table()
+    DT::datatable(
+      df,
+      rownames = FALSE,
+      options = list(pageLength = 10, scrollX = TRUE, dom = "ftip")
+    )
+  })
+
+  output$txt_governance_threshold_scope <- renderText({
+    governance_nonce()
+    governance_threshold_and_scope_text()
+  })
+
+  output$tbl_governance_ad_trends <- DT::renderDT({
+    governance_nonce()
+    if (!ensure_ad_guard_loaded()) {
+      return(DT::datatable(
+        tibble::tibble(Note = "AD helper not loaded; open Data & Endpoints matrix section and use AD controls once, or source scripts/run_ad_guard.R."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE)
+      ))
+    }
+    df <- tryCatch(
+      read_ad_audit(project_root = PROJECT_DIR, tail_n = 5000L),
+      error = function(e) data.frame(error = conditionMessage(e))
+    )
+    if (!is.data.frame(df) || !nrow(df) || "error" %in% names(df)) {
+      return(DT::datatable(
+        tibble::tibble(Note = "No AD audit rows in tail, or read error."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE)
+      ))
+    }
+    if (!all(c("reference_lane", "ad_status") %in% names(df))) {
+      return(DT::datatable(df, rownames = FALSE, options = list(dom = "t", scrollX = TRUE)))
+    }
+    agg <- as.data.frame(table(df$reference_lane, df$ad_status), stringsAsFactors = FALSE)
+    names(agg) <- c("reference_lane", "ad_status", "n")
+    agg <- agg[order(agg$reference_lane, agg$ad_status), , drop = FALSE]
+    rownames(agg) <- NULL
+    DT::datatable(
+      agg,
+      rownames = FALSE,
+      options = list(pageLength = 25, dom = "ftip")
+    )
+  })
+
+  output$txt_governance_blind_tail <- renderText({
+    governance_nonce()
+    governance_blind_index_tail()
+  })
+
+  output$tbl_governance_sqlite_audit <- DT::renderDT({
+    governance_nonce()
+    df <- tryCatch(
+      {
+        if (!DBI::dbIsValid(con)) {
+          tibble::tibble(Note = "SQLite connection invalid")
+        } else if (!DBI::dbExistsTable(con, "audit_log")) {
+          tibble::tibble(Note = "audit_log table missing")
+        } else {
+          DBI::dbGetQuery(
+            con,
+            "SELECT audit_id, entity_type, entity_id, action_type, changed_by, changed_at, change_notes
+             FROM audit_log ORDER BY changed_at DESC LIMIT 80"
+          )
+        }
+      },
+      error = function(e) tibble::tibble(error = conditionMessage(e))
+    )
+    DT::datatable(
+      df,
+      rownames = FALSE,
+      options = list(pageLength = 15, scrollX = TRUE, dom = "ftip")
+    )
+  })
+
+  output$tbl_governance_upload_validation <- DT::renderDT({
+    governance_nonce()
+    df <- tryCatch(
+      {
+        if (!DBI::dbIsValid(con)) {
+          tibble::tibble(Note = "SQLite connection invalid")
+        } else if (!DBI::dbExistsTable(con, "upload_validation_run")) {
+          tibble::tibble(Note = "upload_validation_run table missing")
+        } else {
+          DBI::dbGetQuery(
+            con,
+            "SELECT run_id, phase, status, validated_at, validated_by, file_name, row_count, rows_pass, rows_fail
+             FROM upload_validation_run ORDER BY validated_at DESC LIMIT 40"
+          )
+        }
+      },
+      error = function(e) tibble::tibble(error = conditionMessage(e))
+    )
+    DT::datatable(
+      df,
+      rownames = FALSE,
+      options = list(pageLength = 12, scrollX = TRUE, dom = "ftip")
+    )
+  })
+
+  output$tbl_governance_ingestion_failures <- DT::renderDT({
+    governance_nonce()
+    df <- tryCatch(
+      {
+        if (!DBI::dbIsValid(con) || !DBI::dbExistsTable(con, "upload_validation_run")) {
+          tibble::tibble(Note = "upload_validation_run not available")
+        } else {
+          DBI::dbGetQuery(
+            con,
+            "SELECT run_id, phase, status, validated_at, validated_by, file_name, row_count, rows_pass, rows_fail, metrics_json
+             FROM upload_validation_run
+             WHERE (LOWER(status) NOT IN ('ok','pass','passed','success'))
+                OR (rows_fail IS NOT NULL AND rows_fail > 0)
+             ORDER BY validated_at DESC LIMIT 30"
+          )
+        }
+      },
+      error = function(e) tibble::tibble(error = conditionMessage(e))
+    )
+    DT::datatable(
+      df,
+      rownames = FALSE,
+      options = list(pageLength = 10, scrollX = TRUE, dom = "ftip")
+    )
+  })
+
+  output$tbl_governance_results_recent <- DT::renderDT({
+    governance_nonce()
+    df <- governance_results_recent()
+    DT::datatable(
+      df,
+      rownames = FALSE,
+      options = list(pageLength = 15, dom = "ftip")
+    )
+  })
+
+  output$txt_governance_matrix_isolation <- renderText({
+    governance_nonce()
+    governance_matrix_isolation_text()
   })
 
   resolve_pfas_python <- function() {

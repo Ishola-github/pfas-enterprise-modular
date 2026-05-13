@@ -6,9 +6,14 @@ once `scripts/build_scope_freeze.py --version v1.0` is run.
 
 ## Status
 
-**Pre-build.** The build script has not yet been run on this checkout.
-After the first successful build, this directory will additionally
-contain:
+**Built. Status `draft`.** The build script has been run on this
+checkout (see `CHANGELOG.md` row for the build timestamp). The
+manifest reports `status: "draft"` with `scientific_reviewer: null`
+because the independent review packet
+([`reviews/`](reviews/)) has been published but no completed review
+has been returned and consented to public attribution yet.
+
+This directory contains:
 
 - `SCOPE_AND_INTENDED_USE.snapshot.md` — byte-identical copy of the
   live scope document at freeze build time.
@@ -18,6 +23,10 @@ contain:
   inventory, smoke status, freeze metadata, and `git_head_sha`.
 - `CHANGELOG.md` — append-only log of every build performed against
   this freeze version.
+- [`reviews/`](reviews/) — the independent reviewer outreach packet
+  (`reviewer_brief.md`, `reviewer_request_email.md`,
+  `reviewer_scope_checklist.md`) and the directory where completed
+  reviews land as `<reviewer-last-name>.md`.
 
 ## Produce the v1.0 freeze
 
@@ -37,29 +46,45 @@ That single command:
 
 ## Promote v1.0 from draft to frozen
 
-After re-running the full regression suite in all four target
-environments and obtaining an independent scientific reviewer sign-off:
+Two conditions must hold before promoting:
+
+1. The four-environment regression suite (Windows / RStudio / Docker
+   Ubuntu / WSL Ubuntu) has been re-run on this commit and is green.
+2. At least one returned [`reviews/<last-name>.md`](reviews/) file
+   exists with a "OK to cite v1.0 as independently reviewed" verdict
+   **and** the reviewer's explicit public-attribution consent
+   (checkbox in the checklist).
+
+Then:
 
 ```
 python scripts/build_scope_freeze.py \
     --version v1.0 \
     --status frozen \
     --operator "Sunday Ishola" \
-    --reviewer "<independent scientific reviewer name>" \
+    --reviewer "<real reviewer name from reviews/<last-name>.md>" \
     --regulatory-liaison "<optional>" \
     --smoke-windows pass \
     --smoke-rstudio pass \
     --smoke-docker-ubuntu pass \
     --smoke-wsl-ubuntu pass \
-    --note "Pre-pilot freeze for SBIR submission"
+    --note "Pre-pilot freeze for SBIR submission; reviewed by <name>"
 ```
 
 Then tag the repository:
 
 ```
-git tag scope-frozen-v1.0
-git push --tags
+git tag -d scope-frozen-v1.0     # the draft tag, if it exists
+git tag -a scope-frozen-v1.0 -m "Scope freeze v1.0 (frozen, reviewed by <name>)"
+git push origin :refs/tags/scope-frozen-v1.0    # delete on remote
+git push origin scope-frozen-v1.0               # re-create on remote
 ```
+
+Do **not** use a placeholder string like `"<independent reviewer>"`
+for `--reviewer`. The build script accepts any string, but a
+placeholder makes the manifest internally contradictory (claiming
+`frozen` while not having a real reviewer) and is treated as a scope
+violation by this directory's own discipline.
 
 ## Verify v1.0 at any time
 

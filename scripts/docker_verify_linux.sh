@@ -82,6 +82,9 @@ Rscript scripts/smoke_icis_air_upload_banner.R
 echo "=== Python: verify_reference_registry.py ==="
 "$PYTHON" scripts/verify_reference_registry.py
 
+echo "=== Python: governance_operational_snapshot.py (JSON roll-up; exit always 0) ==="
+"$PYTHON" scripts/governance_operational_snapshot.py --project-root "$ROOT" --pretty | head -n 120
+
 echo "=== Python: smoke_api.py ==="
 "$PYTHON" scripts/smoke_api.py
 

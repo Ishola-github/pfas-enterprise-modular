@@ -57,8 +57,24 @@ Exits non-zero on any drift; safe to chain into the smoke harness.
 
 | Stage | `status` | What it means |
 | --- | --- | --- |
-| Build | `draft` | Snapshot taken, hashes recorded, smokes not yet declared green |
-| Sign | `frozen` | Operator named, scientific reviewer named, all four smoke environments declared `pass`, git-tagged `scope-frozen-<version>` |
+| Build | `draft` | Snapshot taken, hashes recorded, smokes not yet declared green, reviewer outreach not yet returned |
+| Sign | `frozen` | Operator named, **real** independent reviewer named (sourced from `<version>/reviews/<last-name>.md` with explicit public-attribution consent), all four smoke environments declared `pass`, git-tagged `scope-frozen-<version>` |
 
 A `draft` freeze must not be cited externally as the basis of a public
 claim. Use the wording "pre-pilot draft" until the freeze is signed.
+
+## Independent reviewer packet
+
+Each freeze version directory contains a `reviews/` subdirectory with:
+
+- `reviewer_brief.md` — what the review is and is not.
+- `reviewer_request_email.md` — outreach templates for cold contact
+  with environmental analytical chemists, PFAS consultants, and
+  environmental informatics academics.
+- `reviewer_scope_checklist.md` — the structured review form.
+
+Completed reviews land in the same directory as
+`<reviewer-last-name>.md`. The `scientific_reviewer` field in
+`freeze_manifest.json` is only promoted from `null` to a real name
+after a completed checklist with explicit attribution consent is
+returned.
