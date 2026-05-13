@@ -1,0 +1,23 @@
+{
+  "pipeline_id": "serum",
+  "matrix": "serum",
+  "canonical_datasets": "NHANES + SRM 1957",
+  "generated_at_utc": "2026-05-12T09:20:38Z",
+  "training_csv": "data/training/serum/training.csv",
+  "rows_written": 27619,
+  "sources": [
+    {
+      "path": "data/processed/nhanes_pfas_with_demo.parquet",
+      "sha256": "930f8cf6b3db02278510e724f4fa666a8407cf6f798076a807e6e0662664a2bf",
+      "role": "NHANES PFAS + demographics (processed parquet)"
+    },
+    {
+      "path": "data/reference/nist/srm1957/serum_pfas.csv",
+      "sha256": "ce5fc87a6a1e875af4fcc8df4cbffe6919fd6939f9dedb6e4f0af7b3d199f52f",
+      "role": "NIST SRM 1957 reconstituted human serum (Table A2 non-certified)"
+    }
+  ],
+  "notes": [],
+  "sop_separation_note": "SOP \u00a76: this lane's rows are produced from its canonical dataset(s) only. Do not concatenate with rows from other pipeline_id lanes.",
+  "training_csv_sha256": "e5b74701097bdd9ad77f0def7afa9523f6cbcbb396831852ae857271fb48342b"
+}
