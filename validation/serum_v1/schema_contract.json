@@ -1,0 +1,87 @@
+{
+  "lane": "serum",
+  "lane_kind": "human_biomonitoring",
+  "version": "1.0",
+  "issued": "2026-05-13",
+  "anchor_dataset": {
+    "name": "NHANES 2017-2018 PFAS Special Subsample",
+    "cycle": "J (2017-2018)",
+    "source_url": "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2017/DataFiles/PFAS_J.xpt",
+    "raw_file": "PFAS_J.XPT",
+    "release": "public",
+    "expected_n_respondents": 2133,
+    "expected_n_measured": 1929,
+    "concentration_units": "ng/mL"
+  },
+  "primary_csv_path": "data/training/serum/nhanes_serum_pfas_2017_2018.csv",
+  "column_naming_convention": "snake_case (janitor::clean_names applied to raw NHANES SAS names)",
+  "required_columns": [
+    {
+      "name": "seqn",
+      "raw_field": "SEQN",
+      "dtype": "int64",
+      "role": "respondent_id",
+      "nullable": false,
+      "primary_key": true
+    },
+    {
+      "name": "wtsb2yr",
+      "raw_field": "WTSB2YR",
+      "dtype": "float64",
+      "role": "sample_weight",
+      "nullable": false,
+      "units": "respondents per 2-year subsample"
+    }
+  ],
+  "analyte_columns": [
+    { "value": "lbxnfoa", "lod_code": "lbdnfoal", "analyte": "n-PFOA",        "raw_value": "LBXNFOA", "raw_lod_code": "LBDNFOAL", "units": "ng/mL" },
+    { "value": "lbxbfoa", "lod_code": "lbdbfoal", "analyte": "Sb-PFOA",       "raw_value": "LBXBFOA", "raw_lod_code": "LBDBFOAL", "units": "ng/mL" },
+    { "value": "lbxnfos", "lod_code": "lbdnfosl", "analyte": "n-PFOS",        "raw_value": "LBXNFOS", "raw_lod_code": "LBDNFOSL", "units": "ng/mL" },
+    { "value": "lbxmfos", "lod_code": "lbdmfosl", "analyte": "Sm-PFOS",       "raw_value": "LBXMFOS", "raw_lod_code": "LBDMFOSL", "units": "ng/mL" },
+    { "value": "lbxpfhs", "lod_code": "lbdpfhsl", "analyte": "PFHxS",         "raw_value": "LBXPFHS", "raw_lod_code": "LBDPFHSL", "units": "ng/mL" },
+    { "value": "lbxpfna", "lod_code": "lbdpfnal", "analyte": "PFNA",          "raw_value": "LBXPFNA", "raw_lod_code": "LBDPFNAL", "units": "ng/mL" },
+    { "value": "lbxpfde", "lod_code": "lbdpfdel", "analyte": "PFDA",          "raw_value": "LBXPFDE", "raw_lod_code": "LBDPFDEL", "units": "ng/mL" },
+    { "value": "lbxpfua", "lod_code": "lbdpfual", "analyte": "PFUnDA",        "raw_value": "LBXPFUA", "raw_lod_code": "LBDPFUAL", "units": "ng/mL" },
+    { "value": "lbxmpah", "lod_code": "lbdmpahl", "analyte": "Me-PFOSA-AcOH", "raw_value": "LBXMPAH", "raw_lod_code": "LBDMPAHL", "units": "ng/mL" }
+  ],
+  "lod_code_semantics": {
+    "0": "at or above LOD; reported value is the measured concentration",
+    "1": "below LOD; reported value is imputed by NHANES at LOD / sqrt(2)"
+  },
+  "observed_envelope_ng_per_mL": {
+    "n_PFOA":        { "median": 1.30, "p95":  3.7, "max": 52.8, "pct_below_LOD":  0.4 },
+    "Sb_PFOA":       { "median": 0.07, "p95":  0.2, "max":  0.7, "pct_below_LOD": 90.0 },
+    "n_PFOS":        { "median": 3.00, "p95": 14.5, "max": 88.4, "pct_below_LOD":  0.3 },
+    "Sm_PFOS":       { "median": 1.20, "p95":  5.3, "max": 19.3, "pct_below_LOD":  0.8 },
+    "PFHxS":         { "median": 1.10, "p95":  3.9, "max": 48.8, "pct_below_LOD":  0.7 },
+    "PFNA":          { "median": 0.40, "p95":  1.5, "max":  6.5, "pct_below_LOD":  7.5 },
+    "PFDA":          { "median": 0.20, "p95":  0.8, "max":  6.9, "pct_below_LOD": 11.3 },
+    "PFUnDA":        { "median": 0.10, "p95":  0.5, "max":  4.8, "pct_below_LOD": 34.0 },
+    "Me_PFOSA_AcOH": { "median": 0.10, "p95":  0.6, "max":  4.5, "pct_below_LOD": 41.0 }
+  },
+  "matrix_isolation": {
+    "must_not_be_combined_with": [
+      "drinking_water",
+      "biosolids_sludge",
+      "afff",
+      "methanol_standards",
+      "air_emissions",
+      "soil_sediment",
+      "fish_tissue"
+    ],
+    "rationale": "Each matrix carries its own analytical method, unit system, sampling frame, and regulatory framing. Cross-matrix combination requires an explicit harmonization artifact and is not authorized by this contract.",
+    "enforcement": "Lane ingestion code MUST reject any input row that simultaneously carries a serum analyte value and a column from any environmental matrix in the must_not_be_combined_with list."
+  },
+  "refusal_conditions": [
+    "Input not derived from human serum biomonitoring",
+    "Cycle / population beyond NHANES J coverage without paired harmonization artifact",
+    "Analyte not in the 9-member panel",
+    "Concentration outside the observed envelope by more than 3 sigma without batch metadata",
+    "Mixed-matrix records",
+    "Units other than ng/mL without explicit conversion"
+  ],
+  "out_of_scope_versions": {
+    "P_PFAS_prepandemic_2017_2020":  "Requires serum_v1.1 or serum_v2; not covered by v1.0.",
+    "L06AGE_C_2003_2004_legacy":     "Requires serum_v1.1 or serum_v2; not covered by v1.0."
+  }
+}

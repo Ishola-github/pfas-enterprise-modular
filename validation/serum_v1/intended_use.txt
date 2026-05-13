@@ -1,0 +1,27 @@
+This dataset is the human serum biomonitoring lane of PFAS
+Enterprise 5.0, anchored to the NHANES 2017-2018 PFAS Serum
+Special Subsample (NHANES cycle J, dataset file PFAS_J.XPT).
+
+It is intended to support analyst review of population-level
+PFAS exposure ranges, distributional summaries, and
+applicability-domain boundary checks specific to the serum
+lane.
+
+It does not replace clinical laboratory testing, individual
+toxicokinetic assessment, occupational biomonitoring
+surveillance programs, or any form of regulatory exposure
+determination.
+
+It is also not a tool for environmental contamination source
+attribution. Human serum measurements describe internal
+exposure, not the source matrices (drinking water,
+biosolids, AFFF, methanol standards, air emissions) that
+contributed to it.
+
+This dataset is human biomonitoring data. It must not be
+combined with environmental-matrix datasets without an
+explicit cross-matrix harmonization artifact, because each
+matrix carries its own analytical method, unit system, and
+regulatory framing. The matrix-isolation requirement is
+enforced by the schema contract and the applicability domain
+in this directory.

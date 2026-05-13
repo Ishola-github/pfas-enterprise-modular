@@ -1,0 +1,94 @@
+Lane:      serum (human biomonitoring)
+Anchor:    NHANES 2017-2018 PFAS Special Subsample (PFAS_J.XPT)
+Version:   v1.0
+Units:     ng/mL  (serum concentration)
+n total:   2,133 respondents in the PFAS subsample
+n measured:1,929 respondents with at least one analyte value
+
+----------------------------------------------------------------
+In-domain inputs
+----------------------------------------------------------------
+
+Matrix
+- Human serum from the NHANES 2017-2018 PFAS Special Subsample.
+- U.S. civilian non-institutionalized population aged >=12
+  years, drawn under the NHANES cycle J sampling design.
+- Sample weights for any prevalence-style summary MUST use
+  the column wtsb2yr (two-year subsample weight). Unweighted
+  statistics are descriptive only.
+
+Analyte panel (9, all in ng/mL)
+   value column   LOD code col   analyte                  notes
+   ------------   ------------   -----------------------  -----
+   lbxnfoa        lbdnfoal       n-PFOA  (linear PFOA)
+   lbxbfoa        lbdbfoal       Sb-PFOA (sum branched)
+   lbxnfos        lbdnfosl       n-PFOS  (linear PFOS)
+   lbxmfos        lbdmfosl       Sm-PFOS (sum branched)
+   lbxpfhs        lbdpfhsl       PFHxS
+   lbxpfna        lbdpfnal       PFNA
+   lbxpfde        lbdpfdel       PFDA
+   lbxpfua        lbdpfual       PFUnDA
+   lbxmpah        lbdmpahl       Me-PFOSA-AcOH (PFOS precursor)
+
+Numeric envelope (observed in PFAS_J, n=1929 measured)
+   analyte        median   p95     max    pct_below_LOD
+   ------------   ------   ----    ----   -------------
+   n-PFOA         1.30      3.7    52.8    0.4%
+   Sb-PFOA        0.07      0.2     0.7   90.0%
+   n-PFOS         3.00     14.5    88.4    0.3%
+   Sm-PFOS        1.20      5.3    19.3    0.8%
+   PFHxS          1.10      3.9    48.8    0.7%
+   PFNA           0.40      1.5     6.5    7.5%
+   PFDA           0.20      0.8     6.9   11.3%
+   PFUnDA         0.10      0.5     4.8   34.0%
+   Me-PFOSA-AcOH  0.10      0.6     4.5   41.0%
+
+Below-LOD semantics
+- NHANES imputes values below the limit of detection at
+  LOD / sqrt(2).
+- Each analyte concentration column is paired with an LOD
+  comment column (LBD*L in the raw XPT, lbd*l after
+  janitor::clean_names): 0 = at/above LOD, 1 = below LOD.
+- Statistics that depend on the censored portion (any
+  percentile near or below LOD, any "fraction detected"
+  metric) MUST consult the paired LOD column.
+
+----------------------------------------------------------------
+Refusal conditions (the lane MUST refuse the input)
+----------------------------------------------------------------
+
+R1. Input not derived from human serum biomonitoring.
+R2. Cycle / population beyond NHANES J coverage, unless paired
+    with a documented harmonized cross-cycle artifact. The
+    Pre-pandemic (P_PFAS) and 2003-2004 (L06AGE_C) cycles are
+    NOT covered by v1.0 and require an explicit v1.1 or v2.0
+    AD revision.
+R3. Analyte not present in the 9-member panel above.
+R4. Reported concentration outside the observed envelope by
+    more than 3 sigma (relative to the cycle J distribution
+    for that analyte) without supporting batch metadata.
+R5. Mixed-matrix records (e.g., a row that simultaneously
+    carries a drinking-water concentration and a serum
+    concentration). Cross-matrix harmonization requires its
+    own artifact in a separate directory.
+R6. Units other than ng/mL without an explicit, documented
+    unit-conversion transformation in the ingestion pipeline.
+
+----------------------------------------------------------------
+Out-of-scope, explicitly
+----------------------------------------------------------------
+
+- Soil / sediment, fish / tissue, or any other environmental
+  matrix.
+- Cross-cycle merging of NHANES J with NHANES C (2003-2004)
+  or the Pre-pandemic combined release (P_PFAS).
+- Clinical individual diagnosis. Population biomonitoring
+  reference ranges are not individual reference intervals.
+- Source-attribution claims (which contamination source
+  contributed which fraction of a measured serum burden).
+
+This applicability domain is anchored only to the 2017-2018
+NHANES cycle. Any expansion to additional cycles or
+populations must be issued as a new versioned artifact
+(serum_v1.1 or serum_v2) and reviewed against the matrix-
+isolation requirement in this same directory.
