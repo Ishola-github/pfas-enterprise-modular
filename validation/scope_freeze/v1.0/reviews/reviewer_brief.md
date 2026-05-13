@@ -51,6 +51,51 @@ overall?" That is too large a question for a 2-4 hour review and would
 require examining the codebase, training data, and model outputs —
 none of which are in scope here.
 
+## Known scope-versus-reality gap (please evaluate honestly)
+
+Before you reach Section 16 ("Operational controls and SaaS posture"),
+you should know one specific gap that exists today between what the
+scope document describes and what the public Render deployment of the
+FastAPI service actually serves. Surfacing it before you read the
+section is itself part of the test of whether the scope discipline is
+honest.
+
+Section 16 describes:
+
+- API-key authentication via `PFAS_API_KEYS` with constant-time
+  comparison
+- Per-key in-process token-bucket rate limiting
+- Structured JSON request logs with request IDs
+- AD-gated `/v1/predict` returning HTTP 422 on
+  out-of-applicability-domain inputs
+- `/health`, `/healthz`, `/v1/whoami`, `/v1/ad/{lane}` endpoints
+
+That code exists in `api/main.py` in this repository and is the
+intended SaaS posture. **As of the v1.0 freeze, that code has not
+been promoted to the deployed Render service**, which still serves an
+older `/predict`-only stub without authentication, rate limiting, or
+AD-gated refusal. The deployed endpoint URL is intentionally not
+advertised in this packet for that reason.
+
+I am surfacing this proactively so you can evaluate it under
+checklist question 4 ("Are the limitations stated clearly?") and
+question 3 ("Are the governance claims reasonable?"). The three
+honest options under consideration are:
+
+1. Promote the SaaS-scaffolded `api/main.py` to the deployed service
+   and confirm Section 16's claims against the live API before any
+   external party is sent a deployed URL.
+2. Soften Section 16 to explicitly state that controls are designed
+   and implemented in code but not yet promoted to a production
+   deployment, and re-freeze as v1.0.1 or v1.1.
+3. Remove the public deployment entirely and reframe the scope
+   document as describing a local-deployment-only system.
+
+A useful piece of feedback this review can produce is your view on
+which of those is the right governance move — or whether Section 16
+as written, combined with this explicit disclosure, is already an
+acceptable posture for v1.0.
+
 ## Access the document
 
 The frozen v1.0 scope document is available at the git tag
