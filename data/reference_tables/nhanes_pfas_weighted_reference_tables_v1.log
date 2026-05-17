@@ -1,0 +1,21 @@
+2026-05-14T16:51:04Z  START  build_nhanes_weighted_reference_tables (official)
+2026-05-14T16:51:04Z  out_csv=C:\Users\techj\Downloads\pfas-toxicology\pfas-toxicology\data\reference_tables\nhanes_pfas_weighted_reference_tables_v1.csv
+2026-05-14T16:51:04Z  cycles=['I', 'J', 'P']  (cycle H intentionally excluded)
+2026-05-14T16:51:05Z  loading 2015_2016 (label=I, weight=WTSB2YR) ...
+2026-05-14T16:51:05Z    merged rows = 2170
+2026-05-14T16:51:05Z    positive-weight rows = 2170
+2026-05-14T16:51:06Z  loading 2017_2018 (label=J, weight=WTSB2YR) ...
+2026-05-14T16:51:07Z    merged rows = 2133
+2026-05-14T16:51:07Z    positive-weight rows = 2133
+2026-05-14T16:51:09Z  loading 2017_2020 (label=P, weight=WTSBAPRP) ...
+2026-05-14T16:51:10Z    merged rows = 3460
+2026-05-14T16:51:10Z    positive-weight rows = 3460
+2026-05-14T16:51:12Z  wrote C:\Users\techj\Downloads\pfas-toxicology\pfas-toxicology\data\reference_tables\nhanes_pfas_weighted_reference_tables_v1.csv  rows=180  sha256=715cd8968e21c9e2404b4a10054ea44d78e52707c70d4b10289f1ba9c463e45c
+2026-05-14T16:51:12Z  --- source hashes ---
+2026-05-14T16:51:12Z  src  9300a168ed718bbcc3a002fc5a0d7ba0d141b3a134576f70d3fcd3ae9c6feb17  2015_2016/PFAS_I.XPT
+2026-05-14T16:51:12Z  src  c9297c6c37ae8f78f29be9568fa2a03cf3b112616a39afee04030fc775a66a0d  2015_2016/DEMO_I.XPT
+2026-05-14T16:51:12Z  src  bd2460dc1916fc80b41bef9ac7cdd367f04f25158ec1736706663886b3e4e6b3  2017_2018/PFAS_J.XPT
+2026-05-14T16:51:12Z  src  c0b46e0345ea19404928656277c8b0d10b0cca348a9b2fe4fc3c67e8b7ee73ec  2017_2018/DEMO_J.XPT
+2026-05-14T16:51:12Z  src  da4d166996bc7cdf04e189ee6160f97907346bbf9e013fa3ce40a1b942981b7a  2017_2020/P_PFAS.XPT
+2026-05-14T16:51:12Z  src  2e46c6c26bf77cd8989f64011ace12cbf42c0f3e03414eb59acc5328c8f87913  2017_2020/P_DEMO.XPT
+2026-05-14T16:51:12Z  DONE

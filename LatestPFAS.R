@@ -31,7 +31,7 @@ APP_VERSION <- "5.0.0"
 PROJECT_DIR <- normalizePath(getwd(), winslash = "/", mustWork = FALSE)
 DISCLAIMER_MD_PATH <- file.path(PROJECT_DIR, "DISCLAIMER.md")
 DISCLAIMER_GITHUB_URL <- "https://github.com/Ishola-github/pfas-enterprise-modular/blob/main/DISCLAIMER.md"
-MAPPING_ENGINE_VERSION <- "2026-05-02-autodetect-identifier-hardblock-3"
+MAPPING_ENGINE_VERSION <- "2026-05-13-physiological-autodetect-1"
 # ISO / PFAS screening MVP: user-facing Map + mapping status only (22 keys).
 # Normalized tables still carry legacy columns (region, collection_month, pws_size, health_*) as all-NA for master/SQLite column alignment.
 CORE_EXTERNAL_MAP_KEYS <- c(
@@ -50,6 +50,13 @@ UPLOAD_READER_VERSION <- "2026-06-06-upload-nrows-nulsanitize-fix"
 ICIS_NPDES_UI_VERSION <- "2026-05-07-icis-npdes-echo-bulk"
 # Shown in External ML upload banner when ICIS-AIR bulk column signature matches.
 ICIS_AIR_UPLOAD_BANNER_VERSION <- "2026-05-12-icis-air-hardblock-1"
+# Shown in External ML upload banner when NHANES serum biomonitoring signature
+# matches. The serum lane is governed separately (validation/serum_v1/) and
+# must not flow through the environmental PFAS-occurrence mapper.
+SERUM_UPLOAD_BANNER_VERSION <- "2026-05-13-serum-hardblock-1"
+# V1 governed serum PFOS/PFOA contextualization (src/v1/, weighted reference table).
+V1_CONTEXTUALIZATION_VERSION <- "1.0.1-serum-pfos-pfoa"
+V1_INPUT_TEMPLATE_REL <- file.path("data", "v1", "templates", "governed_serum_pfos_pfoa_input_template.csv")
 # Canonical semantic types for the upload mapper. Each one routes through a
 # different policy (mapping eligibility, validation rules, training eligibility).
 # Mapping is enforced in get_upload_mapping() + the btn_external_* handlers.
@@ -57,6 +64,7 @@ UPLOAD_SEMANTIC_TYPES <- c(
   "pfas_occurrence_or_other",
   "air_program_metadata",
   "biosolids_program_metadata",
+  "serum_biomonitoring",
   "reference_material",
   "method_validation",
   "facility_enrichment"
@@ -133,6 +141,343 @@ detect_icis_air_bulk_program_table <- function(col_names, file_name = "") {
   if (nzchar(fn) && grepl("icis", fn, fixed = TRUE) && grepl("air", fn, fixed = TRUE)) {
     return(TRUE)
   }
+  FALSE
+}
+
+# NHANES serum biomonitoring analyte and LOD-code columns, per
+# validation/serum_v1/schema_contract.md (snake_case after janitor::clean_names).
+# Used by detect_nhanes_serum_biomonitoring() to identify a serum upload that
+# would otherwise be silently routed through the environmental PFAS-occurrence
+# mapper.
+NHANES_SERUM_LBX_COLS <- c(
+  "lbxnfoa", "lbxbfoa", "lbxnfos", "lbxmfos",
+  "lbxpfhs", "lbxpfna", "lbxpfde", "lbxpfua", "lbxmpah"
+)
+NHANES_SERUM_LBD_COLS <- c(
+  "lbdnfoal", "lbdbfoal", "lbdnfosl", "lbdmfosl",
+  "lbdpfhsl", "lbdpfnal", "lbdpfdel", "lbdpfual", "lbdmpahl"
+)
+
+# Per-analyte short names (validation/serum_v1/data_dictionary.csv,
+# 'analyte' column). Keys are the normalized lowercase LBX*/LBD* tokens.
+# These names are normative; any change must be coordinated with the
+# governance dictionary.
+NHANES_SERUM_LBX_TO_ANALYTE <- list(
+  lbxnfoa = "n-PFOA",
+  lbxbfoa = "Sb-PFOA",
+  lbxnfos = "n-PFOS",
+  lbxmfos = "Sm-PFOS",
+  lbxpfhs = "PFHxS",
+  lbxpfna = "PFNA",
+  lbxpfde = "PFDA",
+  lbxpfua = "PFUnDA",
+  lbxmpah = "Me-PFOSA-AcOH"
+)
+NHANES_SERUM_LBD_TO_ANALYTE <- list(
+  lbdnfoal = "n-PFOA",
+  lbdbfoal = "Sb-PFOA",
+  lbdnfosl = "n-PFOS",
+  lbdmfosl = "Sm-PFOS",
+  lbdpfhsl = "PFHxS",
+  lbdpfnal = "PFNA",
+  lbdpfdel = "PFDA",
+  lbdpfual = "PFUnDA",
+  lbdmpahl = "Me-PFOSA-AcOH"
+)
+# NHANES survey-weight columns observed across PFAS-special-subsample cycles.
+NHANES_SERUM_WEIGHT_COLS <- c(
+  "wtsb2yr", "wtmec2yr", "wtmecprp", "wtssch2y", "wtssch2yr"
+)
+
+# Version of the physiological auto-detect (recorded in the "Current
+# mapping" pane and in the autodetect summary UI).
+SERUM_BIOMONITORING_AUTODETECT_VERSION <- "2026-05-13-physiological-autodetect-1"
+
+# Lane-stamped physiological classification fields (validation/serum_v1/
+# schema_contract.md \u00a79). These five fields are constants for the serum
+# lane, not column mappings from the upload, so an operator cannot
+# misroute them. They make the physiological-vs-environmental
+# distinction explicit at the row level instead of leaving it implicit
+# in the matrix name. The scope is lane-specific (\u00a79.3) -- other lanes
+# MUST NOT borrow this stamp; doing so would collapse matrix isolation.
+#
+# `governance_lane` is the (pipeline_id, governance_version) coordinate
+# (`serum_v1` -> validation/serum_v1/). It makes the row's governance
+# bundle machine-checkable, so a downstream consumer can join any row
+# back to the contract under which it was admitted. `units` is NOT in
+# this stamp; the row-level `result_unit` already carries that
+# information, and duplicating it as a lane-stamped column made the
+# SRM-vs-NHANES per-row unit difference confusing.
+PHYSIOLOGICAL_CLASSIFICATION_FIELDS <- c(
+  "sample_domain", "sample_matrix", "measurement_context",
+  "source_program", "governance_lane"
+)
+SERUM_PHYSIOLOGICAL_STAMP <- list(
+  sample_domain       = "physiological",
+  sample_matrix       = "human_serum",
+  measurement_context = "biomonitoring",
+  source_program      = "CDC NHANES",
+  governance_lane     = "serum_v1"
+)
+PHYSIOLOGICAL_GUARD_REFUSAL_CODES <- list(
+  missing_field  = "physiological_classification_missing",
+  value_mismatch = "physiological_classification_mismatch"
+)
+
+# Per-lane registry of physiological classification stamps.
+# INTENTIONALLY NARROW: only lanes whose
+# data/config/matrix_pipeline_sop.csv :: lane_kind ==
+# "physiological_biomonitoring" appear here. Environmental-occurrence
+# lanes (drinking_water, biosolids_sludge, air_emissions) and
+# reference-material lanes (afff, methanol_standards) MUST NOT be
+# added; adding them would collapse matrix isolation. The smoke
+# scripts/smoke_serum_anchor_invariants.R fails if the keys of this
+# registry ever change.
+PHYSIOLOGICAL_LANE_STAMPS <- list(
+  serum = SERUM_PHYSIOLOGICAL_STAMP
+)
+
+# Return the lane-stamped physiological classification for a known
+# physiological lane. Reads from PHYSIOLOGICAL_LANE_STAMPS so a new
+# lane can only be admitted by editing the registry (and then editing
+# the smoke), not by editing this function.
+physiological_lane_stamp <- function(lane = "serum") {
+  PHYSIOLOGICAL_LANE_STAMPS[[lane]]
+}
+
+# Verify that a row / mapping carries the lane-stamped classification
+# fields with EXACTLY the values listed in the lane contract. Returns
+# list(ok, code, missing, mismatched, expected, observed). The caller
+# (validate / normalize / save / train handlers) MUST treat ok=FALSE as
+# a refusal, not a warning.
+physiological_guard <- function(row, lane = "serum") {
+  expected <- physiological_lane_stamp(lane)
+  if (is.null(expected)) {
+    return(list(
+      ok = FALSE, code = "physiological_guard_unknown_lane",
+      missing = character(0), mismatched = character(0),
+      expected = list(), observed = list()
+    ))
+  }
+  observed <- list()
+  missing <- character(0)
+  mismatched <- character(0)
+  for (k in names(expected)) {
+    v <- NULL
+    if (is.list(row)) {
+      v <- row[[k]]
+    } else if (is.data.frame(row) && k %in% names(row)) {
+      v <- row[[k]]
+    } else if (is.environment(row)) {
+      v <- tryCatch(get(k, envir = row, inherits = FALSE),
+                    error = function(e) NULL)
+    }
+    if (is.null(v) || length(v) == 0L) {
+      missing <- c(missing, k)
+      observed[[k]] <- NA_character_
+      next
+    }
+    v_chr <- as.character(v)
+    # Empty-string / NA cells count as missing-field, not mismatch.
+    # This matters for the serum training table where NIST SRM 1957 rows
+    # carry blank stamp columns: they should be refused as "missing"
+    # (reference-material row, not a biomonitoring row), not flagged as
+    # if a value-mismatch was deliberately introduced.
+    if (all(is.na(v_chr)) || all(!nzchar(v_chr))) {
+      missing <- c(missing, k)
+      observed[[k]] <- NA_character_
+      next
+    }
+    observed[[k]] <- v_chr
+    if (!all(v_chr == as.character(expected[[k]]))) {
+      mismatched <- c(mismatched, k)
+    }
+  }
+  code <- if (length(missing) > 0L) {
+    PHYSIOLOGICAL_GUARD_REFUSAL_CODES$missing_field
+  } else if (length(mismatched) > 0L) {
+    PHYSIOLOGICAL_GUARD_REFUSAL_CODES$value_mismatch
+  } else {
+    "physiological_guard_ok"
+  }
+  list(
+    ok        = length(missing) == 0L && length(mismatched) == 0L,
+    code      = code,
+    missing   = missing,
+    mismatched = mismatched,
+    expected  = expected,
+    observed  = observed
+  )
+}
+
+# Affirmative auto-detect for NHANES serum biomonitoring uploads. Where
+# the environmental PFAS-occurrence auto-detect can only blank the
+# mapping fields on a serum file (because the schema does not match),
+# this function classifies every recognized column by role, pairs each
+# LBX* concentration column with its LBD* LOD-code companion, and
+# returns a structured summary the UI can render. The lane summary
+# (matrix, method, units, format) is normative and matches
+# validation/serum_v1/schema_contract.md.
+autodetect_physiological_serum_columns <- function(col_names) {
+  empty_cols_df <- data.frame(
+    column = character(0), normalized = character(0),
+    role = character(0), analyte = character(0),
+    paired_with = character(0), units = character(0),
+    notes = character(0), stringsAsFactors = FALSE
+  )
+  empty <- list(
+    is_physiological = FALSE,
+    lane = NA_character_,
+    semantic_type = NA_character_,
+    matrix = NA_character_,
+    method = NA_character_,
+    units = NA_character_,
+    format = NA_character_,
+    columns = empty_cols_df,
+    paired_lbx_lbd = list(),
+    counts = list(
+      respondent_id = 0L, survey_weight = 0L,
+      analyte_concentration = 0L, analyte_detection_code = 0L,
+      unknown = 0L
+    ),
+    classification_stamp = NULL,
+    classification_fields = PHYSIOLOGICAL_CLASSIFICATION_FIELDS,
+    autodetect_version = SERUM_BIOMONITORING_AUTODETECT_VERSION
+  )
+  if (is.null(col_names) || length(col_names) < 1L) return(empty)
+  orig <- as.character(col_names)
+  norm <- normalize_upload_colnames(orig)
+  classify_one <- function(i) {
+    nm <- norm[[i]]
+    role <- "unknown"
+    analyte <- NA_character_
+    paired <- NA_character_
+    units <- NA_character_
+    notes <- ""
+    if (identical(nm, "seqn")) {
+      role  <- "respondent_id"
+      notes <- "NHANES sequence number; not a PFAS concentration"
+    } else if (nm %in% NHANES_SERUM_WEIGHT_COLS) {
+      role  <- "survey_weight"
+      notes <- "NHANES survey weight; not an analytical measurement"
+    } else if (nm %in% names(NHANES_SERUM_LBX_TO_ANALYTE)) {
+      role    <- "analyte_concentration"
+      analyte <- NHANES_SERUM_LBX_TO_ANALYTE[[nm]]
+      pair_nm <- paste0(sub("^lbx", "lbd", nm), "l")
+      paired  <- if (pair_nm %in% norm) orig[[which(norm == pair_nm)[[1]]]] else NA_character_
+      units   <- "ng/mL"
+      notes   <- "Serum concentration; below-LOD imputed at LOD/sqrt(2) by NHANES"
+    } else if (nm %in% names(NHANES_SERUM_LBD_TO_ANALYTE)) {
+      role    <- "analyte_detection_code"
+      analyte <- NHANES_SERUM_LBD_TO_ANALYTE[[nm]]
+      pair_nm <- sub("l$", "", sub("^lbd", "lbx", nm))
+      paired  <- if (pair_nm %in% norm) orig[[which(norm == pair_nm)[[1]]]] else NA_character_
+      units   <- "0/1"
+      notes   <- "Detection code: 0=at/above LOD, 1=below LOD"
+    }
+    data.frame(
+      column      = orig[[i]],
+      normalized  = nm,
+      role        = role,
+      analyte     = analyte,
+      paired_with = paired,
+      units       = units,
+      notes       = notes,
+      stringsAsFactors = FALSE
+    )
+  }
+  rows <- do.call(rbind, lapply(seq_along(orig), classify_one))
+  counts <- list(
+    respondent_id          = sum(rows$role == "respondent_id"),
+    survey_weight          = sum(rows$role == "survey_weight"),
+    analyte_concentration  = sum(rows$role == "analyte_concentration"),
+    analyte_detection_code = sum(rows$role == "analyte_detection_code"),
+    unknown                = sum(rows$role == "unknown")
+  )
+  paired <- list()
+  conc_idx <- which(rows$role == "analyte_concentration")
+  for (i in conc_idx) {
+    if (!is.na(rows$paired_with[[i]])) {
+      paired[[length(paired) + 1L]] <- list(
+        lbx_column = rows$column[[i]],
+        lbd_column = rows$paired_with[[i]],
+        analyte    = rows$analyte[[i]]
+      )
+    }
+  }
+  recognized <- counts$respondent_id +
+                counts$survey_weight +
+                counts$analyte_concentration +
+                counts$analyte_detection_code
+  list(
+    is_physiological = recognized > 0L,
+    lane             = "serum",
+    semantic_type    = "serum_biomonitoring",
+    matrix           = "human serum",
+    method           = "CDC NHANES PFAS (LC/MS/MS, isotope-dilution)",
+    units            = "ng/mL",
+    format           = "wide (one row per respondent, one column per analyte)",
+    columns          = rows,
+    paired_lbx_lbd   = paired,
+    counts           = counts,
+    classification_stamp = physiological_lane_stamp("serum"),
+    classification_fields = PHYSIOLOGICAL_CLASSIFICATION_FIELDS,
+    autodetect_version = SERUM_BIOMONITORING_AUTODETECT_VERSION
+  )
+}
+
+# True when the uploaded table looks like a NHANES PFAS serum biomonitoring
+# file (PFAS_J / PFAS_I / P_PFAS or their case-folded CSV equivalents). The
+# serum lane lives in validation/serum_v1/ and is governed by
+# scripts/convert_nhanes_xpt_to_csv.R; it MUST NOT be mapped through the
+# environmental PFAS-occurrence schema (long-format ng/L drinking-water
+# data). Used only for a governance banner + hard-block; strict schema
+# validation remains authoritative.
+detect_nhanes_serum_biomonitoring <- function(col_names, file_name = "") {
+  if (is.null(col_names) || length(col_names) < 1L) {
+    return(FALSE)
+  }
+  cn <- normalize_upload_colnames(col_names)
+  cn <- unique(cn[nzchar(cn)])
+
+  # Strong signature: NHANES respondent id + the two-year subsample weight.
+  # This pair appears together only in NHANES public-use serum biomonitoring
+  # files (PFAS_J carries WTSB2YR; the joint occurrence in an environmental
+  # file is implausible).
+  if ("seqn" %in% cn && "wtsb2yr" %in% cn) {
+    return(TRUE)
+  }
+
+  # Strong signature: NHANES respondent id + at least one PFAS serum analyte
+  # or LOD-code column. The lbx*/lbd* prefix is NHANES-specific and not
+  # used by any environmental-matrix lane.
+  lbx_hits <- sum(NHANES_SERUM_LBX_COLS %in% cn)
+  lbd_hits <- sum(NHANES_SERUM_LBD_COLS %in% cn)
+  if ("seqn" %in% cn && (lbx_hits + lbd_hits) >= 1L) {
+    return(TRUE)
+  }
+
+  # Weaker signature: 2+ PFAS serum analyte or LOD-code columns even without
+  # SEQN (e.g. an analyst exported a subset). Two independent NHANES-prefixed
+  # columns is still strong evidence the file is serum biomonitoring.
+  if ((lbx_hits + lbd_hits) >= 2L) {
+    return(TRUE)
+  }
+
+  # Filename fallback: explicit NHANES / PFAS_J / serum-PFAS naming.
+  fn <- tolower(trimws(as.character(file_name %||% "")))
+  if (nzchar(fn)) {
+    if (grepl("pfas_j", fn, fixed = TRUE)) return(TRUE)
+    if (grepl("pfas_i", fn, fixed = TRUE)) return(TRUE)
+    if (grepl("p_pfas", fn, fixed = TRUE)) return(TRUE)
+    if (grepl("nhanes", fn, fixed = TRUE) && grepl("pfas", fn, fixed = TRUE)) {
+      return(TRUE)
+    }
+    if (grepl("serum", fn, fixed = TRUE) && grepl("pfas", fn, fixed = TRUE)) {
+      return(TRUE)
+    }
+  }
+
   FALSE
 }
 
@@ -2135,15 +2480,114 @@ ui_dashboard <- dashboardPage(
             DT::dataTableOutput("tbl_matrix_pipeline_sop"),
             br(),
             tags$strong("Per-lane training tables (data/training/<pipeline_id>/training.csv):"),
+            tags$div(
+              style = "margin:6px 0 4px 0;color:#37474f;",
+              tags$em(
+                "Lanes are partitioned by ", code("lane_kind"),
+                " in ", code("data/config/matrix_pipeline_sop.csv"), ". ",
+                "Physiological body-burden lanes (human serum, ng/mL, wide format) are kept on a ",
+                tags$strong("separate row"),
+                " from environmental-occurrence lanes (ng/L or mg/kg, long format) and from reference-material lanes. ",
+                "Cross-lane concatenation is refused at build time (SOP \u00a7 6)."
+              )
+            ),
+            tags$div(
+              style = "margin:4px 0 2px 0;color:#1b5e20;font-weight:600;",
+              "Environmental-occurrence lanes (", tags$span(style = "font-family:monospace;font-weight:400;", "lane_kind=environmental_occurrence"), ")"
+            ),
             fluidRow(
               column(12,
                 actionButton("btn_lane_drinking_water", "Build lane: drinking_water (UCMR5)", class = "btn-info"),
-                actionButton("btn_lane_serum", "Build lane: serum (NHANES + SRM 1957)", class = "btn-info"),
                 actionButton("btn_lane_biosolids_sludge", "Build lane: biosolids/sludge (1633 + EPA biosolids)", class = "btn-info"),
+                actionButton("btn_lane_air_emissions", "Build lane: air emissions (OTM-50)", class = "btn-info")
+              )
+            ),
+            tags$div(
+              style = "margin:10px 0 2px 0;color:#4a148c;font-weight:600;",
+              "Physiological body-burden lanes (", tags$span(style = "font-family:monospace;font-weight:400;", "lane_kind=physiological_biomonitoring"), ", ",
+              tags$span(style = "font-family:monospace;font-weight:400;", "semantic_type=serum_biomonitoring"), ")"
+            ),
+            fluidRow(
+              column(12,
+                actionButton("btn_lane_serum", "Build lane: serum (NHANES + SRM 1957)", class = "btn-info", style = "background:#ede7f6;border-color:#9575cd;color:#311b92;"),
+                tags$span(
+                  style = "margin-left:10px;font-size:12px;color:#4a148c;",
+                  "Governance boundary: ", code("validation/serum_v1/"),
+                  " \u00b7 anchor CSV: ", code("data/training/serum/nhanes_serum_pfas_2017_2018.csv"),
+                  " (SHA-256 ", code("dfd4dbb5\u20264490f"), ")",
+                  " \u00b7 documented ingestion: ", code("scripts/convert_nhanes_xpt_to_csv.R")
+                )
+              )
+            ),
+            tags$div(
+              class = "alert",
+              style = "background:#ede7f6;border:1px solid #9575cd;color:#311b92;padding:10px 14px;border-radius:4px;margin:12px 0 10px 0;",
+              tags$p(style = "margin:0 0 8px 0;",
+                tags$strong("V1 serum PFOS/PFOA contextualization (governed, RUO)")),
+              tags$p(style = "margin:0 0 8px 0;",
+                "Population-reference percentiles against the precomputed weighted NHANES table ",
+                code("data/reference_tables/nhanes_pfas_weighted_reference_tables_v1.csv"),
+                ". ", tags$strong("Not"), " diagnostic, clinical, or regulatory. ",
+                "Uses ", code("src/v1/"), " + ontology ", code("pfos_pfoa_v1.json"), "."),
+              tags$p(style = "margin:0;",
+                "Template columns: ", code("sample_matrix"), ", ", code("result_unit"), ", ",
+                code("source_program"), ", ", code("analyte"), ", ", code("result_value"),
+                " (required); optional ", code("sex"), ", ", code("age_years"), ", ",
+                code("reference_cycle"), ", ", code("lod_code"), ". ",
+                "Analytes: ", code("n_pfoa"), ", ", code("sb_pfoa"), ", ", code("n_pfos"), ", ",
+                code("sm_pfos"), ".")
+            ),
+            fluidRow(
+              column(4,
+                downloadButton(
+                  "btn_download_v1_template",
+                  "Download governed input template (CSV)",
+                  class = "btn-default",
+                  style = "margin-bottom:8px;width:100%;"
+                ),
+                fileInput(
+                  "v1_input_csv",
+                  "V1 input CSV (governed schema)",
+                  accept = c(".csv", "text/csv")
+                ),
+                selectInput(
+                  "v1_default_cycle",
+                  "Default NHANES reference cycle",
+                  choices = c("J (2017-2018)" = "J", "I (2015-2016)" = "I", "P (2017-2020 pre-pandemic)" = "P"),
+                  selected = "J"
+                ),
+                actionButton(
+                  "btn_v1_run",
+                  "Run V1 contextualization",
+                  class = "btn-primary",
+                  style = "background:#5e35b1;border-color:#4527a0;width:100%;"
+                )
+              ),
+              column(8,
+                verbatimTextOutput("v1_context_status", placeholder = TRUE),
+                tags$div(style = "margin:8px 0;",
+                  downloadButton("btn_download_v1_report_csv", "Download report CSV", class = "btn-info"),
+                  downloadButton("btn_download_v1_report_pdf", "Download report PDF (RUO stub)", class = "btn-info"),
+                  downloadButton("btn_download_v1_manifest", "Download provenance manifest (JSON)", class = "btn-default")
+                ),
+                tags$strong("V1 report preview (all rows):"),
+                DT::dataTableOutput("tbl_v1_report")
+              )
+            ),
+            tags$div(
+              style = "margin:10px 0 2px 0;color:#bf360c;font-weight:600;",
+              "Reference-material lanes (", tags$span(style = "font-family:monospace;font-weight:400;", "lane_kind=reference_material"), ")"
+            ),
+            fluidRow(
+              column(12,
                 actionButton("btn_lane_afff", "Build lane: AFFF (RM 8690)", class = "btn-info"),
-                actionButton("btn_lane_methanol_standards", "Build lane: methanol standards (RM 8446)", class = "btn-info"),
-                actionButton("btn_lane_air_emissions", "Build lane: air emissions (OTM-50)", class = "btn-info"),
-                actionButton("btn_lane_all", "Build all 6 lanes separately", class = "btn-warning")
+                actionButton("btn_lane_methanol_standards", "Build lane: methanol standards (RM 8446)", class = "btn-info")
+              )
+            ),
+            br(),
+            fluidRow(
+              column(12,
+                actionButton("btn_lane_all", "Build all 6 lanes separately (across all 3 lane_kinds)", class = "btn-warning")
               )
             ),
             verbatimTextOutput("matrix_pipeline_status", placeholder = TRUE),
@@ -2179,13 +2623,21 @@ ui_dashboard <- dashboardPage(
                           accept = c(".csv", "text/csv"))),
               column(4,
                 selectInput("ad_lane_select", "Reference lane",
-                            choices = c("(auto: use pipeline_lane column)" = "",
-                                        "drinking_water" = "drinking_water",
-                                        "serum" = "serum",
-                                        "biosolids_sludge" = "biosolids_sludge",
-                                        "afff" = "afff",
-                                        "methanol_standards" = "methanol_standards",
-                                        "air_emissions" = "air_emissions"),
+                            choices = list(
+                              "(auto: use pipeline_lane column)" = "",
+                              "Environmental-occurrence lanes" = list(
+                                "drinking_water"   = "drinking_water",
+                                "biosolids_sludge" = "biosolids_sludge",
+                                "air_emissions"    = "air_emissions"
+                              ),
+                              "Physiological body-burden lanes (serum_biomonitoring)" = list(
+                                "serum" = "serum"
+                              ),
+                              "Reference-material lanes" = list(
+                                "afff"               = "afff",
+                                "methanol_standards" = "methanol_standards"
+                              )
+                            ),
                             selected = "")),
               column(4,
                 radioButtons("ad_mode", "Refusal mode",
@@ -2224,12 +2676,20 @@ ui_dashboard <- dashboardPage(
                                   "Candidate validation CSV (must include truth + predicted columns)",
                                   accept = c(".csv", "text/csv"))),
               column(4, selectInput("bv_lane", "Matrix lane",
-                                    choices = c("drinking_water" = "drinking_water",
-                                                "serum" = "serum",
-                                                "biosolids_sludge" = "biosolids_sludge",
-                                                "afff" = "afff",
-                                                "methanol_standards" = "methanol_standards",
-                                                "air_emissions" = "air_emissions"),
+                                    choices = list(
+                                      "Environmental-occurrence lanes" = list(
+                                        "drinking_water"   = "drinking_water",
+                                        "biosolids_sludge" = "biosolids_sludge",
+                                        "air_emissions"    = "air_emissions"
+                                      ),
+                                      "Physiological body-burden lanes (serum_biomonitoring)" = list(
+                                        "serum" = "serum"
+                                      ),
+                                      "Reference-material lanes" = list(
+                                        "afff"               = "afff",
+                                        "methanol_standards" = "methanol_standards"
+                                      )
+                                    ),
                                     selected = "drinking_water")),
               column(4, textInput("bv_submitted_by", "Submitted by",
                                   placeholder = "lab / institution / submitter id"))
@@ -2408,6 +2868,8 @@ ui_dashboard <- dashboardPage(
               accept = c(".csv", ".tsv", ".txt", ".xlsx", ".xls", ".json", ".parquet", ".rds", ".xpt")
             ),
             uiOutput("icis_air_external_upload_banner"),
+            uiOutput("serum_external_upload_banner"),
+            uiOutput("serum_external_autodetect_summary"),
             helpText(
               tags$strong("UCMR5 / EPA text: "),
               "This panel expects a ",
@@ -5472,9 +5934,16 @@ server <- function(input, output, session) {
       ))
     }
     df <- utils::read.csv(sop, stringsAsFactors = FALSE, check.names = FALSE)
+    label_map <- c(
+      matrix              = "Matrix",
+      canonical_datasets  = "Canonical datasets",
+      pipeline_id         = "Pipeline ID (software)",
+      lane_kind           = "Lane kind"
+    )
+    cn <- vapply(names(df), function(k) label_map[[k]] %||% k, character(1), USE.NAMES = FALSE)
     DT::datatable(
       df,
-      colnames = c("Matrix", "Canonical datasets", "Pipeline ID (software)"),
+      colnames = cn,
       rownames = FALSE,
       options = list(dom = "t", paging = FALSE, ordering = FALSE, searching = FALSE, info = FALSE)
     )
@@ -5499,15 +5968,19 @@ server <- function(input, output, session) {
       pid <- trimws(as.character(df$pipeline_id[i]))
       mat <- trimws(as.character(df$matrix[i]))
       ds <- trimws(as.character(df$canonical_datasets[i]))
+      lk_sop <- if ("lane_kind" %in% names(df)) trimws(as.character(df$lane_kind[i])) else NA_character_
       man <- read_matrix_pipeline_manifest(pid)
       training_csv <- file.path("data", "training", pid, "training.csv")
       training_exists <- file.exists(file.path(PROJECT_DIR, training_csv))
       rows_written <- if (!is.null(man$rows_written)) as.integer(man$rows_written) else NA_integer_
       gen_at <- if (!is.null(man$generated_at_utc)) as.character(man$generated_at_utc) else NA_character_
       note_vec <- if (!is.null(man$notes)) as.character(man$notes) else character(0)
+      lk_man <- if (!is.null(man$lane_kind)) as.character(man$lane_kind) else NA_character_
+      lk_show <- if (!is.na(lk_sop) && nzchar(lk_sop)) lk_sop else (lk_man %||% NA_character_)
       tibble::tibble(
         Matrix = mat,
         `Pipeline ID` = pid,
+        `Lane kind` = lk_show %||% NA_character_,
         `Canonical datasets` = ds,
         `Rows written` = rows_written,
         `Training CSV exists` = training_exists,
@@ -5907,6 +6380,183 @@ server <- function(input, output, session) {
   observeEvent(input$btn_lane_methanol_standards, { run_matrix_pipeline_lane("methanol_standards") })
   observeEvent(input$btn_lane_air_emissions, { run_matrix_pipeline_lane("air_emissions") })
   observeEvent(input$btn_lane_all, { run_matrix_pipeline_lane("all") })
+
+  # ------------------------------------------------------------------ #
+  # V1 serum PFOS/PFOA contextualization (src/v1/)                     #
+  # ------------------------------------------------------------------ #
+
+  v1_runner_loaded <- reactiveVal(FALSE)
+  v1_context_status <- reactiveVal("Upload a governed V1 CSV or use the template, then click Run.")
+  v1_report_df <- reactiveVal(NULL)
+  v1_last_paths <- reactiveVal(list())
+
+  ensure_v1_runner_loaded <- function() {
+    if (isTRUE(v1_runner_loaded())) return(invisible(TRUE))
+    helper <- file.path(PROJECT_DIR, "scripts", "run_v1_contextualization.R")
+    if (!file.exists(helper)) {
+      v1_context_status(paste0("Missing ", helper))
+      return(invisible(FALSE))
+    }
+    source(helper, local = FALSE)
+    v1_runner_loaded(TRUE)
+    invisible(TRUE)
+  }
+
+  output$btn_download_v1_template <- downloadHandler(
+    filename = function() "governed_serum_pfos_pfoa_input_template.csv",
+    content = function(file) {
+      src <- file.path(PROJECT_DIR, V1_INPUT_TEMPLATE_REL)
+      if (!file.exists(src)) {
+        stop("V1 template not found at ", src)
+      }
+      file.copy(src, file, overwrite = TRUE)
+    }
+  )
+
+  output$btn_download_v1_report_csv <- downloadHandler(
+    filename = function() {
+      p <- v1_last_paths()
+      if (!is.null(p$csv_path) && file.exists(p$csv_path)) {
+        return(basename(p$csv_path))
+      }
+      "v1_report.csv"
+    },
+    content = function(file) {
+      p <- v1_last_paths()
+      if (is.null(p$csv_path) || !file.exists(p$csv_path)) {
+        stop("No V1 report CSV available. Run contextualization first.")
+      }
+      file.copy(p$csv_path, file, overwrite = TRUE)
+    }
+  )
+
+  output$btn_download_v1_report_pdf <- downloadHandler(
+    filename = function() {
+      p <- v1_last_paths()
+      if (!is.null(p$pdf_path) && file.exists(p$pdf_path)) {
+        return(basename(p$pdf_path))
+      }
+      "v1_report.pdf"
+    },
+    content = function(file) {
+      p <- v1_last_paths()
+      if (is.null(p$pdf_path) || !file.exists(p$pdf_path)) {
+        stop("No V1 report PDF available. Run contextualization first.")
+      }
+      file.copy(p$pdf_path, file, overwrite = TRUE)
+    }
+  )
+
+  output$btn_download_v1_manifest <- downloadHandler(
+    filename = function() {
+      p <- v1_last_paths()
+      if (!is.null(p$manifest_path) && file.exists(p$manifest_path)) {
+        return(basename(p$manifest_path))
+      }
+      "v1_manifest.json"
+    },
+    content = function(file) {
+      p <- v1_last_paths()
+      if (is.null(p$manifest_path) || !file.exists(p$manifest_path)) {
+        stop("No V1 manifest available. Run contextualization first.")
+      }
+      file.copy(p$manifest_path, file, overwrite = TRUE)
+    }
+  )
+
+  observeEvent(input$btn_v1_run, {
+    req(input$v1_input_csv)
+    if (!ensure_v1_runner_loaded()) return()
+
+    upload_dir <- file.path(PROJECT_DIR, "data", "v1", "uploads")
+    out_dir <- file.path(PROJECT_DIR, "data", "v1", "outputs")
+    dir.create(upload_dir, recursive = TRUE, showWarnings = FALSE)
+    dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+    stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    in_path <- file.path(upload_dir, paste0("v1_upload_", stamp, ".csv"))
+    ok_copy <- file.copy(input$v1_input_csv$datapath, in_path, overwrite = TRUE)
+    if (!isTRUE(ok_copy)) {
+      v1_context_status("Failed to stage uploaded CSV for V1 run.")
+      return()
+    }
+
+    v1_context_status(paste0(
+      "[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] Running V1 (",
+      V1_CONTEXTUALIZATION_VERSION, ") …"
+    ))
+
+    cycle <- input$v1_default_cycle %||% "J"
+    res <- run_v1_serum_contextualization(
+      input_csv = in_path,
+      output_dir = out_dir,
+      project_root = PROJECT_DIR,
+      python_exec = input$pfas_python_exec %||% "",
+      default_cycle = cycle
+    )
+
+    if (!isTRUE(res$ok)) {
+      v1_context_status(paste0(
+        "V1 run FAILED: ", res$message, "\n\n",
+        res$log
+      ))
+      v1_report_df(NULL)
+      v1_last_paths(list())
+      append_pipeline_log("V1 contextualization: FAIL — ", res$message)
+      return()
+    }
+
+    sm <- res$summary
+    v1_last_paths(list(
+      csv_path = sm$csv_path,
+      pdf_path = sm$pdf_path,
+      manifest_path = sm$manifest_path,
+      run_id = sm$run_id,
+      output_csv_sha256 = sm$output_csv_sha256
+    ))
+
+    rep_df <- tryCatch(
+      utils::read.csv(sm$csv_path, stringsAsFactors = FALSE, check.names = FALSE),
+      error = function(e) NULL
+    )
+    v1_report_df(rep_df)
+
+    pdf_note <- if (isTRUE(sm$pdf_skipped) || is.null(sm$pdf_path) || !nzchar(sm$pdf_path %||% "")) {
+      "PDF: skipped (install reportlab for RUO PDF stub)\n"
+    } else {
+      paste0("PDF: ", sm$pdf_path, "\n")
+    }
+    v1_context_status(paste0(
+      "V1 run OK (run_id=", sm$run_id, ")\n",
+      "Rows: ", sm$n_rows, " | in_domain: ", sm$n_in_domain,
+      " | refused: ", sm$n_refused, "\n",
+      "output_csv_sha256: ", sm$output_csv_sha256, "\n",
+      "report: ", sm$csv_path, "\n",
+      pdf_note,
+      "manifest: ", sm$manifest_path, "\n\n",
+      "RUO only — not diagnostic, clinical, or regulatory."
+    ))
+    append_pipeline_log(
+      "V1 contextualization OK run_id=", sm$run_id,
+      " sha256=", substr(sm$output_csv_sha256, 1, 16), "…"
+    )
+  })
+
+  output$v1_context_status <- renderPrint({
+    cat(v1_context_status(), "\n")
+  })
+
+  output$tbl_v1_report <- DT::renderDataTable({
+    df <- v1_report_df()
+    if (is.null(df) || nrow(df) < 1L) {
+      return(DT::datatable(
+        tibble::tibble(note = "No V1 report yet. Upload CSV and click Run."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE)
+      ))
+    }
+    DT::datatable(df, rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE))
+  })
 
   # ------------------------------------------------------------------ #
   # Applicability-domain (AD) enforcement                              #
@@ -6469,6 +7119,25 @@ server <- function(input, output, session) {
         try(updateSelectInput(session, paste0("map_", k), selected = ""), silent = TRUE)
       }
     }
+    if (isTRUE(detect_nhanes_serum_biomonitoring(names(dat), f$name %||% ""))) {
+      showNotification(
+        paste(
+          "NHANES serum biomonitoring detected (matrix: human serum, ng/mL, wide format).",
+          "PFAS occurrence auto-mapping is DISABLED for this file.",
+          "Validate / Normalize / Save / Train will refuse. The serum lane is governed by",
+          "validation/serum_v1/; use scripts/convert_nhanes_xpt_to_csv.R for the documented",
+          "ingestion path. Cross-matrix combination is not authorized (schema_contract.md \u00a75)."
+        ),
+        type = "error",
+        duration = 20
+      )
+      # Hard reset: blank every PFAS-occurrence map dropdown so prior
+      # auto-detect picks (SEQN -> result_value, lbxnfoa -> analyte, etc.)
+      # cannot survive into validate/save.
+      for (k in PFAS_OCCURRENCE_MAP_FIELDS) {
+        try(updateSelectInput(session, paste0("map_", k), selected = ""), silent = TRUE)
+      }
+    }
   })
 
   # Derived: which semantic-type lane is this upload routed to?
@@ -6484,41 +7153,107 @@ server <- function(input, output, session) {
     if (isTRUE(detect_icis_air_bulk_program_table(names(df), nm))) {
       return("air_program_metadata")
     }
+    if (isTRUE(detect_nhanes_serum_biomonitoring(names(df), nm))) {
+      return("serum_biomonitoring")
+    }
     "pfas_occurrence_or_other"
   })
 
-  # True when the current upload is governance/program metadata that must NOT
-  # be normalized through the PFAS occurrence schema.
+  # True when the current upload is on a non-occurrence governance lane
+  # (program metadata or human-serum biomonitoring) that must NOT be
+  # normalized through the PFAS environmental-occurrence schema. The
+  # function name is retained for backward compatibility with existing
+  # call sites; the semantic widening to include `serum_biomonitoring` is
+  # intentional and matches validation/serum_v1/schema_contract.md \u00a75
+  # (matrix isolation) and applicability_domain.txt R5 (mixed-matrix refusal).
   upload_is_metadata_lane <- reactive({
     sem <- upload_dataset_semantic_type()
     identical(sem, "air_program_metadata") ||
-      identical(sem, "biosolids_program_metadata")
+      identical(sem, "biosolids_program_metadata") ||
+      identical(sem, "serum_biomonitoring")
   })
 
   # Convenience helper for the action handlers: refuse with one consistent
-  # message + audit entry, and return TRUE so callers can early-return.
+  # message + audit entry, and return TRUE so callers can early-return. The
+  # message branches per semantic type so the operator is pointed at the
+  # correct ingestion path / governance contract.
   refuse_pfas_op_on_metadata_lane <- function(op_label) {
     sem <- upload_dataset_semantic_type()
     if (!isTRUE(upload_is_metadata_lane())) return(FALSE)
-    msg <- paste0(
-      op_label,
-      " blocked: this upload is '", sem,
-      "', not PFAS occurrence data. Use scripts/filter_icis_air_pfas.py for ",
-      "curated air program reference, or OTM-50 for air emissions measurements."
-    )
+    msg <- if (identical(sem, "serum_biomonitoring")) {
+      paste0(
+        op_label,
+        " blocked: this upload is '", sem,
+        "', a human-serum biomonitoring dataset (ng/mL, wide format). It must ",
+        "not be mapped through the environmental PFAS-occurrence schema. See ",
+        "validation/serum_v1/ for the serum lane governance, and use ",
+        "scripts/convert_nhanes_xpt_to_csv.R for the documented ingestion path. ",
+        "Cross-matrix combination is not authorized by ",
+        "validation/serum_v1/schema_contract.md \u00a75."
+      )
+    } else {
+      paste0(
+        op_label,
+        " blocked: this upload is '", sem,
+        "', not PFAS occurrence data. Use scripts/filter_icis_air_pfas.py for ",
+        "curated air program reference, or OTM-50 for air emissions measurements."
+      )
+    }
+    audit_tag <- if (identical(sem, "serum_biomonitoring")) {
+      "serum_biomonitoring_refusal"
+    } else {
+      "icis_air_metadata_refusal"
+    }
     external_upload_save_note(msg)
     showNotification(msg, type = "error", duration = 18)
+    # For the serum branch, attach the physiological-guard verdict to
+    # the audit entry. The upload itself carries no classification
+    # stamp (it is a raw NHANES XPT-derived CSV), so the guard returns
+    # missing_field; that is the correct verdict and tells a reviewer
+    # exactly which lane-contract fields would have been required for
+    # the row to be admitted into the serum lane. The refusal message
+    # is unchanged; the audit payload gets richer.
+    guard_payload <- list()
+    if (identical(sem, "serum_biomonitoring")) {
+      df_now <- external_upload_raw()
+      upload_row_like <- list()
+      if (!is.null(df_now) && is.data.frame(df_now) && ncol(df_now) > 0L) {
+        for (k in PHYSIOLOGICAL_CLASSIFICATION_FIELDS) {
+          col_match <- names(df_now)[tolower(names(df_now)) == k]
+          if (length(col_match) > 0L) {
+            v <- df_now[[col_match[[1]]]]
+            v <- as.character(v[!is.na(v)])
+            if (length(v) > 0L) upload_row_like[[k]] <- v[[1]]
+          }
+        }
+      }
+      g <- physiological_guard(upload_row_like, lane = "serum")
+      guard_payload <- list(
+        physiological_guard = list(
+          ok          = isTRUE(g$ok),
+          code        = g$code %||% "",
+          missing     = g$missing,
+          mismatched  = g$mismatched,
+          expected    = g$expected,
+          observed    = g$observed,
+          governance_ref = "validation/serum_v1/schema_contract.md \u00a79"
+        )
+      )
+    }
     try(
       write_audit(
         "external_upload",
-        "icis_air_metadata_refusal",
+        audit_tag,
         "op_refused_metadata_lane",
         op_id(),
         msg,
-        list(
-          operation = op_label,
-          semantic_type = sem,
-          file_name = external_upload_name() %||% ""
+        c(
+          list(
+            operation = op_label,
+            semantic_type = sem,
+            file_name = external_upload_name() %||% ""
+          ),
+          guard_payload
         )
       ),
       silent = TRUE
@@ -6631,6 +7366,311 @@ server <- function(input, output, session) {
         tags$strong("Semantic type: "),
         tags$code("air_program_metadata"),
         ". Each upload semantic type now has its own mapping policy; concentration and metadata never share the normalization mapper."
+      )
+    )
+  })
+
+  output$serum_external_upload_banner <- renderUI({
+    df <- external_upload_raw()
+    nm <- external_upload_name() %||% ""
+    if (is.null(df) || !is.data.frame(df) || ncol(df) < 1L) {
+      return(NULL)
+    }
+    if (!isTRUE(detect_nhanes_serum_biomonitoring(names(df), nm))) {
+      return(NULL)
+    }
+    tags$div(
+      class = "alert",
+      style = paste0(
+        "background:#fff3e0;border:2px solid #e65100;color:#3e2723;",
+        "padding:14px 16px;border-radius:4px;margin:10px 0 12px 0;"
+      ),
+      tags$p(
+        style = "margin:0 0 10px 0;font-size:15px;",
+        tags$strong(style = "color:#bf360c;", "NHANES serum biomonitoring dataset detected. Automatic PFAS occurrence mapping disabled."),
+        tags$span(
+          style = "font-size:11px;color:#6d4c41;margin-left:8px;",
+          paste0("(", SERUM_UPLOAD_BANNER_VERSION, ")")
+        )
+      ),
+      tags$p(
+        style = "margin:0 0 8px 0;",
+        "Column headers match the NHANES PFAS Special Subsample (",
+        tags$code("SEQN"), ", ", tags$code("WTSB2YR"), ", ",
+        tags$code("LBXNFOA"), ", ", tags$code("LBDNFOAL"), ", ", "..., ",
+        "or their lowercase snake_case CSV equivalents). ",
+        tags$strong("This is human serum biomonitoring data (matrix: human serum, units: ng/mL, wide format),"),
+        " not environmental PFAS-occurrence data (matrix: drinking water / biosolids / AFFF / air, units: ng/L, long format)."
+      ),
+      tags$p(
+        style = "margin:0 0 8px 0;",
+        tags$strong("Mapping safeguards now active:"),
+        tags$ul(
+          style = "margin:6px 0 0 18px;padding:0;",
+          tags$li(
+            tags$code("SEQN"),
+            " is blocked from ",
+            tags$code("result_value"),
+            " (a respondent ID is not a concentration; values \u2248 93,000\u2013125,000 are not ng/L PFAS)."
+          ),
+          tags$li(
+            tags$code("WTSB2YR"),
+            " is blocked from ",
+            tags$code("result_value"),
+            " (a NHANES survey weight is not a concentration)."
+          ),
+          tags$li(
+            "All occurrence fields (",
+            tags$code("result_value"),
+            ", ",
+            tags$code("unit"),
+            ", ",
+            tags$code("analyte"),
+            ", ",
+            tags$code("date"),
+            ", ",
+            tags$code("mdl"),
+            ", ",
+            tags$code("rl"),
+            ", ",
+            tags$code("detect_flag"),
+            ", ",
+            tags$code("state"),
+            ", ...) are force-blanked on load."
+          ),
+          tags$li(
+            tags$strong("Validate / Normalize / Save / Train refuse with HTTP-style hard errors"),
+            " \u2014 the file cannot enter PFAS occurrence training, threshold analysis, or the evidence-governed corpus."
+          )
+        )
+      ),
+      tags$p(
+        style = "margin:0 0 8px 0;",
+        tags$strong("Use instead:"),
+        tags$ul(
+          style = "margin:6px 0 0 18px;padding:0;",
+          tags$li(
+            "Documented ingestion path: ",
+            tags$code("Rscript scripts/convert_nhanes_xpt_to_csv.R"),
+            " \u2192 ",
+            tags$code("data/training/serum/nhanes_serum_pfas_2017_2018.csv"),
+            " (lane governance: ",
+            tags$code("validation/serum_v1/"),
+            ")."
+          ),
+          tags$li(
+            "Cross-matrix combination of serum with any environmental lane requires an explicit harmonization artifact (see ",
+            tags$code("validation/serum_v1/schema_contract.md"),
+            " \u00a75) and is ",
+            tags$strong("not authorized"),
+            " by this upload path."
+          )
+        )
+      ),
+      tags$p(
+        style = "margin:0;font-size:12px;color:#4e342e;",
+        tags$strong("Semantic type: "),
+        tags$code("serum_biomonitoring"),
+        ". Lane governance: ",
+        tags$code("validation/serum_v1/"),
+        " (intended_use, applicability_domain, schema_contract, limitations, provenance, data_dictionary)."
+      )
+    )
+  })
+
+  # Physiological-sample autodetect summary: rendered INLINE next to the
+  # column-mapping dropdowns when a NHANES serum biomonitoring file is
+  # detected. Where the environmental autodetect blanks every dropdown on
+  # a serum file (because there is nothing it can validly map), this
+  # block shows the operator the affirmative per-column classification
+  # (SEQN \u2192 respondent_id, WTSB2YR \u2192 survey_weight, LBX\u2026 \u2192 ng/mL,
+  # LBD\u2026L \u2192 0/1 LOD code) and the paired LBX/LBD coverage for the
+  # 9-analyte NHANES PFAS panel.
+  output$serum_external_autodetect_summary <- renderUI({
+    df <- external_upload_raw()
+    nm <- external_upload_name() %||% ""
+    if (is.null(df) || !is.data.frame(df) || ncol(df) < 1L) return(NULL)
+    if (!isTRUE(detect_nhanes_serum_biomonitoring(names(df), nm))) return(NULL)
+    auto <- autodetect_physiological_serum_columns(names(df))
+    cnt <- auto$counts
+    role_label <- function(r) {
+      switch(
+        r,
+        respondent_id          = "respondent_id (NHANES SEQN)",
+        survey_weight          = "survey_weight (NHANES WTSB2YR/WTMEC2YR)",
+        analyte_concentration  = "analyte_concentration (ng/mL)",
+        analyte_detection_code = "analyte_detection_code (0/1)",
+        unknown                = "unknown",
+        r
+      )
+    }
+    cls_rows <- auto$columns
+    cls_tbl_rows <- if (is.null(cls_rows) || nrow(cls_rows) == 0L) {
+      list(tags$tr(tags$td(colspan = 6, "(no columns)")))
+    } else {
+      lapply(seq_len(nrow(cls_rows)), function(i) {
+        r <- cls_rows[i, , drop = FALSE]
+        bg <- if (identical(r$role, "unknown")) "#fafafa" else "#fff8e1"
+        tags$tr(
+          style = paste0("background:", bg, ";"),
+          tags$td(style = "padding:4px 8px;font-family:monospace;", r$column %||% ""),
+          tags$td(style = "padding:4px 8px;",
+                  role_label(as.character(r$role %||% "unknown"))),
+          tags$td(style = "padding:4px 8px;", r$analyte %||% ""),
+          tags$td(style = "padding:4px 8px;font-family:monospace;",
+                  r$paired_with %||% ""),
+          tags$td(style = "padding:4px 8px;", r$units %||% ""),
+          tags$td(style = "padding:4px 8px;font-size:12px;color:#5d4037;",
+                  r$notes %||% "")
+        )
+      })
+    }
+    paired_rows <- if (length(auto$paired_lbx_lbd) > 0L) {
+      lapply(auto$paired_lbx_lbd, function(p) {
+        tags$tr(
+          tags$td(style = "padding:4px 8px;", p$analyte %||% ""),
+          tags$td(style = "padding:4px 8px;font-family:monospace;",
+                  p$lbx_column %||% ""),
+          tags$td(style = "padding:4px 8px;font-family:monospace;",
+                  p$lbd_column %||% "")
+        )
+      })
+    } else {
+      list(tags$tr(tags$td(colspan = 3, "(none recognized)")))
+    }
+    stamp <- auto$classification_stamp
+    stamp_rows <- if (is.null(stamp) || length(stamp) == 0L) {
+      list(tags$tr(tags$td(colspan = 3, "(no classification stamp)")))
+    } else {
+      stamp_descr <- list(
+        sample_domain       = "Top-level domain: physiological body burden, not environmental occurrence",
+        sample_matrix       = "Concrete biological matrix (serum, vs. drinking water / biosolids / air / AFFF / methanol)",
+        measurement_context = "Why the sample was measured: internal exposure (biomonitoring), not source-contamination tracking",
+        source_program      = "Authoritative source program (NHANES cycle J, CDC/NCHS public release)",
+        units               = "Concentration units (ng/mL, not ng/L; ng/L would imply environmental water)"
+      )
+      lapply(PHYSIOLOGICAL_CLASSIFICATION_FIELDS, function(k) {
+        tags$tr(
+          style = "background:#fff8e1;",
+          tags$td(style = "padding:4px 8px;font-family:monospace;", k),
+          tags$td(style = "padding:4px 8px;font-family:monospace;",
+                  as.character(stamp[[k]] %||% "")),
+          tags$td(style = "padding:4px 8px;font-size:12px;color:#5d4037;",
+                  stamp_descr[[k]] %||% "")
+        )
+      })
+    }
+    tags$div(
+      class = "alert",
+      style = paste0(
+        "background:#fffde7;border:1px solid #fbc02d;color:#3e2723;",
+        "padding:12px 14px;border-radius:4px;margin:6px 0 12px 0;"
+      ),
+      tags$p(
+        style = "margin:0 0 8px 0;font-size:14px;",
+        tags$strong(style = "color:#bf360c;",
+                    "Physiological-sample autodetect (NHANES serum biomonitoring)"),
+        tags$span(
+          style = "font-size:11px;color:#6d4c41;margin-left:8px;",
+          paste0("(", SERUM_BIOMONITORING_AUTODETECT_VERSION, ")")
+        )
+      ),
+      tags$p(style = "margin:8px 0 4px 0;",
+             tags$strong("Lane-stamped physiological classification"),
+             tags$span(
+               style = "font-size:12px;color:#6d4c41;margin-left:6px;",
+               "(",
+               tags$code("validation/serum_v1/schema_contract.md \u00a79"),
+               ", auto-mapped \u2014 not from upload columns)"
+             )),
+      tags$table(
+        style = "border-collapse:collapse;width:auto;font-size:13px;margin:0 0 10px 0;",
+        tags$thead(
+          tags$tr(
+            style = "background:#fff3e0;color:#3e2723;",
+            tags$th(style = "padding:4px 8px;text-align:left;", "field"),
+            tags$th(style = "padding:4px 8px;text-align:left;", "lane-stamped value"),
+            tags$th(style = "padding:4px 8px;text-align:left;", "why this field")
+          )
+        ),
+        tags$tbody(stamp_rows)
+      ),
+      tags$p(
+        style = "margin:0 0 10px 0;font-size:12px;color:#4e342e;",
+        tags$strong("Physiological guard: "),
+        "the same five fields are verified on every Validate / Normalize / Save / Train ",
+        "(refusal codes ",
+        tags$code("physiological_classification_missing"),
+        " and ",
+        tags$code("physiological_classification_mismatch"),
+        "). A row without the stamp, or with a value that disagrees with this table, ",
+        "is refused at the serum lane boundary (",
+        tags$code("schema_contract.md \u00a79.2"),
+        ")."
+      ),
+      tags$ul(
+        style = "margin:0 0 8px 18px;padding:0;line-height:1.45;",
+        tags$li(tags$strong("Lane: "),    tags$code(auto$lane %||% "")),
+        tags$li(tags$strong("Matrix: "),  auto$matrix %||% ""),
+        tags$li(tags$strong("Method: "),  auto$method %||% ""),
+        tags$li(tags$strong("Concentration units: "), auto$units %||% ""),
+        tags$li(tags$strong("Table format: "), auto$format %||% ""),
+        tags$li(
+          tags$strong("Recognized columns: "),
+          sprintf(
+            "respondent_id=%d, survey_weight=%d, analyte_concentration=%d, analyte_detection_code=%d, unknown=%d",
+            cnt$respondent_id %||% 0L,
+            cnt$survey_weight %||% 0L,
+            cnt$analyte_concentration %||% 0L,
+            cnt$analyte_detection_code %||% 0L,
+            cnt$unknown %||% 0L
+          )
+        )
+      ),
+      tags$p(style = "margin:8px 0 4px 0;",
+             tags$strong("Per-column classification")),
+      tags$table(
+        style = "border-collapse:collapse;width:100%;font-size:13px;",
+        tags$thead(
+          tags$tr(
+            style = "background:#fff3e0;color:#3e2723;",
+            tags$th(style = "padding:4px 8px;text-align:left;", "column"),
+            tags$th(style = "padding:4px 8px;text-align:left;", "role"),
+            tags$th(style = "padding:4px 8px;text-align:left;", "analyte"),
+            tags$th(style = "padding:4px 8px;text-align:left;", "paired_with"),
+            tags$th(style = "padding:4px 8px;text-align:left;", "units"),
+            tags$th(style = "padding:4px 8px;text-align:left;", "notes")
+          )
+        ),
+        tags$tbody(cls_tbl_rows)
+      ),
+      tags$p(style = "margin:10px 0 4px 0;",
+             tags$strong("Paired LBX/LBD analyte coverage")),
+      tags$table(
+        style = "border-collapse:collapse;width:auto;font-size:13px;",
+        tags$thead(
+          tags$tr(
+            style = "background:#fff3e0;color:#3e2723;",
+            tags$th(style = "padding:4px 8px;text-align:left;", "analyte"),
+            tags$th(style = "padding:4px 8px;text-align:left;", "concentration column (ng/mL)"),
+            tags$th(style = "padding:4px 8px;text-align:left;", "LOD-code column (0/1)")
+          )
+        ),
+        tags$tbody(paired_rows)
+      ),
+      tags$p(
+        style = "margin:10px 0 0 0;font-size:12px;color:#4e342e;",
+        tags$strong("Why the PFAS-occurrence dropdowns are blank below: "),
+        "this is wide-format physiological data, not long-format environmental occurrence. ",
+        "The serum lane has its own training table at ",
+        tags$code("data/training/serum/training.csv"),
+        " (manifest: ",
+        tags$code("data/training/serum/manifest.json"),
+        ", AD model: ",
+        tags$code("data/ad_models/serum/ad_model.json"),
+        "). Cross-matrix combination is refused by ",
+        tags$code("validation/serum_v1/schema_contract.md \u00a75"),
+        "."
       )
     )
   })
@@ -9022,7 +10062,95 @@ server <- function(input, output, session) {
     rep <- external_upload_report()
     mapping <- get_upload_mapping()
     cat("Mapping engine version:", MAPPING_ENGINE_VERSION, "\n")
-    cat("Current mapping (ISO/PFAS core MVP — same order as Map dropdowns)\n")
+    # Physiological-sample autodetect: when the upload is recognized as
+    # NHANES serum biomonitoring, the environmental long-format mapper
+    # cannot describe it. Surface the affirmative classification here so
+    # the operator sees what was recognized (instead of an all-blank
+    # "Current mapping" block).
+    sem_now <- tryCatch(upload_dataset_semantic_type(),
+                        error = function(e) "pfas_occurrence_or_other")
+    if (identical(sem_now, "serum_biomonitoring")) {
+      df_now <- external_upload_raw()
+      auto <- autodetect_physiological_serum_columns(
+        if (is.null(df_now)) character(0) else names(df_now)
+      )
+      cat("Autodetect engine     : ", auto$autodetect_version, "\n", sep = "")
+      cat("Semantic type         : ", auto$semantic_type %||% "", "\n", sep = "")
+      cat("Lane (matrix pipeline): ", auto$lane %||% "", "\n", sep = "")
+      cat("Matrix                : ", auto$matrix %||% "", "\n", sep = "")
+      cat("Method                : ", auto$method %||% "", "\n", sep = "")
+      cat("Concentration units   : ", auto$units %||% "", "\n", sep = "")
+      cat("Table format          : ", auto$format %||% "", "\n", sep = "")
+      stamp <- auto$classification_stamp
+      cat("\nLane-stamped physiological classification (auto-mapped from lane contract,\n")
+      cat(  "not from upload columns; verified by physiological_guard() on validate/\n")
+      cat(  "normalize/save/train; see validation/serum_v1/schema_contract.md \u00a79):\n")
+      if (!is.null(stamp)) {
+        for (k in PHYSIOLOGICAL_CLASSIFICATION_FIELDS) {
+          cat(sprintf("  %-22s: %s\n", k, as.character(stamp[[k]] %||% "")))
+        }
+      } else {
+        cat("  (no classification stamp registered for this lane)\n")
+      }
+      guard_in <- list()
+      if (!is.null(stamp)) for (k in names(stamp)) guard_in[[k]] <- stamp[[k]]
+      g <- physiological_guard(guard_in, lane = "serum")
+      cat(sprintf(
+        "  guard self-test       : ok=%s, code=%s\n",
+        as.character(isTRUE(g$ok)), g$code %||% ""
+      ))
+      cnt <- auto$counts
+      cat(sprintf(
+        "Column counts         : respondent_id=%d, survey_weight=%d, analyte_concentration=%d, analyte_detection_code=%d, unknown=%d\n",
+        cnt$respondent_id %||% 0L,
+        cnt$survey_weight %||% 0L,
+        cnt$analyte_concentration %||% 0L,
+        cnt$analyte_detection_code %||% 0L,
+        cnt$unknown %||% 0L
+      ))
+      cat("\nPer-column classification\n")
+      cat(sprintf("  %-12s  %-23s  %-15s  %-12s  %-6s  %s\n",
+                  "column", "role", "analyte", "paired_with", "units", "notes"))
+      if (nrow(auto$columns) > 0L) {
+        for (i in seq_len(nrow(auto$columns))) {
+          r <- auto$columns[i, , drop = FALSE]
+          cat(sprintf(
+            "  %-12s  %-23s  %-15s  %-12s  %-6s  %s\n",
+            substr(r$column %||% "", 1, 12),
+            r$role %||% "",
+            substr(r$analyte %||% "", 1, 15),
+            substr(r$paired_with %||% "", 1, 12),
+            r$units %||% "",
+            r$notes %||% ""
+          ))
+        }
+      }
+      cat("\nPaired LBX/LBD analyte coverage\n")
+      if (length(auto$paired_lbx_lbd) > 0L) {
+        for (p in auto$paired_lbx_lbd) {
+          cat(sprintf("  - %-15s  conc=%-12s  lod_code=%-12s\n",
+                      p$analyte %||% "", p$lbx_column %||% "", p$lbd_column %||% ""))
+        }
+      } else {
+        cat("  (none recognized)\n")
+      }
+      cat("\nPFAS-occurrence dropdowns (long-format ng/L environmental schema)\n")
+      cat("  Disabled for this upload. The serum lane is wide-format ng/mL\n")
+      cat("  physiological biomonitoring; cross-matrix mapping is refused by\n")
+      cat("  validation/serum_v1/schema_contract.md \u00a75 and applicability_domain.txt R5.\n")
+      cat("  Documented ingestion path : scripts/convert_nhanes_xpt_to_csv.R\n")
+      cat("  Governance boundary       : validation/serum_v1/\n")
+      cat("  Existing training table   : data/training/serum/training.csv (manifest.json)\n")
+      cat("  Applicability-domain model: data/ad_models/serum/ad_model.json\n")
+      cat("\n")
+      if (is.null(rep)) {
+        cat("No PFAS-occurrence validation report applicable (serum lane is governed separately).\n")
+        return(invisible(NULL))
+      }
+      cat("(PFAS-occurrence validation report ignored on this lane.)\n")
+      return(invisible(NULL))
+    }
+    cat("Current mapping (ISO/PFAS core MVP \u2014 same order as Map dropdowns)\n")
     map_keys_show <- CORE_EXTERNAL_MAP_KEYS
     if (identical(trimws(input$external_dataset_type %||% ""), REFERENCE_MATERIAL_DATASET_TYPE)) {
       map_keys_show <- c(map_keys_show, REFERENCE_EXTRA_MAP_KEYS)

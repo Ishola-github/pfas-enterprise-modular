@@ -1,0 +1,24 @@
+column_name,dtype,units,raw_nhanes_field,role,analyte,lod_pair_column,nullable,notes
+seqn,int64,,SEQN,respondent_id,,,FALSE,NHANES respondent sequence number; primary key for the cycle-H PFAS Special Subsample
+wtsb2yr,float64,respondents per 2-year subsample,WTSB2YR,sample_weight,,,FALSE,Cycle-H two-year subsample weight; required for any prevalence-style summary
+lbxpfde,float64,ng/mL,LBXPFDE,analyte_value,PFDeA,lbdpfdel,TRUE,Perfluorodecanoic acid (NHANES SAS code 'PFDe'); LLOD 0.10 ng/mL; ~36.7% below LOD in cycle H. SAS label says (ug/L); see schema_contract.md §3.2 label-unit reconciliation.
+lbdpfdel,float64,,LBDPFDEL,lod_code,PFDeA,,TRUE,LOD comment code for PFDeA (0=at/above LOD, 1=below LOD)
+lbxpfhs,float64,ng/mL,LBXPFHS,analyte_value,PFHxS,lbdpfhsl,TRUE,Perfluorohexanesulfonic acid; LLOD 0.10 ng/mL; ~0.6% below LOD; widely detected
+lbdpfhsl,float64,,LBDPFHSL,lod_code,PFHxS,,TRUE,LOD comment code for PFHxS
+lbxmpah,float64,ng/mL,LBXMPAH,analyte_value,Me-PFOSA-AcOH,lbdmpahl,TRUE,2-(N-methylperfluorooctane sulfonamido) acetic acid; PFOS precursor; LLOD 0.10 ng/mL; ~56.4% below LOD
+lbdmpahl,float64,,LBDMPAHL,lod_code,Me-PFOSA-AcOH,,TRUE,LOD comment code for Me-PFOSA-AcOH
+lbxpfbs,float64,ng/mL,LBXPFBS,analyte_value,PFBS,lbdpfbsl,TRUE,Perfluorobutanesulfonic acid; LLOD 0.10 ng/mL; ~96.9% below LOD -- almost entirely below detection in cycle H. Not present in cycle-J anchor.
+lbdpfbsl,float64,,LBDPFBSL,lod_code,PFBS,,TRUE,LOD comment code for PFBS
+lbxpfhp,float64,ng/mL,LBXPFHP,analyte_value,PFHpA,lbdpfhpl,TRUE,Perfluoroheptanoic acid; LLOD 0.10 ng/mL; ~89.2% below LOD. Not present in cycle-J anchor.
+lbdpfhpl,float64,,LBDPFHPL,lod_code,PFHpA,,TRUE,LOD comment code for PFHpA
+lbxpfna,float64,ng/mL,LBXPFNA,analyte_value,PFNA,lbdpfnal,TRUE,Perfluorononanoic acid; LLOD 0.10 ng/mL; ~1.2% below LOD; widely detected
+lbdpfnal,float64,,LBDPFNAL,lod_code,PFNA,,TRUE,LOD comment code for PFNA
+lbxpfua,float64,ng/mL,LBXPFUA,analyte_value,PFUnDA,lbdpfual,TRUE,Perfluoroundecanoic acid (NHANES SAS code 'PFUA'); LLOD 0.10 ng/mL; ~56.8% below LOD
+lbdpfual,float64,,LBDPFUAL,lod_code,PFUnDA,,TRUE,LOD comment code for PFUnDA
+lbxpfdo,float64,ng/mL,LBXPFDO,analyte_value,PFDoA,lbdpfdol,TRUE,Perfluorododecanoic acid; LLOD 0.10 ng/mL; ~90.4% below LOD. Not present in cycle-J anchor.
+lbdpfdol,float64,,LBDPFDOL,lod_code,PFDoA,,TRUE,LOD comment code for PFDoA
+sample_domain,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'physiological' for the serum_h lane. Lives only in the derived training table (not yet built); NEVER in the anchor CSV.
+sample_matrix,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'human_serum' for the serum_h lane
+measurement_context,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'biomonitoring' for the serum_h lane
+source_program,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'CDC NHANES' for the serum_h lane (specific cycle 'H 2013-2014' is recorded in the canonical 'source_dataset' column)
+governance_lane,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'serum_h_v1' = pipeline_id 'serum_h' at governance_version 'v1' -> validation/serum_h_v1/. Distinct from cycle-J's 'serum_v1'.

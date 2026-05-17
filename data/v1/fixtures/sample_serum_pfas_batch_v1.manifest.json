@@ -1,0 +1,37 @@
+{
+  "default_reference_cycle": "J",
+  "input": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\contextualization_inputs\\sample_serum_pfas_batch.csv",
+  "n_expected_in_domain": 2,
+  "n_expected_refused": 1,
+  "n_rows": 3,
+  "output": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\v1\\fixtures\\sample_serum_pfas_batch_v1.csv",
+  "rows": [
+    {
+      "conversion_notes": [
+        "matrix_mapped:'serum'->'human_serum'",
+        "legacy_total_analyte_mapped:'PFOS'->'n_pfos' (linear isomer stand-in; not a lab isomer split)"
+      ],
+      "expected_v1_status": "in_domain:candidate",
+      "legacy_sample_id": "S001",
+      "row_index": 0
+    },
+    {
+      "conversion_notes": [
+        "matrix_mapped:'serum'->'human_serum'",
+        "legacy_total_analyte_mapped:'PFOA'->'n_pfoa' (linear isomer stand-in; not a lab isomer split)"
+      ],
+      "expected_v1_status": "in_domain:candidate",
+      "legacy_sample_id": "S002",
+      "row_index": 1
+    },
+    {
+      "conversion_notes": [
+        "matrix_passthrough:'water' (V1 may refuse if not human_serum)",
+        "legacy_total_analyte_mapped:'PFOS'->'n_pfos' (linear isomer stand-in; not a lab isomer split)"
+      ],
+      "expected_v1_status": "refused:matrix_not_serum",
+      "legacy_sample_id": "S003",
+      "row_index": 2
+    }
+  ]
+}

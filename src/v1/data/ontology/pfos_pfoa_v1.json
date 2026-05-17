@@ -1,0 +1,160 @@
+{
+  "ontology_id": "pfos_pfoa_v1",
+  "ontology_version": "1.0.1",
+  "issued": "2026-05-14",
+  "status": "frozen",
+  "scope": {
+    "matrix": "human_serum",
+    "matrix_isolation": "human_serum_only",
+    "analyte_family": ["PFOA", "PFOS"],
+    "isomer_resolution": "all_four_isomer_columns",
+    "concentration_units": "ng/mL",
+    "source_program": "CDC NHANES",
+    "anchor_cycle": "J (2017-2018)",
+    "anchor_governance_directory": "validation/serum_v1",
+    "anchor_csv_path": "data/training/serum/nhanes_serum_pfas_2017_2018.csv",
+    "anchor_csv_sha256": "dfd4dbb59128043e91870265acc15f91f673ec81ee3d00d91223022755e4490f",
+    "reference_table_path": "data/reference_tables/nhanes_pfas_weighted_reference_tables_v1.csv",
+    "reference_table_sha256": "715cd8968e21c9e2404b4a10054ea44d78e52707c70d4b10289f1ba9c463e45c",
+    "default_reference_cycle": "J",
+    "reference_cycles_available": ["I", "J", "P"]
+  },
+  "intent": "Contextualize a serum PFOS/PFOA value against the NHANES cycle-J population distribution and emit a refusal-first, provenance-logged governance report. Not diagnostic, not clinical, not regulatory.",
+  "required_input_columns": {
+    "sample_matrix":       {"role": "matrix_assertion",     "expected_value": "human_serum"},
+    "result_unit":         {"role": "unit_assertion",       "expected_value": "ng/mL"},
+    "source_program":      {"role": "source_assertion",     "expected_value": "CDC NHANES"},
+    "analyte":             {"role": "analyte_id_pointer",   "expected_value_in": "analytes[].analyte_id"},
+    "result_value":        {"role": "numeric_concentration", "dtype": "float64", "nullable": false}
+  },
+  "optional_input_columns": {
+    "lod_code":            {"role": "below_lod_flag",       "dtype": "int", "allowed": [0, 1, null]},
+    "sample_weight":       {"role": "row_weight",           "dtype": "float64"}
+  },
+  "analytes": [
+    {
+      "analyte_id":            "n_pfoa",
+      "analyte_label":         "n-PFOA (linear PFOA)",
+      "analyte_family":        "PFOA",
+      "isomer_class":          "linear",
+      "units":                 "ng/mL",
+      "reference_value_column":   "lbxnfoa",
+      "reference_lod_code_column": "lbdnfoal",
+      "below_lod_imputation":  "LOD/sqrt(2) (NHANES rule, recorded in reference column)",
+      "observed_envelope": {
+        "median_ng_per_mL": 1.30,
+        "p95_ng_per_mL":    3.7,
+        "max_ng_per_mL":    52.8,
+        "pct_below_lod":    0.4
+      }
+    },
+    {
+      "analyte_id":            "sb_pfoa",
+      "analyte_label":         "Sb-PFOA (sum branched PFOA)",
+      "analyte_family":        "PFOA",
+      "isomer_class":          "branched_sum",
+      "units":                 "ng/mL",
+      "reference_value_column":   "lbxbfoa",
+      "reference_lod_code_column": "lbdbfoal",
+      "below_lod_imputation":  "LOD/sqrt(2) (NHANES rule, recorded in reference column)",
+      "observed_envelope": {
+        "median_ng_per_mL": 0.07,
+        "p95_ng_per_mL":    0.2,
+        "max_ng_per_mL":    0.7,
+        "pct_below_lod":    90.0
+      },
+      "interpretation_caveat": "~90% below LOD in cycle J. Central-tendency statistics are dominated by the NHANES-imputed value; percentiles near the median are an artifact of the imputation rule, not a population signal."
+    },
+    {
+      "analyte_id":            "n_pfos",
+      "analyte_label":         "n-PFOS (linear PFOS)",
+      "analyte_family":        "PFOS",
+      "isomer_class":          "linear",
+      "units":                 "ng/mL",
+      "reference_value_column":   "lbxnfos",
+      "reference_lod_code_column": "lbdnfosl",
+      "below_lod_imputation":  "LOD/sqrt(2) (NHANES rule, recorded in reference column)",
+      "observed_envelope": {
+        "median_ng_per_mL": 3.00,
+        "p95_ng_per_mL":    14.5,
+        "max_ng_per_mL":    88.4,
+        "pct_below_lod":    0.3
+      }
+    },
+    {
+      "analyte_id":            "sm_pfos",
+      "analyte_label":         "Sm-PFOS (sum branched PFOS, perfluoromethylheptane sulfonates)",
+      "analyte_family":        "PFOS",
+      "isomer_class":          "branched_sum",
+      "units":                 "ng/mL",
+      "reference_value_column":   "lbxmfos",
+      "reference_lod_code_column": "lbdmfosl",
+      "below_lod_imputation":  "LOD/sqrt(2) (NHANES rule, recorded in reference column)",
+      "observed_envelope": {
+        "median_ng_per_mL": 1.20,
+        "p95_ng_per_mL":    5.3,
+        "max_ng_per_mL":    19.3,
+        "pct_below_lod":    0.8
+      }
+    }
+  ],
+  "refusal_catalog": [
+    {
+      "code":        "matrix_not_serum",
+      "trigger":     "sample_matrix != 'human_serum'",
+      "human_text":  "Input matrix is not human_serum. V1 is serum-only by contract."
+    },
+    {
+      "code":        "analyte_not_in_pfos_pfoa_scope",
+      "trigger":     "analyte not in {n_pfoa, sb_pfoa, n_pfos, sm_pfos}",
+      "human_text":  "Analyte is not in the V1 PFOS/PFOA scope. V1 scores only n-PFOA, Sb-PFOA, n-PFOS, and Sm-PFOS."
+    },
+    {
+      "code":        "missing_units",
+      "trigger":     "result_unit is null or empty",
+      "human_text":  "Missing required unit declaration. V1 requires result_unit='ng/mL' on every row."
+    },
+    {
+      "code":        "units_not_ng_per_mL",
+      "trigger":     "result_unit != 'ng/mL'",
+      "human_text":  "Unit is not ng/mL. V1 does not auto-convert; relabel and convert upstream, then resubmit."
+    },
+    {
+      "code":        "missing_source_program",
+      "trigger":     "source_program is null or empty",
+      "human_text":  "Missing required source_program declaration. V1 expects source_program='CDC NHANES' (or a documented equivalent that the operator has reconciled against the cycle-J anchor)."
+    },
+    {
+      "code":        "missing_result_value",
+      "trigger":     "result_value is null or non-numeric",
+      "human_text":  "Missing or non-numeric result_value. V1 needs a finite ng/mL concentration to compute percentile context."
+    },
+    {
+      "code":        "reference_table_drifted",
+      "trigger":     "sha256(reference_table) != expected reference_table_sha256",
+      "human_text":  "The precomputed NHANES weighted reference table on disk does not match the documented SHA-256. V1 refuses to compute percentiles against a drifted reference."
+    },
+    {
+      "code":        "reference_anchor_drifted",
+      "trigger":     "sha256(anchor_csv) != expected anchor_csv_sha256",
+      "human_text":  "The cycle-J governance anchor CSV on disk does not match the documented SHA-256. V1 refuses to proceed when the provenance chain is broken."
+    },
+    {
+      "code":        "reference_stratum_missing",
+      "trigger":     "no precomputed row for (cycle, analyte_id, sex, age_group)",
+      "human_text":  "The requested reference stratum is not present in the precomputed table. V1 does not extrapolate across missing strata."
+    }
+  ],
+  "non_claims": [
+    "V1 does not return a diagnosis.",
+    "V1 does not return a clinical interpretation.",
+    "V1 does not return a regulatory exposure determination.",
+    "V1 does not return an exposure-risk prediction.",
+    "V1 is not a toxicology AI.",
+    "V1 is not a temporal-trend or cross-cycle tool."
+  ],
+  "reproducibility": {
+    "deterministic_replay": "Given the same input CSV, the same ontology JSON, the same weighted reference table, and the same code version, V1 emits the same output_hash. The provenance logger records (input_hash, reference_table_hash, ontology_hash, code_version) and derives run_id deterministically from those four; the timestamp is metadata only. The cycle-J anchor CSV is verified for provenance chain integrity but is not queried at runtime.",
+    "ontology_change_signal": "Editing any value in this JSON (including this very block) changes ontology_hash, which changes run_id, which changes output_hash. The replay test test_changed_ontology_changes_manifest enforces this invariant."
+  }
+}

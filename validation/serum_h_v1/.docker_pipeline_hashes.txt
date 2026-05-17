@@ -1,0 +1,12 @@
+# Docker/Ubuntu fetch + convert hashes -- serum_h_v1 lane
+# Generated at: 2026-05-13T20:49:37Z
+# Host (uname -a): Linux b5f0491e8302 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+# R: Rscript (R) version 4.4.3 (2025-02-28)
+# bash: 5.2.21(1)-release
+
+## Raw NHANES SAS Transport files
+ab062b2ecf99989b1731cb63588d8305409c2e554a76de7e05946f4877091652  /workspace/data/external/nhanes_serum_h/PFAS_H.XPT
+1e23688dfa6bdfdc14c0447f4d34032983271063a1a343c04338ae4258515c99  /workspace/data/external/nhanes_serum_h/SSPFAS_H.XPT
+
+## Derived anchor CSV (PFAS_H.XPT -> read_xpt -> clean_names -> write_csv)
+98d11b27beadad159a9bb596caa2e8839b5bfca279fd32f618e60539c53f644f  /workspace/data/training/serum_h/nhanes_serum_pfas_h_2013_2014.csv

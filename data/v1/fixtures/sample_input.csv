@@ -1,0 +1,6 @@
+sample_matrix,result_unit,source_program,analyte,result_value,sex,age_years
+human_serum,ng/mL,CDC NHANES,n_pfoa,1.30,2,35
+human_serum,ng/mL,CDC NHANES,n_pfos,3.00,1,45
+human_serum,ng/mL,CDC NHANES,sb_pfoa,0.07,2,30
+human_serum,ng/mL,CDC NHANES,sm_pfos,1.20,,
+drinking_water,ng/mL,CDC NHANES,n_pfoa,1.00,,

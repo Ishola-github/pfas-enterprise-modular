@@ -1,0 +1,51 @@
+This dataset is the cycle-H human serum biomonitoring lane of
+PFAS Enterprise 5.0, anchored to the NHANES 2013-2014 PFAS Serum
+Special Subsample (NHANES cycle H, dataset file PFAS_H.XPT).
+
+It is intended to support analyst review of population-level
+PFAS exposure ranges, distributional summaries, and
+applicability-domain boundary checks specific to the cycle-H
+serum lane.
+
+It is a peer of the cycle-J serum lane (validation/serum_v1/),
+NOT a successor. The two lanes cover different analyte panels
+(cycle H adds PFBS, PFHpA, and PFDoA; cycle H lacks the
+isomer-resolved n-/Sb- PFOA and n-/Sm- PFOS columns that cycle J
+carries; the cycle-H isomer split lives in the companion file
+SSPFAS_H.XPT, which is recorded but not admitted here -- see
+schema_contract.md sec 7.1).
+
+It does not replace clinical laboratory testing, individual
+toxicokinetic assessment, occupational biomonitoring
+surveillance programs, or any form of regulatory exposure
+determination.
+
+It is also not a tool for environmental contamination source
+attribution. Human serum measurements describe internal
+exposure, not the source matrices (drinking water,
+biosolids, AFFF, methanol standards, air emissions) that
+contributed to it.
+
+It must not be combined, on a per-row basis, with the cycle-J
+serum lane (data/training/serum/nhanes_serum_pfas_2017_2018.csv,
+SHA-256 dfd4dbb5...4490f) without an explicit cross-cycle
+harmonization artifact, because the analyte panels differ. The
+two anchors are independent.
+
+This dataset is human biomonitoring data. It must not be
+combined with environmental-matrix datasets without an
+explicit cross-matrix harmonization artifact, because each
+matrix carries its own analytical method, unit system, and
+regulatory framing. The matrix-isolation requirement is
+enforced by the schema contract and the applicability domain
+in this directory.
+
+Note on units: cycle H's SAS variable labels read "(ug/L)" while
+the codebook's LLOD table is explicitly in "ng/mL". The two unit
+strings denote the same numerical scale within method tolerance
+(1 ug/L = 1 ng/mL for aqueous matrix; serum density ~1.025 g/mL
+accounts for the residual ~2.5%). The anchor CSV records the
+values exactly as NHANES published them and the contract
+declares them as ng/mL. Treating them as anything else without
+the reconciliation step in schema_contract.md sec 3.2 is a
+governance violation.

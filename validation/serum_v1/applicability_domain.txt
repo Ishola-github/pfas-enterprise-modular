@@ -60,9 +60,17 @@ Refusal conditions (the lane MUST refuse the input)
 R1. Input not derived from human serum biomonitoring.
 R2. Cycle / population beyond NHANES J coverage, unless paired
     with a documented harmonized cross-cycle artifact. The
-    Pre-pandemic (P_PFAS) and 2003-2004 (L06AGE_C) cycles are
-    NOT covered by v1.0 and require an explicit v1.1 or v2.0
-    AD revision.
+    Pre-pandemic (P_PFAS, 2017-2020), 2015-2016 (PFAS_I),
+    2013-2014 (PFAS_H + its isomer companion SSPFAS_H), and
+    2003-2004 (L06AGE_C) cycles are NOT covered by v1.0 and
+    require an explicit v1.1 or v2.0 AD revision. Cycle H is
+    now governed as a peer lane under validation/serum_h_v1/
+    (anchor SHA-256 98d11b27...644f); v1.0 still refuses any
+    cross-cycle merge that does not go through a documented
+    harmonization artifact. PFAS_H additionally carries a
+    label-unit reconciliation step (the SAS labels say "(ug/L)"
+    while the codebook LLOD table cites ng/mL; see
+    schema_contract.md §7.1 of both v1.0 and serum_h_v1).
 R3. Analyte not present in the 9-member panel above.
 R4. Reported concentration outside the observed envelope by
     more than 3 sigma (relative to the cycle J distribution

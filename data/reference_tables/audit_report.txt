@@ -1,0 +1,46 @@
+=== unweighted (nhanes_pfas_reference_tables_v1.csv) ===
+shape=(180, 17)
+empty cells (n=0): 0
+rows with any NaN percentile: 0
+per-cycle row counts: I=60, J=60, P=60
+median p50 per (cycle, analyte, sex=all, age=all_ages):
+cycle analyte_id  p50    n  pct_below_lod
+    I     n_pfoa 1.40 1993       0.008028
+    I     n_pfos 3.10 1993       0.005519
+    I    sb_pfoa 0.07 1993       0.979930
+    I    sm_pfos 1.40 1993       0.011540
+    J     n_pfoa 1.30 1929       0.003629
+    J     n_pfos 3.00 1929       0.003110
+    J    sb_pfoa 0.07 1929       0.900467
+    J    sm_pfos 1.20 1929       0.008294
+    P     n_pfoa 1.30 3072       0.004557
+    P     n_pfos 2.70 3072       0.004232
+    P    sb_pfoa 0.07 3072       0.937500
+    P    sm_pfos 1.10 3072       0.013346
+
+=== weighted (nhanes_pfas_weighted_reference_tables_v1.csv) ===
+shape=(180, 18)
+empty cells (n=0): 0
+rows with any NaN percentile: 0
+per-cycle row counts: I=60, J=60, P=60
+median p50 per (cycle, analyte, sex=all, age=all_ages):
+cycle analyte_id  p50  n_unweighted  pct_below_lod
+    I     n_pfoa 1.50          1993       0.008028
+    I     n_pfos 3.20          1993       0.005519
+    I    sb_pfoa 0.07          1993       0.979930
+    I    sm_pfos 1.50          1993       0.011540
+    J     n_pfoa 1.40          1929       0.003629
+    J     n_pfos 3.00          1929       0.003110
+    J    sb_pfoa 0.07          1929       0.900467
+    J    sm_pfos 1.20          1929       0.008294
+    P     n_pfoa 1.30          3072       0.004557
+    P     n_pfos 2.70          3072       0.004232
+    P    sb_pfoa 0.07          3072       0.937500
+    P    sm_pfos 1.20          3072       0.013346
+
+=== anchor spot-check ===
+Recomputing cycle-J p50 from anchor CSV and comparing to weighted table
+  n_pfoa    anchor_unweighted_p50= 1.300  weighted_table_p50= 1.400  abs_diff= 0.100
+  sb_pfoa   anchor_unweighted_p50= 0.070  weighted_table_p50= 0.070  abs_diff= 0.000
+  n_pfos    anchor_unweighted_p50= 3.000  weighted_table_p50= 3.000  abs_diff= 0.000
+  sm_pfos   anchor_unweighted_p50= 1.200  weighted_table_p50= 1.200  abs_diff= 0.000

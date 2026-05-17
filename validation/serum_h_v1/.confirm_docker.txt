@@ -1,0 +1,9 @@
+# Three-environment confirmation -- Docker/Ubuntu
+# Image:        ubuntu:22.04
+# Container:    Linux 5dd147800a89 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+# Run timestamp: 2026-05-14T16:17:58Z
+
+dfd4dbb59128043e91870265acc15f91f673ec81ee3d00d91223022755e4490f  data/training/serum/nhanes_serum_pfas_2017_2018.csv  (159118 bytes)
+98d11b27beadad159a9bb596caa2e8839b5bfca279fd32f618e60539c53f644f  data/training/serum_h/nhanes_serum_pfas_h_2013_2014.csv  (165352 bytes)
+ab062b2ecf99989b1731cb63588d8305409c2e554a76de7e05946f4877091652  data/external/nhanes_serum_h/PFAS_H.XPT  (340160 bytes)
+1e23688dfa6bdfdc14c0447f4d34032983271063a1a343c04338ae4258515c99  data/external/nhanes_serum_h/SSPFAS_H.XPT  (158480 bytes)

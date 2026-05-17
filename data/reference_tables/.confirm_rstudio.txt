@@ -1,0 +1,15 @@
+# Three-environment confirmation -- R / Rscript (reference tables + raw XPTs)
+# R version:     R version 4.6.0 (2026-04-24 ucrt)
+# Platform:      x86_64-w64-mingw32
+# Run timestamp: 2026-05-14T16:59:51Z
+
+4fcc444525205c38b368568a3a3d5b5e6cb76d0faf27bc51af7ad1a6a788309b  data/reference_tables/nhanes_pfas_reference_tables_v1.csv  (20045 bytes)
+715cd8968e21c9e2404b4a10054ea44d78e52707c70d4b10289f1ba9c463e45c  data/reference_tables/nhanes_pfas_weighted_reference_tables_v1.csv  (24956 bytes)
+ab062b2ecf99989b1731cb63588d8305409c2e554a76de7e05946f4877091652  data/raw/nhanes/2013_2014/PFAS_H.XPT  (340160 bytes)
+f8f0cbb3085a323d4cde22349b164878fea1e64dbc404e65b5815c7816b547d7  data/raw/nhanes/2013_2014/DEMO_H.XPT  (3833200 bytes)
+9300a168ed718bbcc3a002fc5a0d7ba0d141b3a134576f70d3fcd3ae9c6feb17  data/raw/nhanes/2015_2016/PFAS_I.XPT  (385760 bytes)
+c9297c6c37ae8f78f29be9568fa2a03cf3b112616a39afee04030fc775a66a0d  data/raw/nhanes/2015_2016/DEMO_I.XPT  (3756480 bytes)
+bd2460dc1916fc80b41bef9ac7cdd367f04f25158ec1736706663886b3e4e6b3  data/raw/nhanes/2017_2018/PFAS_J.XPT  (344800 bytes)
+c0b46e0345ea19404928656277c8b0d10b0cca348a9b2fe4fc3c67e8b7ee73ec  data/raw/nhanes/2017_2018/DEMO_J.XPT  (3412720 bytes)
+da4d166996bc7cdf04e189ee6160f97907346bbf9e013fa3ce40a1b942981b7a  data/raw/nhanes/2017_2020/P_PFAS.XPT  (557120 bytes)
+2e46c6c26bf77cd8989f64011ace12cbf42c0f3e03414eb59acc5328c8f87913  data/raw/nhanes/2017_2020/P_DEMO.XPT  (3614720 bytes)

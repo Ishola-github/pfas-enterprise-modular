@@ -1,0 +1,34 @@
+# Three-environment confirmation -- PowerShell
+# Host:           Windows 10 (workspace shell: powershell)
+# Run timestamp:  2026-05-14T16:24:30Z (UTC, +/- 1 min)
+#
+# Tools used:
+#   1. Get-FileHash -Algorithm SHA256  (PowerShell native, BCrypt-backed)
+#   2. certutil -hashfile <path> SHA256  (Windows native binary, parity check)
+#
+# Both tools returned identical hashes for all four files; the lines
+# below are normalized to the `<hash>  <path>  (<bytes> bytes)`
+# format used by the Docker/Ubuntu and R/Rscript confirmation files
+# so all three environments can be diffed line-for-line.
+
+dfd4dbb59128043e91870265acc15f91f673ec81ee3d00d91223022755e4490f  data/training/serum/nhanes_serum_pfas_2017_2018.csv  (159118 bytes)
+98d11b27beadad159a9bb596caa2e8839b5bfca279fd32f618e60539c53f644f  data/training/serum_h/nhanes_serum_pfas_h_2013_2014.csv  (165352 bytes)
+ab062b2ecf99989b1731cb63588d8305409c2e554a76de7e05946f4877091652  data/external/nhanes_serum_h/PFAS_H.XPT  (340160 bytes)
+1e23688dfa6bdfdc14c0447f4d34032983271063a1a343c04338ae4258515c99  data/external/nhanes_serum_h/SSPFAS_H.XPT  (158480 bytes)
+
+# Raw outputs captured this run:
+#
+#   PS> Get-FileHash <files> -Algorithm SHA256 | Format-Table -AutoSize
+#       SHA256    DFD4DBB59128043E91870265ACC15F91F673EC81EE3D00D91223022755E4490F  ...nhanes_serum_pfas_2017_2018.csv
+#       SHA256    98D11B27BEADAD159A9BB596CAA2E8839B5BFCA279FD32F618E60539C53F644F  ...nhanes_serum_pfas_h_2013_2014.csv
+#       SHA256    AB062B2ECF99989B1731CB63588D8305409C2E554A76DE7E05946F4877091652  ...PFAS_H.XPT
+#       SHA256    1E23688DFA6BDFDC14C0447F4D34032983271063A1A343C04338AE4258515C99  ...SSPFAS_H.XPT
+#
+#   PS> certutil -hashfile <file> SHA256
+#       (each call returned the same hash as Get-FileHash, lowercase form
+#        shown above; CertUtil exit code 0 / "completed successfully")
+#
+# Note: an attempt to use Out-File / Set-Content from inside the Cursor
+# shell session was silently intercepted (likely AV real-time scan); the
+# in-shell stdout from both tools was reliable and was used for this
+# file instead. The hash values themselves are tool-agnostic.

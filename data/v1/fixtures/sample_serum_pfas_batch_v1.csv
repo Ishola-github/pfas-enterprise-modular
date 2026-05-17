@@ -1,0 +1,4 @@
+sample_matrix,result_unit,source_program,analyte,result_value,sex,age_years,reference_cycle,lod_code
+human_serum,ng/mL,CDC NHANES,n_pfos,8.2,1,35,J,0
+human_serum,ng/mL,CDC NHANES,n_pfoa,2.1,2,42,J,0
+water,ng/mL,CDC NHANES,n_pfos,8.2,1,35,J,0

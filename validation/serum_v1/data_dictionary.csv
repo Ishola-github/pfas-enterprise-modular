@@ -19,3 +19,8 @@ lbxpfua,float64,ng/mL,LBXPFUA,analyte_value,PFUnDA,lbdpfual,TRUE,Perfluoroundeca
 lbdpfual,float64,,LBDPFUAL,lod_code,PFUnDA,,TRUE,LOD comment code for PFUnDA
 lbxmpah,float64,ng/mL,LBXMPAH,analyte_value,Me-PFOSA-AcOH,lbdmpahl,TRUE,2-(N-methylperfluorooctane sulfonamido) acetic acid; PFOS precursor (~41% below-LOD)
 lbdmpahl,float64,,LBDMPAHL,lod_code,Me-PFOSA-AcOH,,TRUE,LOD comment code for Me-PFOSA-AcOH
+sample_domain,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'physiological' for the serum lane
+sample_matrix,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'human_serum' for the serum lane
+measurement_context,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'biomonitoring' for the serum lane
+source_program,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'CDC NHANES' for the serum lane (specific cycle is recorded in the canonical 'source_dataset' column)
+governance_lane,string,,LANE_STAMP,physiological_classification,,,FALSE,Lane-stamped classification (schema_contract.md §9); fixed value 'serum_v1' = pipeline_id 'serum' at governance_version 'v1' -> validation/serum_v1/. Machine-checkable join key from a training row to the contract it was admitted under.

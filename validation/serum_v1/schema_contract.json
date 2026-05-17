@@ -81,7 +81,64 @@
     "Units other than ng/mL without explicit conversion"
   ],
   "out_of_scope_versions": {
-    "P_PFAS_prepandemic_2017_2020":  "Requires serum_v1.1 or serum_v2; not covered by v1.0.",
-    "L06AGE_C_2003_2004_legacy":     "Requires serum_v1.1 or serum_v2; not covered by v1.0."
+    "P_PFAS_prepandemic_2017_2020": "Requires serum_v1.1 or serum_v2; not covered by v1.0.",
+    "L06AGE_C_2003_2004_legacy":    "Requires serum_v1.1 or serum_v2; not covered by v1.0.",
+    "PFAS_H_2013_2014": {
+      "source_url":          "https://wwwn.cdc.gov/Nchs/Nhanes/2013-2014/PFAS_H.htm",
+      "raw_file":            "PFAS_H.XPT",
+      "released":            "2016-07",
+      "n_examined":          2339,
+      "n_with_values":       2170,
+      "age_population":      "12 years and older",
+      "analyte_panel": [
+        "LBXPFHS", "LBXMPAH", "LBXPFDE", "LBXPFBS",
+        "LBXPFHP", "LBXPFNA", "LBXPFUA", "LBXPFDO"
+      ],
+      "analyte_panel_overlap_with_v1_0": ["LBXPFHS", "LBXMPAH", "LBXPFDE", "LBXPFNA", "LBXPFUA"],
+      "analytes_added_vs_v1_0":          ["LBXPFBS", "LBXPFHP", "LBXPFDO"],
+      "analytes_missing_vs_v1_0":        ["LBXNFOA", "LBXBFOA", "LBXNFOS", "LBXMFOS"],
+      "method":              "online SPE-HPLC-TIS-MS/MS (Kuklenyik 2005)",
+      "llod_ng_per_mL":      0.10,
+      "label_unit_caveat":   "CDC SAS labels say '(ug/L)' but the codebook's LLOD table is explicitly in ng/mL. 1 ug/L equals 1 ng/mL in aqueous matrix (serum density ~1.025 g/mL); the numbers are equivalent within ~2.5 percent, but any future admission MUST reconcile the label-unit mismatch in the ingestion pipeline.",
+      "isomer_split_caveat": "PFAS_H lacks the n-/Sb- PFOA and n-/Sm- PFOS isomer split that v1.0 carries (LBXNFOA, LBXBFOA, LBXNFOS, LBXMFOS). The isomer-resolved companion file SSPFAS_H is itself out of scope (see below).",
+      "status":              "NOT in v1.0; now governed as a peer lane under validation/serum_h_v1/ (anchor CSV SHA-256 98d11b27beadad159a9bb596caa2e8839b5bfca279fd32f618e60539c53f644f). Cycle H is still out of scope for v1.0; cross-cycle merging requires a documented harmonization artifact.",
+      "peer_lane_governance_directory": "validation/serum_h_v1",
+      "peer_lane_anchor_csv":           "data/training/serum_h/nhanes_serum_pfas_h_2013_2014.csv",
+      "peer_lane_anchor_csv_sha256":    "98d11b27beadad159a9bb596caa2e8839b5bfca279fd32f618e60539c53f644f",
+      "must_not_be_merged_with_v1_0_anchor": true
+    },
+    "SSPFAS_H_2013_2014": {
+      "source_url":   "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2013/DataFiles/SSPFAS_H.xpt",
+      "raw_file":     "SSPFAS_H.XPT",
+      "role":         "Surplus-serum companion file carrying the n-/Sb- PFOA and n-/Sm- PFOS isomer split for NHANES 2013-2014. Must be paired with PFAS_H_2013_2014, not merged directly into the v1.0 panel.",
+      "status":       "NOT in v1.0; also NOT admitted under serum_h_v1. Recorded by SHA-256 1e23688dfa6bdfdc14c0447f4d34032983271063a1a343c04338ae4258515c99 in validation/serum_h_v1/provenance.md \u00a73.1. Admission requires a follow-up artifact paired with serum_h_v1.",
+      "must_not_be_merged_with_v1_0_anchor": true
+    }
+  },
+  "physiological_classification": {
+    "scope": "lane-specific; this stamp applies only to the serum lane (schema_contract.md \u00a79.3) and MUST NOT be borrowed by environmental or reference-material lanes",
+    "fields": {
+      "sample_domain":       "physiological",
+      "sample_matrix":       "human_serum",
+      "measurement_context": "biomonitoring",
+      "source_program":      "CDC NHANES",
+      "governance_lane":     "serum_v1"
+    },
+    "field_notes": {
+      "source_program":  "Source-program coordinate (issuing agency + dataset family). The specific NHANES cycle is captured by `source_dataset` in the canonical core (e.g. 'NHANES PFAS (2017-2020 P_PFAS)'), not duplicated here.",
+      "governance_lane": "The (pipeline_id, governance_version) coordinate that points back to this lane's governance bundle (validation/serum_v1/). Machine-checkable join key between a row in the training table and the contract under which it was admitted.",
+      "units_excluded":  "Concentration units are a row property, not a lane property. The canonical core already records them per row in `result_unit` (ng/mL for NHANES, ug/kg for NIST SRM 1957). Duplicating them as a lane-stamped constant created two sources of truth that disagreed on SRM rows."
+    },
+    "guard": {
+      "missing_field_refusal":  "physiological_classification_missing",
+      "value_mismatch_refusal": "physiological_classification_mismatch",
+      "enforcement_layer":      "row-level (validate / normalize / save / train must all call the physiological guard before admitting a row to the serum lane)"
+    },
+    "anchor_invariant": {
+      "anchor_csv":              "data/training/serum/nhanes_serum_pfas_2017_2018.csv",
+      "anchor_csv_sha256":       "dfd4dbb59128043e91870265acc15f91f673ec81ee3d00d91223022755e4490f",
+      "anchor_csv_frozen":       true,
+      "stamp_location_at_rest":  "The five stamp columns are appended to the DERIVED training table (data/training/serum/training.csv), NEVER to the anchor CSV above. Modifying the anchor would change its SHA-256 and break the promotion gate in schema_contract.md \u00a78."
+    }
   }
 }

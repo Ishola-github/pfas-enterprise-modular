@@ -1,0 +1,6 @@
+row_index,sample_matrix,result_unit,source_program,analyte,result_value,ad_status,ad_code,ad_reason,offending_field,reference_cycle,sex_stratum,age_group_stratum,percentile,n_reference,n_weighted,pct_below_lod_reference,imputed_below_lod_value_ng_per_mL,query_below_imputed_lod,bracket_low_pct,bracket_high_pct,lod_context_flag
+0,human_serum,ng/mL,CDC NHANES,n_pfoa,1.3000,in_domain,,,,J,female,20-39,70.83,270,41429469,0.37,,false,50.0,75.0,
+1,human_serum,ng/mL,CDC NHANES,n_pfos,3.0000,in_domain,,,,J,male,40-59,31.25,255,38986370,0.39,,false,25.0,50.0,
+2,human_serum,ng/mL,CDC NHANES,sb_pfoa,0.0700,in_domain,,,,J,female,20-39,5.00,270,41429469,93.33,0.07,true,0.0,5.0,query_at_or_below_imputed_lod
+3,human_serum,ng/mL,CDC NHANES,sm_pfos,1.2000,in_domain,,,,J,all,all_ages,50.00,1929,255112859,0.83,,false,25.0,50.0,
+4,drinking_water,ng/mL,CDC NHANES,n_pfoa,1.0000,refused,matrix_not_serum,sample_matrix='drinking_water' is not 'human_serum'; V1 is serum-only by contract.,sample_matrix,,,,,,,,,,,,
