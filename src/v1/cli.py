@@ -23,6 +23,7 @@ import pandas as pd
 
 from . import (
     ONTOLOGY_PATH,
+    ONTOLOGY_V1_1_PATH,
     REFERENCE_CSV_PATH,
     REFERENCE_CSV_SHA256,
     REFERENCE_TABLE_PATH,
@@ -34,7 +35,13 @@ from .ontology import load_ontology
 from .provenance import build_provenance
 from .reference import ReferenceEngine, ReferenceStratumMissing, ReferenceTableDrifted
 from .report import build_outcomes, build_report_bundle
-from .strata import normalize_age_group, normalize_reference_cycle, normalize_sex
+from .strata import (
+    input_demographics_summary,
+    normalize_age_group,
+    normalize_race_ethnicity,
+    normalize_reference_cycle,
+    normalize_sex,
+)
 
 
 def _repo_root() -> Path:
@@ -43,7 +50,16 @@ def _repo_root() -> Path:
 
 def _read_input_csv(path: Path) -> list[dict[str, Any]]:
     df = pd.read_csv(path)
-    return [dict(r) for r in df.to_dict(orient="records")]
+    rows: list[dict[str, Any]] = []
+    for raw in df.to_dict(orient="records"):
+        clean: dict[str, Any] = {}
+        for key, value in raw.items():
+            if pd.isna(value):
+                clean[key] = None
+            else:
+                clean[key] = value
+        rows.append(clean)
+    return rows
 
 
 def run_pipeline(
@@ -62,16 +78,16 @@ def run_pipeline(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     ont_path = ontology_path or (root / ONTOLOGY_PATH)
-    ref_table = reference_table_path or (root / REFERENCE_TABLE_PATH)
-    anchor = anchor_csv_path or (root / REFERENCE_CSV_PATH)
-
     ontology = load_ontology(ont_path)
+    ref_table = reference_table_path or (root / ontology.expected_reference_table_path)
+    anchor = anchor_csv_path or (root / ontology.expected_anchor_csv_path)
     ReferenceEngine.verify_anchor_csv(ontology, anchor)
     engine = ReferenceEngine.load(ontology, ref_table)
 
     use_cycle = (default_cycle or ontology.default_reference_cycle).upper()
 
     input_rows = _read_input_csv(input_csv)
+    demo_summary = input_demographics_summary(input_rows)
     batch = validate_rows(input_rows, ontology)
 
     engine_results: dict[int, Any] = {}
@@ -99,7 +115,7 @@ def run_pipeline(
         input_csv_path=input_csv,
         reference_table_path=ref_table,
         ontology_path=ont_path,
-        reference_table_documented_sha256=REFERENCE_TABLE_SHA256,
+        reference_table_documented_sha256=ontology.expected_reference_table_sha256,
         anchor_csv_path=anchor,
         anchor_csv_documented_sha256=REFERENCE_CSV_SHA256,
         code_version=__version__,
@@ -153,6 +169,7 @@ def run_pipeline(
         "n_rows": len(outcomes),
         "n_in_domain": n_in,
         "n_refused": n_ref,
+        "input_demographics": demo_summary,
     }
 
 
@@ -173,6 +190,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Directory for report CSV, PDF, and manifest JSON",
     )
     parser.add_argument("--ontology", type=Path, default=None)
+    parser.add_argument(
+        "--v1-1",
+        action="store_true",
+        help="Use V1.1 ontology (race/ethnicity strata + LOD policy)",
+    )
     parser.add_argument("--reference-table", type=Path, default=None)
     parser.add_argument("--anchor-csv", type=Path, default=None)
     parser.add_argument(
@@ -187,11 +209,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: input not found: {args.input}", file=sys.stderr)
         return 2
 
+    ontology_path = args.ontology
+    if ontology_path is None and args.v1_1:
+        ontology_path = _repo_root() / ONTOLOGY_V1_1_PATH
+
     try:
         summary = run_pipeline(
             input_csv=args.input,
             output_dir=args.output_dir,
-            ontology_path=args.ontology,
+            ontology_path=ontology_path,
             reference_table_path=args.reference_table,
             anchor_csv_path=args.anchor_csv,
             default_cycle=args.default_cycle,

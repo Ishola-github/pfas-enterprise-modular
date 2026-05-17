@@ -81,6 +81,8 @@ class PercentileResult:
         reference_cycle: NHANES cycle label (I, J, P).
         sex: stratum sex label.
         age_group: stratum age label.
+        race_ethnicity: stratum race/ethnicity label (V1.1+; ``all`` when
+            not stratified).
         bracket_low_pct / bracket_high_pct: percentile knot bracket
             used for interpolation (audit metadata).
     """
@@ -97,6 +99,7 @@ class PercentileResult:
     reference_cycle: str
     sex: str
     age_group: str
+    race_ethnicity: str = "all"
     bracket_low_pct: float | None = None
     bracket_high_pct: float | None = None
 
@@ -171,9 +174,10 @@ class ReferenceEngine:
     reference_table_path: Path
     reference_table_sha256: str
     _table: pd.DataFrame = field(repr=False)
-    _index: dict[tuple[str, str, str, str], pd.Series] = field(
+    _index: dict[tuple[str, ...], pd.Series] = field(
         default_factory=dict, repr=False
     )
+    _uses_race_strata: bool = field(default=False, repr=False)
 
     @classmethod
     def load(
@@ -225,19 +229,23 @@ class ReferenceEngine:
                 "V1 requires the official weighted table, not the unweighted peer."
             )
 
+        uses_race = "race_ethnicity" in table.columns
         engine = cls(
             ontology=ontology,
             reference_table_path=path,
             reference_table_sha256=on_disk_hash,
             _table=table,
+            _uses_race_strata=uses_race,
         )
         for _, row in table.iterrows():
-            key = (
+            key: tuple[str, ...] = (
                 str(row["cycle"]),
                 str(row["analyte_id"]),
                 str(row["sex"]),
                 str(row["age_group"]),
             )
+            if uses_race:
+                key = (*key, str(row["race_ethnicity"]))
             engine._index[key] = row
         return engine
 
@@ -248,13 +256,21 @@ class ReferenceEngine:
         analyte_id: str,
         sex: str,
         age_group: str,
+        race_ethnicity: str = "all",
     ) -> pd.Series:
-        key = (cycle, analyte_id, sex, age_group)
+        key: tuple[str, ...] = (cycle, analyte_id, sex, age_group)
+        if self._uses_race_strata:
+            key = (*key, race_ethnicity)
         row = self._index.get(key)
         if row is None:
+            detail = (
+                f"cycle={cycle!r}, analyte_id={analyte_id!r}, sex={sex!r}, "
+                f"age_group={age_group!r}"
+            )
+            if self._uses_race_strata:
+                detail += f", race_ethnicity={race_ethnicity!r}"
             raise ReferenceStratumMissing(
-                f"No precomputed reference row for cycle={cycle!r}, "
-                f"analyte_id={analyte_id!r}, sex={sex!r}, age_group={age_group!r}. "
+                f"No precomputed reference row for {detail}. "
                 f"Available cycles: {self.ontology.reference_cycles_available}"
             )
         return row
@@ -267,6 +283,7 @@ class ReferenceEngine:
         cycle: str | None = None,
         sex: str = "all",
         age_group: str = "all_ages",
+        race_ethnicity: str = "all",
         weighted: bool = True,  # noqa: ARG002 - always weighted; kept for API compat
     ) -> PercentileResult:
         """Return percentile context for one query concentration.
@@ -285,6 +302,8 @@ class ReferenceEngine:
         age_group
             One of ``12-19``, ``20-39``, ``40-59``, ``60_plus``,
             ``all_ages``.
+        race_ethnicity
+            V1.1+ race/ethnicity label or ``all``.
         weighted
             Ignored (always True). Present so callers written against
             the earlier runtime-compute API do not break.
@@ -302,12 +321,58 @@ class ReferenceEngine:
                 f"{self.ontology.reference_cycles_available}"
             )
 
-        row = self._get_row(
-            cycle=use_cycle,
-            analyte_id=analyte_id,
-            sex=sex,
-            age_group=age_group,
-        )
+        row = None
+        resolved_sex = sex
+        resolved_age = age_group
+        resolved_race = race_ethnicity if self._uses_race_strata else "all"
+
+        if self._uses_race_strata:
+            from .strata import stratum_lookup_candidates_v1_1
+
+            candidates = stratum_lookup_candidates_v1_1(
+                sex, age_group, race_ethnicity
+            )
+            for cand_sex, cand_age, cand_race in candidates:
+                try:
+                    row = self._get_row(
+                        cycle=use_cycle,
+                        analyte_id=analyte_id,
+                        sex=cand_sex,
+                        age_group=cand_age,
+                        race_ethnicity=cand_race,
+                    )
+                    resolved_sex = cand_sex
+                    resolved_age = cand_age
+                    resolved_race = cand_race
+                    break
+                except ReferenceStratumMissing:
+                    continue
+        else:
+            from .strata import stratum_lookup_candidates
+
+            for cand_sex, cand_age in stratum_lookup_candidates(sex, age_group):
+                try:
+                    row = self._get_row(
+                        cycle=use_cycle,
+                        analyte_id=analyte_id,
+                        sex=cand_sex,
+                        age_group=cand_age,
+                    )
+                    resolved_sex = cand_sex
+                    resolved_age = cand_age
+                    break
+                except ReferenceStratumMissing:
+                    continue
+
+        if row is None:
+            msg = (
+                f"No precomputed reference row for cycle={use_cycle!r}, "
+                f"analyte_id={analyte_id!r} after stratum fallback "
+                f"(requested sex={sex!r}, age_group={age_group!r}"
+            )
+            if self._uses_race_strata:
+                msg += f", race_ethnicity={race_ethnicity!r}"
+            raise ReferenceStratumMissing(msg + ").")
 
         knot_values = np.array(
             [float(row[c]) for c in _PERCENTILE_COLUMNS],
@@ -354,8 +419,9 @@ class ReferenceEngine:
             query_below_imputed_lod=query_below_imputed,
             weighted=True,
             reference_cycle=use_cycle,
-            sex=sex,
-            age_group=age_group,
+            sex=resolved_sex,
+            age_group=resolved_age,
+            race_ethnicity=resolved_race,
             bracket_low_pct=br_lo,
             bracket_high_pct=br_hi,
         )

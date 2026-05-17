@@ -10,7 +10,7 @@ src/v1/README.md and validation/serum_v1/limitations.md for the
 full non-claim register.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 """Code version. Pinned alongside the ontology version, which is
 recorded separately in src/v1/data/ontology/pfos_pfoa_v1.json
 under the `ontology_version` key. The two are deliberately
@@ -21,7 +21,10 @@ logger records both.
 """
 
 ONTOLOGY_PATH = "src/v1/data/ontology/pfos_pfoa_v1.json"
-"""Repo-relative path to the V1 frozen ontology JSON."""
+"""Repo-relative path to the V1.0 frozen ontology JSON."""
+
+ONTOLOGY_V1_1_PATH = "src/v1/data/ontology/pfos_pfoa_v1_1.json"
+"""Repo-relative path to the V1.1 ontology (race/ethnicity + LOD policy)."""
 
 REFERENCE_TABLE_PATH = (
     "data/reference_tables/nhanes_pfas_weighted_reference_tables_v1.csv"
@@ -33,6 +36,13 @@ REFERENCE_TABLE_SHA256 = (
     "715cd8968e21c9e2404b4a10054ea44d78e52707c70d4b10289f1ba9c463e45c"
 )
 """Expected SHA-256 of REFERENCE_TABLE_PATH."""
+
+REFERENCE_TABLE_V1_1_PATH = (
+    "data/reference_tables/nhanes_pfas_weighted_reference_tables_v1_1.csv"
+)
+REFERENCE_TABLE_V1_1_SHA256 = (
+    "7cad0ffa7c9a76a0aa192e24f9fab86b739afd8891ad5dca35624e6a64a39f0e"
+)
 
 REFERENCE_CSV_PATH = "data/training/serum/nhanes_serum_pfas_2017_2018.csv"
 """Repo-relative path to the cycle-J governance anchor CSV. Verified

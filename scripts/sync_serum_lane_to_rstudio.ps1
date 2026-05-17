@@ -45,7 +45,12 @@ if (Test-Path (Join-Path $Src "src\__init__.py")) {
     "run_matrix_pipeline.py",
     "smoke_v1_shiny_integration.R",
     "fetch_nhanes_pfas_demo.py",
-    "convert_legacy_serum_batch_to_v1.py"
+    "convert_legacy_serum_batch_to_v1.py",
+    "enrich_v1_input_demographics.py",
+    "build_v1_governed_input_from_nhanes.py",
+    "build_nhanes_weighted_reference_tables_v1_1.py",
+    "confirm_nhanes_downloads.ps1",
+    "download_nhanes_pfas.ps1"
 ) | ForEach-Object {
     $f = Join-Path $Src "scripts\$_"
     if (Test-Path $f) { Copy-Item -Force $f (Join-Path $Dst "scripts\$_") }
@@ -62,6 +67,7 @@ Get-ChildItem (Join-Path $Src "data\training\serum") -File | ForEach-Object {
 
 @(
     "nhanes_pfas_weighted_reference_tables_v1.csv",
+    "nhanes_pfas_weighted_reference_tables_v1_1.csv",
     "nhanes_pfas_reference_tables_v1.csv"
 ) | ForEach-Object {
     $f = Join-Path $Src "data\reference_tables\$_"

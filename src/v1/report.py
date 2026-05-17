@@ -20,9 +20,10 @@ from typing import Any, Mapping, Sequence
 from .applicability import BatchValidation, ValidationResult
 from .ontology import Ontology
 from .provenance import ProvenanceRecord
+from .lod_policy import parse_lod_code, resolve_lod_context_flag
 from .reference import PercentileResult
 
-# Fixed column order for deterministic CSV replay.
+# Fixed column order for deterministic CSV replay (V1.0).
 REPORT_COLUMNS: tuple[str, ...] = (
     "row_index",
     "sample_matrix",
@@ -48,6 +49,11 @@ REPORT_COLUMNS: tuple[str, ...] = (
     "lod_context_flag",
 )
 
+REPORT_COLUMNS_V1_1: tuple[str, ...] = REPORT_COLUMNS + (
+    "race_ethnicity_stratum",
+    "input_lod_code",
+)
+
 _LIMITATIONS_FOOTER_LINES: tuple[str, ...] = (
     "PFAS Enterprise 5.0 V1 — Research Use Only (RUO).",
     "Percentile context is against CDC NHANES population distributions.",
@@ -65,6 +71,13 @@ class ContextualizationOutcome:
     validation: ValidationResult
     percentile: PercentileResult | None = None
     stratum_error: str | None = None
+
+
+def report_columns_for(ontology: Ontology) -> tuple[str, ...]:
+    """Return report CSV columns for the loaded ontology version."""
+    if ontology.ontology_version.startswith("1.1"):
+        return REPORT_COLUMNS_V1_1
+    return REPORT_COLUMNS
 
 
 def _fmt_float(v: Any, *, places: int = 4) -> str:
@@ -105,10 +118,33 @@ def build_outcomes(
     return out
 
 
+def _empty_context_fields(*, v1_1: bool) -> dict[str, str]:
+    base = {
+        "reference_cycle": "",
+        "sex_stratum": "",
+        "age_group_stratum": "",
+        "percentile": "",
+        "n_reference": "",
+        "n_weighted": "",
+        "pct_below_lod_reference": "",
+        "imputed_below_lod_value_ng_per_mL": "",
+        "query_below_imputed_lod": "",
+        "bracket_low_pct": "",
+        "bracket_high_pct": "",
+        "lod_context_flag": "",
+    }
+    if v1_1:
+        base["race_ethnicity_stratum"] = ""
+        base["input_lod_code"] = ""
+    return base
+
+
 def _row_to_csv_dict(
     row_index: int,
     input_row: Mapping[str, Any],
     outcome: ContextualizationOutcome,
+    *,
+    v1_1: bool = False,
 ) -> dict[str, str]:
     vr = outcome.validation
     pr = outcome.percentile
@@ -125,18 +161,7 @@ def _row_to_csv_dict(
             "ad_code": vr.ad_code or "",
             "ad_reason": vr.ad_reason,
             "offending_field": vr.offending_field,
-            "reference_cycle": "",
-            "sex_stratum": "",
-            "age_group_stratum": "",
-            "percentile": "",
-            "n_reference": "",
-            "n_weighted": "",
-            "pct_below_lod_reference": "",
-            "imputed_below_lod_value_ng_per_mL": "",
-            "query_below_imputed_lod": "",
-            "bracket_low_pct": "",
-            "bracket_high_pct": "",
-            "lod_context_flag": "",
+            **_empty_context_fields(v1_1=v1_1),
         }
 
     if outcome.stratum_error:
@@ -151,30 +176,16 @@ def _row_to_csv_dict(
             "ad_code": "reference_stratum_missing",
             "ad_reason": outcome.stratum_error,
             "offending_field": "reference_stratum",
-            "reference_cycle": "",
-            "sex_stratum": "",
-            "age_group_stratum": "",
-            "percentile": "",
-            "n_reference": "",
-            "n_weighted": "",
-            "pct_below_lod_reference": "",
-            "imputed_below_lod_value_ng_per_mL": "",
-            "query_below_imputed_lod": "",
-            "bracket_low_pct": "",
-            "bracket_high_pct": "",
-            "lod_context_flag": "",
+            **_empty_context_fields(v1_1=v1_1),
         }
 
     if pr is None:
         raise ValueError(f"row {row_index}: in_domain but no percentile result")
 
-    lod_flag = ""
-    if pr.query_below_imputed_lod:
-        lod_flag = "query_at_or_below_imputed_lod"
-    elif pr.pct_below_lod_reference is not None and pr.pct_below_lod_reference >= 50.0:
-        lod_flag = "reference_stratum_lod_dominated"
+    lod_flag = resolve_lod_context_flag(input_row, pr)
+    input_lod = parse_lod_code(input_row)
 
-    return {
+    row_out = {
         "row_index": str(row_index),
         "sample_matrix": str(input_row.get("sample_matrix", "")),
         "result_unit": str(input_row.get("result_unit", "")),
@@ -200,23 +211,31 @@ def _row_to_csv_dict(
         "bracket_high_pct": _fmt_float(pr.bracket_high_pct, places=1),
         "lod_context_flag": lod_flag,
     }
+    if v1_1:
+        row_out["race_ethnicity_stratum"] = pr.race_ethnicity
+        row_out["input_lod_code"] = "" if input_lod is None else str(input_lod)
+    return row_out
 
 
 def render_report_csv_bytes(
     input_rows: Sequence[Mapping[str, Any]],
     outcomes: Sequence[ContextualizationOutcome],
+    *,
+    ontology: Ontology | None = None,
 ) -> bytes:
     """Serialize the governed report to UTF-8 CSV bytes (LF, no BOM)."""
+    columns = report_columns_for(ontology) if ontology is not None else REPORT_COLUMNS
+    v1_1 = ontology is not None and ontology.ontology_version.startswith("1.1")
     buf = io.StringIO(newline="")
     writer = csv.DictWriter(
         buf,
-        fieldnames=list(REPORT_COLUMNS),
+        fieldnames=list(columns),
         lineterminator="\n",
         quoting=csv.QUOTE_MINIMAL,
     )
     writer.writeheader()
     for i, (inp, oc) in enumerate(zip(input_rows, outcomes)):
-        writer.writerow(_row_to_csv_dict(i, inp, oc))
+        writer.writerow(_row_to_csv_dict(i, inp, oc, v1_1=v1_1))
     return buf.getvalue().encode("utf-8")
 
 
@@ -264,10 +283,12 @@ def render_pdf_stub_bytes(
         if shown >= 12:
             break
         pr = oc.percentile
+        stratum = f"{pr.sex}/{pr.age_group}"
+        if pr.race_ethnicity and pr.race_ethnicity != "all":
+            stratum = f"{stratum}/{pr.race_ethnicity}"
         line(
             f"  [{i}] {pr.analyte_id} {pr.query_value_ng_per_mL:.2f} ng/mL → "
-            f"pct={pr.percentile:.1f} (cycle {pr.reference_cycle}, "
-            f"{pr.sex}/{pr.age_group})",
+            f"pct={pr.percentile:.1f} (cycle {pr.reference_cycle}, {stratum})",
             size=9,
             gap=12,
         )
@@ -306,7 +327,7 @@ def build_report_bundle(
     """
     from .provenance import stamp_output
 
-    csv_bytes = render_report_csv_bytes(input_rows, outcomes)
+    csv_bytes = render_report_csv_bytes(input_rows, outcomes, ontology=ontology)
     n_in = sum(1 for o in outcomes if o.validation.ad_status == "in_domain" and o.percentile)
     n_ref = len(outcomes) - n_in
     try:
