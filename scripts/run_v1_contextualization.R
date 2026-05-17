@@ -39,7 +39,8 @@ run_v1_serum_contextualization <- function(
     output_dir,
     project_root = ".",
     python_exec = NULL,
-    default_cycle = "J") {
+    default_cycle = "J",
+    use_v1_1 = TRUE) {
   project_root <- normalizePath(project_root, winslash = "/", mustWork = TRUE)
   input_csv <- normalizePath(input_csv, winslash = "/", mustWork = TRUE)
   if (!dir.exists(output_dir)) {
@@ -63,6 +64,9 @@ run_v1_serum_contextualization <- function(
     "--output-dir", output_dir,
     "--default-cycle", default_cycle
   )
+  if (isTRUE(use_v1_1)) {
+    args <- c(args, "--v1-1")
+  }
 
   old_wd <- getwd()
   old_py <- Sys.getenv("PYTHONPATH", unset = NA_character_)
@@ -126,7 +130,11 @@ run_v1_serum_contextualization <- function(
 
   list(
     ok = TRUE,
-    message = "V1 contextualization completed.",
+    message = if (isTRUE(use_v1_1)) {
+      "V1.1 race-aware contextualization completed."
+    } else {
+      "V1.0 contextualization completed."
+    },
     summary = summary,
     log = log_txt
   )

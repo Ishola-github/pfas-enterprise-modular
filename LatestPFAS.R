@@ -55,7 +55,8 @@ ICIS_AIR_UPLOAD_BANNER_VERSION <- "2026-05-12-icis-air-hardblock-1"
 # must not flow through the environmental PFAS-occurrence mapper.
 SERUM_UPLOAD_BANNER_VERSION <- "2026-05-13-serum-hardblock-1"
 # V1 governed serum PFOS/PFOA contextualization (src/v1/, weighted reference table).
-V1_CONTEXTUALIZATION_VERSION <- "1.0.1-serum-pfos-pfoa"
+V1_CONTEXTUALIZATION_VERSION <- "1.1.1-serum-pfos-pfoa-race-aware"
+V1_LEGACY_CONTEXTUALIZATION_VERSION <- "1.0.1-serum-pfos-pfoa"
 V1_INPUT_TEMPLATE_REL <- file.path("data", "v1", "templates", "governed_serum_pfos_pfoa_input_template.csv")
 V2_CONTEXTUALIZATION_VERSION <- "2.0.0-cross-cycle-temporal"
 V2_FIXTURE_REL <- file.path("data", "v1", "fixtures", "nhanes_j_governed_v1_input.csv")
@@ -2525,23 +2526,24 @@ ui_dashboard <- dashboardPage(
               class = "alert",
               style = "background:#ede7f6;border:1px solid #9575cd;color:#311b92;padding:10px 14px;border-radius:4px;margin:12px 0 10px 0;",
               tags$p(style = "margin:0 0 8px 0;",
-                tags$strong("V1 serum PFOS/PFOA contextualization (governed, RUO)")),
+                tags$strong("V1.1 serum PFOS/PFOA contextualization (governed, RUO)")),
               tags$p(style = "margin:0 0 8px 0;",
-                "Population-reference percentiles against the precomputed weighted NHANES table ",
-                code("data/reference_tables/nhanes_pfas_weighted_reference_tables_v1.csv"),
-                ". ", tags$strong("Not"), " diagnostic, clinical, or regulatory. ",
-                "Uses ", code("src/v1/"), " + ontology ", code("pfos_pfoa_v1.json"), "."),
+                "Population-reference percentiles against ",
+                code("nhanes_pfas_weighted_reference_tables_v1_1.csv"),
+                " (sex, age, race/ethnicity strata; cycles I/J/P in reference). ",
+                tags$strong("Not"), " diagnostic, clinical, or regulatory. ",
+                "Uses ", code("src/v1/"), " + ontology ", code("pfos_pfoa_v1_1.json"), " (default)."),
               tags$p(style = "margin:0 0 6px 0;",
                 "Template columns: ", code("sample_matrix"), ", ", code("result_unit"), ", ",
                 code("source_program"), ", ", code("analyte"), ", ", code("result_value"),
                 " (required); optional ", code("sex"), " (1=male, 2=female), ", code("age_years"), ", ",
-                code("reference_cycle"), ", ", code("lod_code"), ". ",
+                code("race_ethnicity"), ", ", code("reference_cycle"), ", ", code("lod_code"), ". ",
                 "Analytes: ", code("n_pfoa"), ", ", code("sb_pfoa"), ", ", code("n_pfos"), ", ",
                 code("sm_pfos"), "."),
               tags$p(style = "margin:0;font-size:12px;color:#555;",
-                "If ", code("sex"), "/", code("age_years"), " are blank, percentiles use ",
-                code("sex_stratum=all"), " and ", code("age_group_stratum=all_ages"), ". ",
-                "Merge demographics with ", code("scripts/enrich_v1_input_demographics.py"), ".")
+                "Blank ", code("sex"), "/", code("age_years"), "/", code("race_ethnicity"),
+                " → broader strata (", code("all"), ", ", code("all_ages"), ", race fallback). ",
+                "Fixture: ", code("data/v1/fixtures/nhanes_j_governed_v1_input.csv"), ".")
             ),
             fluidRow(
               column(4,
@@ -2562,9 +2564,14 @@ ui_dashboard <- dashboardPage(
                   choices = c("J (2017-2018)" = "J", "I (2015-2016)" = "I", "P (2017-2020 pre-pandemic)" = "P"),
                   selected = "J"
                 ),
+                checkboxInput(
+                  "v1_use_legacy_v1_0",
+                  "Use legacy V1.0 ontology (no race strata; v1 weighted table)",
+                  value = FALSE
+                ),
                 actionButton(
                   "btn_v1_run",
-                  "Run V1 contextualization",
+                  "Run V1.1 contextualization",
                   class = "btn-primary",
                   style = "background:#5e35b1;border-color:#4527a0;width:100%;"
                 )
@@ -6528,25 +6535,37 @@ server <- function(input, output, session) {
       return()
     }
 
+    use_legacy <- isTRUE(input$v1_use_legacy_v1_0)
     preflight <- tryCatch({
       hdr <- names(utils::read.csv(in_path, nrows = 1L, check.names = FALSE))
       has_sex <- "sex" %in% hdr
       has_age <- "age_years" %in% hdr
-      if (!has_sex || !has_age) {
+      has_race <- "race_ethnicity" %in% hdr
+      if (!use_legacy && (!has_sex || !has_age || !has_race)) {
         paste0(
-          "Input preflight: ",
-          if (!has_sex) "column 'sex' missing (1=male, 2=female) → sex_stratum will be 'all'. " else "",
-          if (!has_age) "column 'age_years' missing → age_group_stratum will be 'all_ages'. " else "",
-          "Add columns or use scripts/enrich_v1_input_demographics.py.\n"
+          "V1.1 preflight: ",
+          if (!has_sex) "column 'sex' missing → sex_stratum='all'. " else "",
+          if (!has_age) "column 'age_years' missing → age_group_stratum='all_ages'. " else "",
+          if (!has_race) "column 'race_ethnicity' missing → race fallback may apply. " else "",
+          "Use data/v1/fixtures/nhanes_j_governed_v1_input.csv or enrich_v1_input_demographics.py.\n"
+        )
+      } else if (use_legacy && (!has_sex || !has_age)) {
+        paste0(
+          "V1.0 preflight: ",
+          if (!has_sex) "column 'sex' missing → sex_stratum='all'. " else "",
+          if (!has_age) "column 'age_years' missing → age_group_stratum='all_ages'. " else "",
+          "\n"
         )
       } else {
         ""
       }
     }, error = function(e) "")
 
+    v1_ver <- if (use_legacy) V1_LEGACY_CONTEXTUALIZATION_VERSION else V1_CONTEXTUALIZATION_VERSION
     v1_context_status(paste0(
-      "[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] Running V1 (",
-      V1_CONTEXTUALIZATION_VERSION, ") …"
+      preflight,
+      "[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] Running ",
+      if (use_legacy) "V1.0" else "V1.1", " (", v1_ver, ") …"
     ))
 
     cycle <- input$v1_default_cycle %||% "J"
@@ -6555,7 +6574,8 @@ server <- function(input, output, session) {
       output_dir = out_dir,
       project_root = PROJECT_DIR,
       python_exec = input$pfas_python_exec %||% "",
-      default_cycle = cycle
+      default_cycle = cycle,
+      use_v1_1 = !use_legacy
     )
 
     if (!isTRUE(res$ok)) {
@@ -6641,6 +6661,7 @@ server <- function(input, output, session) {
     preferred <- c(
       "row_index", "sample_matrix", "analyte", "result_value", "ad_status", "ad_code",
       "reference_cycle", "sex_stratum", "age_group_stratum",
+      "race_ethnicity_stratum", "race_stratum_fallback",
       "percentile", "bracket_low_pct", "bracket_high_pct",
       "n_reference", "n_weighted", "pct_below_lod_reference",
       "result_unit", "source_program", "ad_reason", "offending_field",
