@@ -1,0 +1,116 @@
+{
+"sample": {
+"name": "example.mzML",
+"description": "AFFF mixture sample 2",
+"sample_class": "aqueous film-forming foam (AFFF)",
+"data_generator": "bjp@nist.gov",
+"source": ""
+},
+"chromatography": {
+"ctype": "Liquid Chromatography",
+"cvendor": "Waters Corporation",
+"cmodel": "needs value",
+"ssolvent": "methanol",
+"mp1solvent": "water",
+"mp1add": "ammonium acetate",
+"m2solvent": "acetonitrile",
+"mp2add": "none",
+"mp3solvent": "none",
+"mp3add": "none",
+"mp4solvent": "none",
+"mp4add": "none",
+"gcolvendor": "Phenomenex",
+"gcolname": "Kinetex Evo C18",
+"gcolchemistry": "octadecyl (C18)",
+"gcolid": "2.1",
+"gcollen": "2",
+"gcoldp": "2",
+"colvendor": "Waters Corporation",
+"colname": "Acquity UPLC BEH",
+"colchemistry": "octadecyl (C18)",
+"colid": "2.1",
+"collen": "50",
+"coldp": "1.7",
+"source": "EPA Method 1633"
+},
+"massspectrometry": {
+"msvendor": "Waters Corporation",
+"msmodel": "needs value",
+"ionization": "electrospray ionization (ESI)",
+"polarity": "negative",
+"voltage": "0.7",
+"vunits": "kV",
+"massanalyzer1": "quadrupole",
+"massanalyzer2": "time-of-flight",
+"fragmode": "CID",
+"ce_value": "0",
+"ce_desc": "fixed",
+"ce_units": "V",
+"ms2exp": "data-dependent acquisition (DDA/TopN)",
+"isowidth": "0.5",
+"msaccuracy": "10",
+"msminerror": "0.01",
+"ms1resolution": "20000",
+"ms2resolution": "20000",
+"source": "EPA Method 1633 (needs modification)"
+},
+"qcmethod": [
+{
+"name": "QC Method Used",
+"value": true,
+"source": ""
+},
+{
+"name": "Mass Analyzer Calibration",
+"value": true,
+"source": ""
+},
+{
+"name": "External Standard Verification",
+"value": false,
+"source": ""
+},
+{
+"name": "Internal Standard Verification",
+"value": false,
+"source": ""
+},
+{
+"name": "Matrix Standard Verification",
+"value": false,
+"source": ""
+}
+],
+"peaks": {
+"peak": {
+"count": 1,
+"name": "PFOS",
+"identifier": "3041",
+"ionstate": "[M-H]-",
+"mz": 498.9302,
+"rt": 12,
+"peak_starttime": 11.5,
+"peak_endtime": 12.5,
+"confidence": "level 2b - probable by diagnostic fragmentation evidence"
+}
+},
+"annotation": {
+"compound": {
+"name": "PFOS",
+"fragment": {
+"fragment_mz": 79.9955,
+"fragment_formula": "SO3",
+"fragment_SMILES": "",
+"fragment_radical": "unknown",
+"fragment_citation": "USER"
+},
+"fragment": {
+"fragment_mz": 118.9911,
+"fragment_formula": "C2F5",
+"fragment_SMILES": "F[C-](F)C(F)(F)F",
+"fragment_radical": false,
+"fragment_citation": "DOI:10.1002/rcm.3274"
+}
+}
+}
+}
