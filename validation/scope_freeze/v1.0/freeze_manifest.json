@@ -97,7 +97,7 @@
       "lane": "serum",
       "path": "data/ad_models/serum/ad_model.json",
       "ad_method": "per_analyte_envelope_v1",
-      "sha256": "92bc6d3e5bc42c36414cc1d14ab2fe602a397de574ff373f309c382faeafc802"
+      "sha256": "dd751879bba750570c797a20601690727a74e336168abdf55ff45b54a04a0492"
     }
   ],
   "smoke_status": {

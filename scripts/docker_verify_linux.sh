@@ -79,11 +79,19 @@ Rscript -e "invisible(parse('LatestPFAS.R')); cat('PARSE_OK\n')"
 echo "=== R: smoke_icis_air_upload_banner.R ==="
 Rscript scripts/smoke_icis_air_upload_banner.R
 
+export PFAS_PYTHON="$PYTHON"
+export PFAS_SMOKE_PROJECT_ROOT="$ROOT"
+export PYTHONPATH="$ROOT"
+export PFAS_V2_SKIP_R_PARSE=1
+echo "=== V2: docker_recheck_v2.sh (CLI + Python tests + R smoke) ==="
+bash "$ROOT/scripts/docker_recheck_v2.sh"
+
 echo "=== Python: verify_reference_registry.py ==="
 "$PYTHON" scripts/verify_reference_registry.py
 
 echo "=== Python: governance_operational_snapshot.py (JSON roll-up; exit always 0) ==="
-"$PYTHON" scripts/governance_operational_snapshot.py --project-root "$ROOT" --pretty | head -n 120
+# head closes the pipe early; do not fail the verify script on SIGPIPE (exit 141).
+"$PYTHON" scripts/governance_operational_snapshot.py --project-root "$ROOT" --pretty | head -n 120 || true
 
 echo "=== Python: smoke_api.py ==="
 "$PYTHON" scripts/smoke_api.py

@@ -1,0 +1,52 @@
+# Ubuntu 24.04 — R + Python deps for governance/API smoke tests.
+# Does NOT copy the repo (root .dockerignore omits data/ and LatestPFAS.R).
+# Mount your checkout at /app when you run:
+#
+#   docker build -f Dockerfile.linux-verify -t pfas-linux-verify .
+#   docker run --rm -v "$(pwd):/app" -w /app pfas-linux-verify
+#
+# On Windows PowerShell:
+#   docker build -f Dockerfile.linux-verify -t pfas-linux-verify .
+#   docker run --rm -v "${PWD}:/app" -w /app pfas-linux-verify
+#
+# NETWORK REQUIREMENTS for the build step:
+#   - apt-get update  -> archive.ubuntu.com, security.ubuntu.com  (HTTP/HTTPS)
+#   - pip3 install    -> pypi.org, files.pythonhosted.org         (HTTPS 443)
+#   On a VPN / corporate proxy / metered network these hosts MUST be reachable
+#   from inside the Docker build VM. Symptoms when they are blocked:
+#     "Name or service not known" / "Connection ... timed out" while
+#     downloading wheels (the build will retry ~5x and then fail).
+#   Mitigations:
+#     * disable VPN for the build, or whitelist the hosts above
+#     * set --build-arg http_proxy=... https_proxy=... if you must build through a proxy
+#     * use `--network=host` only if Docker Desktop's BuildKit is configured for it
+#   The "docker run" step does NOT need internet — only the "docker build" step does.
+#
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    r-base \
+    r-cran-jsonlite \
+    python3 \
+    python3-pip \
+  && rm -rf /var/lib/apt/lists/*
+
+# Requires outbound HTTPS to pypi.org + files.pythonhosted.org. See top of file.
+COPY requirements.txt /tmp/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt \
+  && rm -f /tmp/requirements.txt
+
+COPY scripts/docker_verify_linux.sh /usr/local/bin/pfas-docker-verify.sh
+COPY scripts/docker_recheck_v2.sh /usr/local/bin/pfas-docker-recheck-v2.sh
+# Windows checkouts often store CRLF; Linux shebang fails with `bash\r`.
+RUN sed -i 's/\r$//' /usr/local/bin/pfas-docker-verify.sh \
+  && sed -i 's/\r$//' /usr/local/bin/pfas-docker-recheck-v2.sh \
+  && chmod +x /usr/local/bin/pfas-docker-verify.sh \
+  && chmod +x /usr/local/bin/pfas-docker-recheck-v2.sh
+
+WORKDIR /app
+# Prefer bind-mounted repo scripts (so verify/V2 recheck updates without image rebuild).
+ENTRYPOINT ["bash", "-c", "if [ -f /app/scripts/docker_verify_linux.sh ]; then exec bash /app/scripts/docker_verify_linux.sh; else exec /usr/local/bin/pfas-docker-verify.sh; fi"]
