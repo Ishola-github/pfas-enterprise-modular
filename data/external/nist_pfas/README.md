@@ -1,3 +1,9 @@
+# NIST PFAS External Data
+
+This folder contains NIST PFAS suspect screening and method reporting resources for PFAS Enterprise workflows. Layout: `suspectlist/`, `methodreportingtool/`, plus NIST `License.md`.
+
+---
+
 # NIST PFAS Data Repository
 
 ## About
