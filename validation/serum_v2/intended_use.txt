@@ -1,0 +1,19 @@
+PFAS Enterprise 5.0 — Serum lane V2 (cross-cycle temporal contextualization)
+
+V2 supports analyst review of how a serum PFOS/PFOA measurement situates
+against NHANES population references when the reference survey cycle
+changes (2015-2016, 2017-2018, 2017-2020 pre-pandemic).
+
+Permitted uses:
+  - Compare weighted percentile context for the same demographic stratum
+    across cycles I, J, and P.
+  - Summarize cross-cycle shifts in population reference medians (p50)
+    for the same analyte and stratum.
+  - Flag large cross-cycle percentile dispersion for governance review.
+  - Produce provenance-logged CSV/PDF/manifest bundles for RUO reporting.
+
+V2 requires V1.1 inputs (including optional demographics for stratified
+lookup). reference_cycle on each row selects the anchor cycle for
+primary interpretation.
+
+V2 is research use only. See limitations.md for binding non-claims.

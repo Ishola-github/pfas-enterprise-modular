@@ -57,6 +57,8 @@ SERUM_UPLOAD_BANNER_VERSION <- "2026-05-13-serum-hardblock-1"
 # V1 governed serum PFOS/PFOA contextualization (src/v1/, weighted reference table).
 V1_CONTEXTUALIZATION_VERSION <- "1.0.1-serum-pfos-pfoa"
 V1_INPUT_TEMPLATE_REL <- file.path("data", "v1", "templates", "governed_serum_pfos_pfoa_input_template.csv")
+V2_CONTEXTUALIZATION_VERSION <- "2.0.0-cross-cycle-temporal"
+V2_FIXTURE_REL <- file.path("data", "v1", "fixtures", "nhanes_j_governed_v1_input.csv")
 # Canonical semantic types for the upload mapper. Each one routes through a
 # different policy (mapping eligibility, validation rules, training eligibility).
 # Mapping is enforced in get_upload_mapping() + the btn_external_* handlers.
@@ -2529,13 +2531,17 @@ ui_dashboard <- dashboardPage(
                 code("data/reference_tables/nhanes_pfas_weighted_reference_tables_v1.csv"),
                 ". ", tags$strong("Not"), " diagnostic, clinical, or regulatory. ",
                 "Uses ", code("src/v1/"), " + ontology ", code("pfos_pfoa_v1.json"), "."),
-              tags$p(style = "margin:0;",
+              tags$p(style = "margin:0 0 6px 0;",
                 "Template columns: ", code("sample_matrix"), ", ", code("result_unit"), ", ",
                 code("source_program"), ", ", code("analyte"), ", ", code("result_value"),
-                " (required); optional ", code("sex"), ", ", code("age_years"), ", ",
+                " (required); optional ", code("sex"), " (1=male, 2=female), ", code("age_years"), ", ",
                 code("reference_cycle"), ", ", code("lod_code"), ". ",
                 "Analytes: ", code("n_pfoa"), ", ", code("sb_pfoa"), ", ", code("n_pfos"), ", ",
-                code("sm_pfos"), ".")
+                code("sm_pfos"), "."),
+              tags$p(style = "margin:0;font-size:12px;color:#555;",
+                "If ", code("sex"), "/", code("age_years"), " are blank, percentiles use ",
+                code("sex_stratum=all"), " and ", code("age_group_stratum=all_ages"), ". ",
+                "Merge demographics with ", code("scripts/enrich_v1_input_demographics.py"), ".")
             ),
             fluidRow(
               column(4,
@@ -2570,8 +2576,49 @@ ui_dashboard <- dashboardPage(
                   downloadButton("btn_download_v1_report_pdf", "Download report PDF (RUO stub)", class = "btn-info"),
                   downloadButton("btn_download_v1_manifest", "Download provenance manifest (JSON)", class = "btn-default")
                 ),
-                tags$strong("V1 report preview (all rows):"),
+                tags$strong("V1 report preview (percentile + strata shown):"),
                 DT::dataTableOutput("tbl_v1_report")
+              )
+            ),
+            tags$div(
+              class = "alert",
+              style = "background:#e0f2f1;border:1px solid #00897b;color:#004d40;padding:10px 14px;border-radius:4px;margin:18px 0 10px 0;",
+              tags$p(style = "margin:0 0 8px 0;",
+                tags$strong("V2 cross-cycle temporal contextualization (governed, RUO)")),
+              tags$p(style = "margin:0 0 8px 0;",
+                "Compares weighted NHANES population percentiles across cycles ",
+                code("I"), ", ", code("J"), ", and ", code("P"),
+                " for the same demographic stratum. ",
+                tags$strong("Not"), " individual longitudinal follow-up. ",
+                "Uses ", code("src/v2/"), " + ontology ", code("pfos_pfoa_v2.json"), "."),
+              tags$p(style = "margin:0 0 6px 0;",
+                "Requires ", code("reference_cycle"), " (anchor I/J/P) on every row; optional ",
+                code("sex"), ", ", code("age_years"), ", ", code("race_ethnicity"), ", ",
+                code("lod_code"), ".")
+            ),
+            fluidRow(
+              column(4,
+                fileInput(
+                  "v2_input_csv",
+                  "V2 input CSV (V1.1 schema + reference_cycle)",
+                  accept = c(".csv", "text/csv")
+                ),
+                actionButton(
+                  "btn_v2_run",
+                  "Run V2 cross-cycle contextualization",
+                  class = "btn-primary",
+                  style = "background:#00695c;border-color:#004d40;width:100%;"
+                )
+              ),
+              column(8,
+                verbatimTextOutput("v2_context_status", placeholder = TRUE),
+                tags$div(style = "margin:8px 0;",
+                  downloadButton("btn_download_v2_report_csv", "Download V2 report CSV", class = "btn-info"),
+                  downloadButton("btn_download_v2_report_pdf", "Download V2 report PDF (RUO stub)", class = "btn-info"),
+                  downloadButton("btn_download_v2_manifest", "Download V2 manifest (JSON)", class = "btn-default")
+                ),
+                tags$strong("V2 report preview (cross-cycle percentiles):"),
+                DT::dataTableOutput("tbl_v2_report")
               )
             ),
             tags$div(
@@ -6481,6 +6528,22 @@ server <- function(input, output, session) {
       return()
     }
 
+    preflight <- tryCatch({
+      hdr <- names(utils::read.csv(in_path, nrows = 1L, check.names = FALSE))
+      has_sex <- "sex" %in% hdr
+      has_age <- "age_years" %in% hdr
+      if (!has_sex || !has_age) {
+        paste0(
+          "Input preflight: ",
+          if (!has_sex) "column 'sex' missing (1=male, 2=female) → sex_stratum will be 'all'. " else "",
+          if (!has_age) "column 'age_years' missing → age_group_stratum will be 'all_ages'. " else "",
+          "Add columns or use scripts/enrich_v1_input_demographics.py.\n"
+        )
+      } else {
+        ""
+      }
+    }, error = function(e) "")
+
     v1_context_status(paste0(
       "[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] Running V1 (",
       V1_CONTEXTUALIZATION_VERSION, ") …"
@@ -6522,14 +6585,42 @@ server <- function(input, output, session) {
     v1_report_df(rep_df)
 
     pdf_note <- if (isTRUE(sm$pdf_skipped) || is.null(sm$pdf_path) || !nzchar(sm$pdf_path %||% "")) {
-      "PDF: skipped (install reportlab for RUO PDF stub)\n"
+      "PDF: skipped (pip install reportlab in PFAS Python env)\n"
     } else {
       paste0("PDF: ", sm$pdf_path, "\n")
     }
+    strata_note <- ""
+    if (!is.null(rep_df) && nrow(rep_df) > 0L && all(c("ad_status", "sex_stratum", "age_group_stratum") %in% names(rep_df))) {
+      in_dom <- rep_df[rep_df$ad_status == "in_domain", , drop = FALSE]
+      if (nrow(in_dom) > 0L) {
+        n_sex_all <- sum(in_dom$sex_stratum == "all", na.rm = TRUE)
+        n_age_all <- sum(in_dom$age_group_stratum == "all_ages", na.rm = TRUE)
+        analyte_tbl <- table(in_dom$analyte)
+        analyte_line <- paste(names(analyte_tbl), analyte_tbl, sep = "=", collapse = ", ")
+        strata_note <- paste0(
+          "Strata (in_domain): sex=all on ", n_sex_all, "/", nrow(in_dom),
+          " rows; age=all_ages on ", n_age_all, "/", nrow(in_dom),
+          " rows. Analytes: ", analyte_line, ".\n",
+          "Tip: add sex (1/2) and age_years to input for stratified percentiles.\n"
+        )
+      }
+    }
+    demo_note <- ""
+    if (!is.null(sm$input_demographics)) {
+      d <- sm$input_demographics
+      demo_note <- paste0(
+        "Input demographics: sex filled on ", d$n_with_sex %||% 0, "/", d$n_rows %||% sm$n_rows,
+        " rows; age_years on ", d$n_with_age_years %||% 0, "/", d$n_rows %||% sm$n_rows,
+        " rows.\n"
+      )
+    }
     v1_context_status(paste0(
+      preflight,
       "V1 run OK (run_id=", sm$run_id, ")\n",
       "Rows: ", sm$n_rows, " | in_domain: ", sm$n_in_domain,
       " | refused: ", sm$n_refused, "\n",
+      demo_note,
+      strata_note,
       "output_csv_sha256: ", sm$output_csv_sha256, "\n",
       "report: ", sm$csv_path, "\n",
       pdf_note,
@@ -6546,6 +6637,19 @@ server <- function(input, output, session) {
     cat(v1_context_status(), "\n")
   })
 
+  v1_report_preview_df <- function(df) {
+    preferred <- c(
+      "row_index", "sample_matrix", "analyte", "result_value", "ad_status", "ad_code",
+      "reference_cycle", "sex_stratum", "age_group_stratum",
+      "percentile", "bracket_low_pct", "bracket_high_pct",
+      "n_reference", "n_weighted", "pct_below_lod_reference",
+      "result_unit", "source_program", "ad_reason", "offending_field",
+      "imputed_below_lod_value_ng_per_mL", "query_below_imputed_lod", "lod_context_flag"
+    )
+    cols <- c(intersect(preferred, names(df)), setdiff(names(df), preferred))
+    df[, cols, drop = FALSE]
+  }
+
   output$tbl_v1_report <- DT::renderDataTable({
     df <- v1_report_df()
     if (is.null(df) || nrow(df) < 1L) {
@@ -6555,7 +6659,217 @@ server <- function(input, output, session) {
         options = list(dom = "t", paging = FALSE)
       ))
     }
-    DT::datatable(df, rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE))
+    show <- v1_report_preview_df(df)
+    DT::datatable(
+      show,
+      rownames = FALSE,
+      options = list(pageLength = 15, scrollX = TRUE)
+    )
+  })
+
+  # ------------------------------------------------------------------ #
+  # V2 cross-cycle temporal contextualization (src/v2/)                #
+  # ------------------------------------------------------------------ #
+
+  v2_runner_loaded <- reactiveVal(FALSE)
+  v2_context_status <- reactiveVal("Upload a V1.1 governed CSV (reference_cycle required), then click Run V2.")
+  v2_report_df <- reactiveVal(NULL)
+  v2_last_paths <- reactiveVal(list())
+
+  ensure_v2_runner_loaded <- function() {
+    if (isTRUE(v2_runner_loaded())) return(invisible(TRUE))
+    helper <- file.path(PROJECT_DIR, "scripts", "run_v2_contextualization.R")
+    if (!file.exists(helper)) {
+      v2_context_status(paste0("Missing ", helper))
+      return(invisible(FALSE))
+    }
+    source(helper, local = FALSE)
+    v2_runner_loaded(TRUE)
+    invisible(TRUE)
+  }
+
+  output$btn_download_v2_report_csv <- downloadHandler(
+    filename = function() {
+      p <- v2_last_paths()
+      if (!is.null(p$csv_path) && file.exists(p$csv_path)) {
+        return(basename(p$csv_path))
+      }
+      "v2_report.csv"
+    },
+    content = function(file) {
+      p <- v2_last_paths()
+      if (is.null(p$csv_path) || !file.exists(p$csv_path)) {
+        stop("No V2 report CSV available. Run contextualization first.")
+      }
+      file.copy(p$csv_path, file, overwrite = TRUE)
+    }
+  )
+
+  output$btn_download_v2_report_pdf <- downloadHandler(
+    filename = function() {
+      p <- v2_last_paths()
+      if (!is.null(p$pdf_path) && file.exists(p$pdf_path)) {
+        return(basename(p$pdf_path))
+      }
+      "v2_report.pdf"
+    },
+    content = function(file) {
+      p <- v2_last_paths()
+      if (is.null(p$pdf_path) || !file.exists(p$pdf_path)) {
+        stop("No V2 report PDF available. Run contextualization first.")
+      }
+      file.copy(p$pdf_path, file, overwrite = TRUE)
+    }
+  )
+
+  output$btn_download_v2_manifest <- downloadHandler(
+    filename = function() {
+      p <- v2_last_paths()
+      if (!is.null(p$manifest_path) && file.exists(p$manifest_path)) {
+        return(basename(p$manifest_path))
+      }
+      "v2_manifest.json"
+    },
+    content = function(file) {
+      p <- v2_last_paths()
+      if (is.null(p$manifest_path) || !file.exists(p$manifest_path)) {
+        stop("No V2 manifest available. Run contextualization first.")
+      }
+      file.copy(p$manifest_path, file, overwrite = TRUE)
+    }
+  )
+
+  observeEvent(input$btn_v2_run, {
+    req(input$v2_input_csv)
+    if (!ensure_v2_runner_loaded()) return()
+
+    upload_dir <- file.path(PROJECT_DIR, "data", "v2", "uploads")
+    out_dir <- file.path(PROJECT_DIR, "data", "v2", "outputs")
+    dir.create(upload_dir, recursive = TRUE, showWarnings = FALSE)
+    dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+    stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    in_path <- file.path(upload_dir, paste0("v2_upload_", stamp, ".csv"))
+    ok_copy <- file.copy(input$v2_input_csv$datapath, in_path, overwrite = TRUE)
+    if (!isTRUE(ok_copy)) {
+      v2_context_status("Failed to stage uploaded CSV for V2 run.")
+      return()
+    }
+
+    preflight <- tryCatch({
+      hdr <- names(utils::read.csv(in_path, nrows = 1L, check.names = FALSE))
+      if (!"reference_cycle" %in% hdr) {
+        paste0(
+          "V2 preflight: column 'reference_cycle' missing (required anchor I/J/P). ",
+          "Use data/v1/fixtures/nhanes_j_governed_v1_input.csv as a model.\n"
+        )
+      } else {
+        ""
+      }
+    }, error = function(e) "")
+
+    v2_context_status(paste0(
+      "[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] Running V2 (",
+      V2_CONTEXTUALIZATION_VERSION, ") …"
+    ))
+
+    res <- run_v2_serum_contextualization(
+      input_csv = in_path,
+      output_dir = out_dir,
+      project_root = PROJECT_DIR,
+      python_exec = input$pfas_python_exec %||% ""
+    )
+
+    if (!isTRUE(res$ok)) {
+      v2_context_status(paste0(
+        "V2 run FAILED: ", res$message, "\n\n",
+        res$log
+      ))
+      v2_report_df(NULL)
+      v2_last_paths(list())
+      append_pipeline_log("V2 contextualization: FAIL — ", res$message)
+      return()
+    }
+
+    sm <- res$summary
+    v2_last_paths(list(
+      csv_path = sm$csv_path,
+      pdf_path = sm$pdf_path,
+      manifest_path = sm$manifest_path,
+      run_id = sm$run_id,
+      output_csv_sha256 = sm$output_csv_sha256
+    ))
+
+    rep_df <- tryCatch(
+      utils::read.csv(sm$csv_path, stringsAsFactors = FALSE, check.names = FALSE),
+      error = function(e) NULL
+    )
+    v2_report_df(rep_df)
+
+    pdf_note <- if (is.null(sm$pdf_path) || !nzchar(sm$pdf_path %||% "")) {
+      "PDF: skipped\n"
+    } else {
+      paste0("PDF: ", sm$pdf_path, "\n")
+    }
+    demo_note <- ""
+    if (!is.null(sm$input_demographics)) {
+      d <- sm$input_demographics
+      demo_note <- paste0(
+        "Demographics: sex=", d$n_with_sex %||% 0, "/", d$n_rows %||% sm$n_rows,
+        " age=", d$n_with_age_years %||% 0,
+        " race=", d$n_with_race_ethnicity %||% 0, "\n"
+      )
+    }
+    v2_context_status(paste0(
+      preflight,
+      "V2 run OK (run_id=", sm$run_id, ")\n",
+      "Rows: ", sm$n_rows, " | in_domain: ", sm$n_in_domain,
+      " | refused: ", sm$n_refused, "\n",
+      "Cross-cycle shift >=15 pts: ", sm$n_cross_cycle_shift_ge_15 %||% 0, "\n",
+      demo_note,
+      "output_csv_sha256: ", sm$output_csv_sha256, "\n",
+      "report: ", sm$csv_path, "\n",
+      pdf_note,
+      "manifest: ", sm$manifest_path, "\n\n",
+      "Population cross-cycle comparison only — not individual longitudinal follow-up."
+    ))
+    append_pipeline_log(
+      "V2 contextualization OK run_id=", sm$run_id,
+      " sha256=", substr(sm$output_csv_sha256, 1, 16), "…"
+    )
+  })
+
+  output$v2_context_status <- renderPrint({
+    cat(v2_context_status(), "\n")
+  })
+
+  v2_report_preview_df <- function(df) {
+    preferred <- c(
+      "row_index", "analyte", "result_value", "anchor_cycle",
+      "percentile_cycle_I", "percentile_cycle_J", "percentile_cycle_P",
+      "anchor_percentile", "percentile_delta_J_minus_I", "percentile_delta_P_minus_J",
+      "sex_stratum", "age_group_stratum", "race_ethnicity_stratum",
+      "temporal_context_flag", "ad_status"
+    )
+    cols <- c(intersect(preferred, names(df)), setdiff(names(df), preferred))
+    df[, cols, drop = FALSE]
+  }
+
+  output$tbl_v2_report <- DT::renderDataTable({
+    df <- v2_report_df()
+    if (is.null(df) || nrow(df) < 1L) {
+      return(DT::datatable(
+        tibble::tibble(note = "No V2 report yet. Upload CSV and click Run V2."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE)
+      ))
+    }
+    show <- v2_report_preview_df(df)
+    DT::datatable(
+      show,
+      rownames = FALSE,
+      options = list(pageLength = 15, scrollX = TRUE)
+    )
   })
 
   # ------------------------------------------------------------------ #

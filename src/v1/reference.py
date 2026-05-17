@@ -81,8 +81,10 @@ class PercentileResult:
         reference_cycle: NHANES cycle label (I, J, P).
         sex: stratum sex label.
         age_group: stratum age label.
-        race_ethnicity: stratum race/ethnicity label (V1.1+; ``all`` when
-            not stratified).
+        race_ethnicity: resolved reference-table race stratum.
+        race_ethnicity_requested: granular input race label.
+        race_ethnicity_lookup: collapsed label used for table lookup.
+        race_stratum_fallback: True when lookup race was broader than resolved.
         bracket_low_pct / bracket_high_pct: percentile knot bracket
             used for interpolation (audit metadata).
     """
@@ -100,6 +102,9 @@ class PercentileResult:
     sex: str
     age_group: str
     race_ethnicity: str = "all"
+    race_ethnicity_requested: str = "all"
+    race_ethnicity_lookup: str = "all"
+    race_stratum_fallback: bool = False
     bracket_low_pct: float | None = None
     bracket_high_pct: float | None = None
 
@@ -284,6 +289,7 @@ class ReferenceEngine:
         sex: str = "all",
         age_group: str = "all_ages",
         race_ethnicity: str = "all",
+        race_ethnicity_requested: str | None = None,
         weighted: bool = True,  # noqa: ARG002 - always weighted; kept for API compat
     ) -> PercentileResult:
         """Return percentile context for one query concentration.
@@ -321,16 +327,25 @@ class ReferenceEngine:
                 f"{self.ontology.reference_cycles_available}"
             )
 
+        from .race_strata_policy import race_stratum_fallback as _race_fallback
+
+        lookup_race = race_ethnicity
+        requested_race = (
+            race_ethnicity_requested
+            if race_ethnicity_requested is not None
+            else race_ethnicity
+        )
+
         row = None
         resolved_sex = sex
         resolved_age = age_group
-        resolved_race = race_ethnicity if self._uses_race_strata else "all"
+        resolved_race = lookup_race if self._uses_race_strata else "all"
 
         if self._uses_race_strata:
             from .strata import stratum_lookup_candidates_v1_1
 
             candidates = stratum_lookup_candidates_v1_1(
-                sex, age_group, race_ethnicity
+                sex, age_group, lookup_race
             )
             for cand_sex, cand_age, cand_race in candidates:
                 try:
@@ -371,8 +386,13 @@ class ReferenceEngine:
                 f"(requested sex={sex!r}, age_group={age_group!r}"
             )
             if self._uses_race_strata:
-                msg += f", race_ethnicity={race_ethnicity!r}"
+                msg += f", race_ethnicity_lookup={lookup_race!r}"
             raise ReferenceStratumMissing(msg + ").")
+
+        did_race_fallback = (
+            self._uses_race_strata
+            and _race_fallback(lookup_race=lookup_race, resolved_race=resolved_race)
+        )
 
         knot_values = np.array(
             [float(row[c]) for c in _PERCENTILE_COLUMNS],
@@ -422,6 +442,9 @@ class ReferenceEngine:
             sex=resolved_sex,
             age_group=resolved_age,
             race_ethnicity=resolved_race,
+            race_ethnicity_requested=requested_race,
+            race_ethnicity_lookup=lookup_race,
+            race_stratum_fallback=did_race_fallback,
             bracket_low_pct=br_lo,
             bracket_high_pct=br_hi,
         )

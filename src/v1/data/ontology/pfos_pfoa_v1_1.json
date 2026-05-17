@@ -1,6 +1,6 @@
 {
   "ontology_id": "pfos_pfoa_v1_1",
-  "ontology_version": "1.1.0",
+  "ontology_version": "1.1.1",
   "issued": "2026-05-17",
   "status": "frozen",
   "scope": {
@@ -15,7 +15,7 @@
     "anchor_csv_path": "data/training/serum/nhanes_serum_pfas_2017_2018.csv",
     "anchor_csv_sha256": "dfd4dbb59128043e91870265acc15f91f673ec81ee3d00d91223022755e4490f",
     "reference_table_path": "data/reference_tables/nhanes_pfas_weighted_reference_tables_v1_1.csv",
-    "reference_table_sha256": "7cad0ffa7c9a76a0aa192e24f9fab86b739afd8891ad5dca35624e6a64a39f0e",
+    "reference_table_sha256": "fe195d6206d98d1e2281213fdc937dace468b57f9f8518bfca0e3496d0ba8f19",
     "default_reference_cycle": "J",
     "reference_cycles_available": ["I", "J", "P"],
     "demographic_strata": ["sex", "age_group", "race_ethnicity"],
@@ -36,8 +36,17 @@
       "nh_black",
       "nh_asian",
       "other",
+      "hispanic",
       "all"
-    ]
+    ],
+    "race_strata_policy": {
+      "min_n_unweighted": 20,
+      "hispanic_collapse": "RIDRETH3 codes 1 (Mexican American) and 2 (Other Hispanic) -> hispanic",
+      "reference_race_levels": ["all", "hispanic", "nh_white", "nh_black", "nh_asian", "other"],
+      "report_granular_requested": true,
+      "report_lookup_label": true,
+      "report_fallback_flag": true
+    }
   },
   "intent": "Contextualize serum PFOS/PFOA against weighted NHANES reference distributions with sex, age, and race/ethnicity strata when provided. Refusal-first, provenance-logged. Not diagnostic, not clinical, not regulatory.",
   "required_input_columns": {

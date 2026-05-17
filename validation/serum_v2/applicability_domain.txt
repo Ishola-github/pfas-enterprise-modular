@@ -1,0 +1,31 @@
+Lane:      serum (human biomonitoring)
+Version:   v2.0 (cross-cycle temporal contextualization)
+Builds on: V1.1 ontology + nhanes_pfas_weighted_reference_tables_v1_1.csv
+
+----------------------------------------------------------------
+In-domain inputs
+----------------------------------------------------------------
+
+All V1.1 in-domain requirements, plus:
+
+reference_cycle (required for V2)
+  - One of: I, J, P
+  - Selects anchor cycle for primary percentile and delta baseline
+  - Must appear in reference_cycles_available in the V2 ontology
+
+Comparison cycles (fixed in V2.0)
+  - I  = NHANES 2015-2016  (PFAS_I,  WTSB2YR)
+  - J  = NHANES 2017-2018  (PFAS_J,  WTSB2YR)
+  - P  = NHANES 2017-2020  (P_PFAS,  WTSBAPRP, pre-pandemic)
+
+Analytes (same as V1)
+  - n_pfoa, sb_pfoa, n_pfos, sm_pfos
+
+----------------------------------------------------------------
+Out of scope
+----------------------------------------------------------------
+
+- Cycle H (2013-2014) — isomer columns in SSPFAS_H; not harmonized to V1 four-isomer panel
+- Individual repeat measures / clinic longitudinal series
+- Environmental matrices
+- PFHxS, PFNA, and extended PFAS panel (V3+ ontology scope)

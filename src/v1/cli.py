@@ -39,6 +39,7 @@ from .strata import (
     input_demographics_summary,
     normalize_age_group,
     normalize_race_ethnicity,
+    normalize_race_ethnicity_lookup,
     normalize_reference_cycle,
     normalize_sex,
 )
@@ -99,6 +100,8 @@ def run_pipeline(
         row = input_rows[i]
         sex = normalize_sex(row)
         age_group = normalize_age_group(row)
+        race_requested = normalize_race_ethnicity(row)
+        race_lookup = normalize_race_ethnicity_lookup(row)
         cycle = normalize_reference_cycle(row, default_cycle=use_cycle)
         try:
             engine_results[i] = engine.percentile(
@@ -107,6 +110,8 @@ def run_pipeline(
                 cycle=cycle,
                 sex=sex,
                 age_group=age_group,
+                race_ethnicity=race_lookup,
+                race_ethnicity_requested=race_requested,
             )
         except ReferenceStratumMissing as exc:
             stratum_errors[i] = str(exc)
@@ -158,6 +163,16 @@ def run_pipeline(
         if o.validation.ad_status == "in_domain" and o.percentile is not None
     )
     n_ref = len(outcomes) - n_in
+    n_race_resolved = 0
+    n_race_fallback = 0
+    for o in outcomes:
+        pr = o.percentile
+        if pr is None:
+            continue
+        if pr.race_ethnicity_lookup != "all" and pr.race_ethnicity == pr.race_ethnicity_lookup:
+            n_race_resolved += 1
+        if pr.race_stratum_fallback:
+            n_race_fallback += 1
 
     return {
         "run_id": run_id,
@@ -170,6 +185,8 @@ def run_pipeline(
         "n_in_domain": n_in,
         "n_refused": n_ref,
         "input_demographics": demo_summary,
+        "n_race_stratum_resolved": n_race_resolved,
+        "n_race_stratum_fallback": n_race_fallback,
     }
 
 

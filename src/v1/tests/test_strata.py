@@ -58,6 +58,21 @@ def test_normalize_race_ridreth3():
     assert normalize_race_ethnicity({}) == "all"
 
 
+def test_race_lookup_collapse_hispanic():
+    from src.v1.strata import normalize_race_ethnicity_lookup
+
+    assert normalize_race_ethnicity_lookup({"race_ethnicity": "mexican_american"}) == "hispanic"
+    assert normalize_race_ethnicity_lookup({"race_ethnicity": "other_hispanic"}) == "hispanic"
+    assert normalize_race_ethnicity_lookup({"race_ethnicity": "nh_black"}) == "nh_black"
+
+
+def test_race_stratum_fallback_flag():
+    from src.v1.race_strata_policy import race_stratum_fallback
+
+    assert race_stratum_fallback(lookup_race="nh_asian", resolved_race="all") is True
+    assert race_stratum_fallback(lookup_race="hispanic", resolved_race="hispanic") is False
+
+
 def test_v1_1_stratum_fallback_includes_race():
     cands = stratum_lookup_candidates_v1_1("male", "20-39", "nh_black")
     assert cands[0] == ("male", "20-39", "nh_black")

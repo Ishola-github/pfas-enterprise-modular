@@ -50,7 +50,10 @@ REPORT_COLUMNS: tuple[str, ...] = (
 )
 
 REPORT_COLUMNS_V1_1: tuple[str, ...] = REPORT_COLUMNS + (
+    "race_ethnicity_requested",
+    "race_ethnicity_lookup",
     "race_ethnicity_stratum",
+    "race_stratum_fallback",
     "input_lod_code",
 )
 
@@ -134,7 +137,10 @@ def _empty_context_fields(*, v1_1: bool) -> dict[str, str]:
         "lod_context_flag": "",
     }
     if v1_1:
+        base["race_ethnicity_requested"] = ""
+        base["race_ethnicity_lookup"] = ""
         base["race_ethnicity_stratum"] = ""
+        base["race_stratum_fallback"] = ""
         base["input_lod_code"] = ""
     return base
 
@@ -212,7 +218,12 @@ def _row_to_csv_dict(
         "lod_context_flag": lod_flag,
     }
     if v1_1:
+        row_out["race_ethnicity_requested"] = pr.race_ethnicity_requested
+        row_out["race_ethnicity_lookup"] = pr.race_ethnicity_lookup
         row_out["race_ethnicity_stratum"] = pr.race_ethnicity
+        row_out["race_stratum_fallback"] = (
+            "true" if pr.race_stratum_fallback else "false"
+        )
         row_out["input_lod_code"] = "" if input_lod is None else str(input_lod)
     return row_out
 

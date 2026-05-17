@@ -41,7 +41,7 @@ REFERENCE_TABLE_V1_1_PATH = (
     "data/reference_tables/nhanes_pfas_weighted_reference_tables_v1_1.csv"
 )
 REFERENCE_TABLE_V1_1_SHA256 = (
-    "7cad0ffa7c9a76a0aa192e24f9fab86b739afd8891ad5dca35624e6a64a39f0e"
+    "fe195d6206d98d1e2281213fdc937dace468b57f9f8518bfca0e3496d0ba8f19"
 )
 
 REFERENCE_CSV_PATH = "data/training/serum/nhanes_serum_pfas_2017_2018.csv"

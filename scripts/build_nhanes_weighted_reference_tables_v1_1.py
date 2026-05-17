@@ -1,10 +1,10 @@
 """
 Build V1.1 weighted NHANES reference tables (sex × age × race/ethnicity).
 
-Extends the V1.0 official table with ``race_ethnicity`` strata from
-``RIDRETH3`` (NHANES DEMO). Rows with ``race_ethnicity=all`` match the
-V1.0 sex/age-only strata. Race-specific rows are emitted only when
-``n_unweighted >= MIN_N_RACE_STRATUM`` (default 30).
+Governed race policy (``src/v1/race_strata_policy.py``):
+  - Hispanic collapse: RIDRETH3 codes 1+2 -> ``hispanic``
+  - MIN_N_RACE_STRATUM = 20 for race-specific rows
+  - ``race_ethnicity=all`` rows always emitted (V1.0-compatible sex/age strata)
 
 Output: ``data/reference_tables/nhanes_pfas_weighted_reference_tables_v1_1.csv``
 """
@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import hashlib
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -19,21 +20,19 @@ import numpy as np
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-RIDRETH3_TO_LABEL: dict[int, str] = {
-    1: "mexican_american",
-    2: "other_hispanic",
-    3: "nh_white",
-    4: "nh_black",
-    6: "nh_asian",
-    7: "other",
-}
+from src.v1.race_strata_policy import (  # noqa: E402
+    MIN_N_RACE_STRATUM,
+    REFERENCE_RACE_LEVELS,
+    ridreth3_codes_for_reference_race,
+)
+
 RAW_ROOT = REPO_ROOT / "data" / "raw" / "nhanes"
 OUT_DIR = REPO_ROOT / "data" / "reference_tables"
 OUT_CSV = OUT_DIR / "nhanes_pfas_weighted_reference_tables_v1_1.csv"
 OUT_LOG = OUT_DIR / "nhanes_pfas_weighted_reference_tables_v1_1.log"
-
-MIN_N_RACE_STRATUM = 30
 
 ANALYTES: List[Tuple[str, str, str]] = [
     ("n_pfoa", "LBXNFOA", "LBDNFOAL"),
@@ -57,16 +56,6 @@ AGE_GROUPS: List[Tuple[str, int, int]] = [
 ]
 
 SEX_LEVELS: Dict[str, str] = {"1": "male", "2": "female", "all": "all"}
-
-RACE_LEVELS: Tuple[str, ...] = (
-    "all",
-    "mexican_american",
-    "other_hispanic",
-    "nh_white",
-    "nh_black",
-    "nh_asian",
-    "other",
-)
 
 PERCENTILES = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
 PERCENTILE_LABELS = ["p5", "p10", "p25", "p50", "p75", "p90", "p95"]
@@ -101,14 +90,13 @@ def _weighted_quantiles(values: np.ndarray, weights: np.ndarray, qs: List[float]
     return [float(np.interp(q, pos, v)) for q in qs]
 
 
-def _race_label(series: pd.Series) -> pd.Series:
-    def _one(v: object) -> str:
-        if pd.isna(v):
-            return ""
-        code = int(float(v))
-        return RIDRETH3_TO_LABEL.get(code, "")
-
-    return series.map(_one)
+def _race_mask(df: pd.DataFrame, race_label: str) -> pd.Series:
+    if race_label == "all":
+        return pd.Series(True, index=df.index)
+    codes = ridreth3_codes_for_reference_race(race_label)
+    if not codes:
+        return pd.Series(False, index=df.index)
+    return df["RIDRETH3"].isin([float(c) for c in codes])
 
 
 def _load_cycle(cycle_dir: str, pfas_fname: str, demo_fname: str, weight_col: str) -> pd.DataFrame:
@@ -118,7 +106,6 @@ def _load_cycle(cycle_dir: str, pfas_fname: str, demo_fname: str, weight_col: st
     demo = pd.read_sas(RAW_ROOT / cycle_dir / demo_fname, format="xport")
     demo = demo[["SEQN", "RIAGENDR", "RIDAGEYR", "RIDRETH3"]]
     merged = pfas.merge(demo, on="SEQN", how="inner")
-    merged["race_ethnicity"] = _race_label(merged["RIDRETH3"])
     return merged
 
 
@@ -131,6 +118,7 @@ def main() -> int:
         log_lines.append(line)
 
     log(f"{_ts()}  START  build_nhanes_weighted_reference_tables_v1_1")
+    log(f"{_ts()}  MIN_N_RACE_STRATUM={MIN_N_RACE_STRATUM}  REFERENCE_RACE_LEVELS={REFERENCE_RACE_LEVELS}")
     rows: List[Dict[str, object]] = []
 
     for cycle_dir, cycle_label, pfas_fname, demo_fname, weight_col in CYCLES:
@@ -148,30 +136,29 @@ def main() -> int:
                 log(f"{_ts()}    WARN: {analyte_id} missing in {cycle_label}")
                 continue
             for sex_code, sex_label in SEX_LEVELS.items():
-                sex_mask = pd.Series(True, index=df.index) if sex_code == "all" else df["RIAGENDR"] == float(sex_code)
+                sex_mask = (
+                    pd.Series(True, index=df.index)
+                    if sex_code == "all"
+                    else df["RIAGENDR"] == float(sex_code)
+                )
                 for age_label, age_lo, age_hi in AGE_GROUPS:
                     age_mask = (df["RIDAGEYR"] >= age_lo) & (df["RIDAGEYR"] <= age_hi)
-                    for race_label in RACE_LEVELS:
-                        if race_label == "all":
-                            race_mask = pd.Series(True, index=df.index)
-                        else:
-                            race_mask = df["race_ethnicity"] == race_label
-                        sub = df[sex_mask & age_mask & race_mask]
+                    for race_label in REFERENCE_RACE_LEVELS:
+                        sub = df[sex_mask & age_mask & _race_mask(df, race_label)]
+                        vals = sub[val_col].to_numpy(dtype=float)
+                        wts = sub[weight_col].to_numpy(dtype=float)
                         n_unweighted = int(
-                            np.sum(
-                                ~np.isnan(sub[val_col].to_numpy(dtype=float))
-                                & (sub[weight_col].to_numpy(dtype=float) > 0)
-                            )
+                            np.sum(~np.isnan(vals) & ~np.isnan(wts) & (wts > 0))
                         )
                         if race_label != "all" and n_unweighted < MIN_N_RACE_STRATUM:
                             continue
-                        vals = sub[val_col].to_numpy(dtype=float)
-                        wts = sub[weight_col].to_numpy(dtype=float)
                         pcts = _weighted_quantiles(vals, wts, PERCENTILES)
                         n_weighted = float(np.nansum(wts[~np.isnan(vals) & (wts > 0)]))
                         if flag_col in sub.columns and n_unweighted > 0:
                             flag_vals = sub[flag_col].dropna()
-                            pct_lod = float((flag_vals == 1).mean()) if len(flag_vals) else float("nan")
+                            pct_lod = (
+                                float((flag_vals == 1).mean()) if len(flag_vals) else float("nan")
+                            )
                         else:
                             pct_lod = float("nan")
                         row: Dict[str, object] = {

@@ -24,23 +24,18 @@ def _cell_str(value: Any) -> str:
     return str(value).strip()
 
 
-# NHANES RIDRETH3 (2017-2018 DEMO) -> governed V1.1 labels.
-RIDRETH3_TO_LABEL: dict[int, str] = {
-    1: "mexican_american",
-    2: "other_hispanic",
-    3: "nh_white",
-    4: "nh_black",
-    6: "nh_asian",
-    7: "other",
-}
+from .race_strata_policy import (
+    COLLAPSE_TO_LOOKUP,
+    GRANULAR_RACE_LABELS,
+    RIDRETH3_TO_GRANULAR,
+    collapse_race_for_lookup,
+)
 
-RACE_ETHNICITY_LABELS: tuple[str, ...] = (
-    "mexican_american",
-    "other_hispanic",
-    "nh_white",
-    "nh_black",
-    "nh_asian",
-    "other",
+# Backward-compatible alias.
+RIDRETH3_TO_LABEL = RIDRETH3_TO_GRANULAR
+
+RACE_ETHNICITY_LABELS: tuple[str, ...] = GRANULAR_RACE_LABELS + (
+    "hispanic",
     "all",
 )
 
@@ -133,21 +128,26 @@ def normalize_reference_cycle(
 
 
 def normalize_race_ethnicity(row: Mapping[str, Any]) -> str:
-    """Return a reference-table race_ethnicity label or ``all``."""
+    """Return granular race/ethnicity label for reporting (``all`` if missing)."""
     for key in ("race_ethnicity", "ridreth3"):
         if key not in row or _missing(row[key]):
             continue
         raw = _cell_str(row[key])
-        if raw in RACE_ETHNICITY_LABELS:
-            return raw
+        if raw in GRANULAR_RACE_LABELS or raw in ("hispanic", "all"):
+            return raw if raw != "all" else "all"
         try:
             code = int(float(raw))
         except (TypeError, ValueError):
             continue
-        label = RIDRETH3_TO_LABEL.get(code)
+        label = RIDRETH3_TO_GRANULAR.get(code)
         if label:
             return label
     return "all"
+
+
+def normalize_race_ethnicity_lookup(row: Mapping[str, Any]) -> str:
+    """Return collapsed race label used for V1.1 reference-table lookup."""
+    return collapse_race_for_lookup(normalize_race_ethnicity(row))
 
 
 def stratum_lookup_candidates(sex: str, age_group: str) -> list[tuple[str, str]]:

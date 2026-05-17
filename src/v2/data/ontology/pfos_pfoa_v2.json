@@ -1,0 +1,106 @@
+{
+  "ontology_id": "pfos_pfoa_v2",
+  "ontology_version": "2.0.0",
+  "issued": "2026-05-17",
+  "status": "frozen",
+  "scope": {
+    "matrix": "human_serum",
+    "matrix_isolation": "human_serum_only",
+    "analyte_family": ["PFOA", "PFOS"],
+    "isomer_resolution": "all_four_isomer_columns",
+    "concentration_units": "ng/mL",
+    "source_program": "CDC NHANES",
+    "anchor_cycle": "J (2017-2018)",
+    "anchor_governance_directory": "validation/serum_v1",
+    "anchor_csv_path": "data/training/serum/nhanes_serum_pfas_2017_2018.csv",
+    "anchor_csv_sha256": "dfd4dbb59128043e91870265acc15f91f673ec81ee3d00d91223022755e4490f",
+    "v1_ontology_path": "src/v1/data/ontology/pfos_pfoa_v1_1.json",
+    "reference_table_path": "data/reference_tables/nhanes_pfas_weighted_reference_tables_v1_1.csv",
+    "reference_table_sha256": "fe195d6206d98d1e2281213fdc937dace468b57f9f8518bfca0e3496d0ba8f19",
+    "default_reference_cycle": "J",
+    "reference_cycles_available": ["I", "J", "P"],
+    "comparison_cycles": ["I", "J", "P"],
+    "temporal_policy": {
+      "percentile_shift_warn_threshold": 15.0,
+      "adjacent_deltas": ["J_minus_I", "P_minus_J"],
+      "cycle_P_label": "2017-2020 pre-pandemic (WTSBAPRP)",
+      "population_reference_only": true
+    }
+  },
+  "intent": "Cross-cycle population-reference contextualization for serum PFOS/PFOA. Compare weighted percentile context across NHANES cycles I, J, and P for the same demographic stratum. Not individual longitudinal follow-up.",
+  "required_input_columns": {
+    "sample_matrix": {"role": "matrix_assertion", "expected_value": "human_serum"},
+    "result_unit": {"role": "unit_assertion", "expected_value": "ng/mL"},
+    "source_program": {"role": "source_assertion", "expected_value": "CDC NHANES"},
+    "analyte": {"role": "analyte_id_pointer"},
+    "result_value": {"role": "numeric_concentration", "dtype": "float64", "nullable": false},
+    "reference_cycle": {"role": "anchor_cycle", "allowed": ["I", "J", "P"]}
+  },
+  "optional_input_columns": {
+    "sex": {"role": "demographic_sex"},
+    "age_years": {"role": "demographic_age"},
+    "race_ethnicity": {"role": "demographic_race"},
+    "lod_code": {"role": "below_lod_flag"}
+  },
+  "analytes": [
+    {
+      "analyte_id": "n_pfoa",
+      "analyte_label": "n-PFOA",
+      "analyte_family": "PFOA",
+      "isomer_class": "linear",
+      "units": "ng/mL",
+      "reference_value_column": "lbxnfoa",
+      "reference_lod_code_column": "lbdnfoal"
+    },
+    {
+      "analyte_id": "sb_pfoa",
+      "analyte_label": "Sb-PFOA",
+      "analyte_family": "PFOA",
+      "isomer_class": "branched_sum",
+      "units": "ng/mL",
+      "reference_value_column": "lbxbfoa",
+      "reference_lod_code_column": "lbdbfoal"
+    },
+    {
+      "analyte_id": "n_pfos",
+      "analyte_label": "n-PFOS",
+      "analyte_family": "PFOS",
+      "isomer_class": "linear",
+      "units": "ng/mL",
+      "reference_value_column": "lbxnfos",
+      "reference_lod_code_column": "lbdnfosl"
+    },
+    {
+      "analyte_id": "sm_pfos",
+      "analyte_label": "Sm-PFOS",
+      "analyte_family": "PFOS",
+      "isomer_class": "branched_sum",
+      "units": "ng/mL",
+      "reference_value_column": "lbxmfos",
+      "reference_lod_code_column": "lbdmfosl"
+    }
+  ],
+  "refusal_catalog": [
+    {"code": "matrix_not_serum", "trigger": "matrix", "human_text": "Serum-only."},
+    {"code": "analyte_not_in_pfos_pfoa_scope", "trigger": "analyte", "human_text": "Analyte out of scope."},
+    {"code": "missing_units", "trigger": "units", "human_text": "Missing units."},
+    {"code": "units_not_ng_per_mL", "trigger": "units", "human_text": "Units not ng/mL."},
+    {"code": "missing_source_program", "trigger": "source", "human_text": "Missing source."},
+    {"code": "missing_result_value", "trigger": "value", "human_text": "Missing value."},
+    {"code": "missing_reference_cycle", "trigger": "reference_cycle", "human_text": "V2 requires reference_cycle (I, J, or P)."},
+    {"code": "reference_table_drifted", "trigger": "sha256", "human_text": "Reference table drifted."},
+    {"code": "reference_stratum_missing", "trigger": "stratum", "human_text": "Stratum missing."}
+  ],
+  "non_claims": [
+    "V2 does not track the same individual across survey cycles.",
+    "V2 does not infer causal temporal trends in individual exposure.",
+    "V2 does not return a diagnosis or clinical interpretation.",
+    "V2 does not return a regulatory compliance determination.",
+    "V2 cross-cycle deltas are population-reference comparisons only.",
+    "Cycle P comparisons carry pre-pandemic weighting caveats."
+  ],
+  "reproducibility": {
+    "deterministic_replay": "Same input, V2 ontology, V1.1 reference table, and code version yield the same output_hash.",
+    "v1_independence": "V2 run_id and output_hash differ from V1.1 for the same input by design."
+  }
+}

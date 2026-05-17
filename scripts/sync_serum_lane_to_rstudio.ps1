@@ -33,8 +33,12 @@ Ensure-Dir (Join-Path $Dst "validation\serum_v1")
 Ensure-Dir (Join-Path $Dst "data\external\nist_pfas")
 Ensure-Dir (Join-Path $Dst "data\reference\nist\srm1957")
 
-# Python V1 package
-Copy-Item -Recurse -Force (Join-Path $Src "src\v1") (Join-Path $Dst "src\v1")
+# Python V1 package (remove dest first — Copy-Item into existing dir nests src\v1\v1)
+$v1Dst = Join-Path $Dst "src\v1"
+if (Test-Path $v1Dst) {
+    Remove-Item -Recurse -Force $v1Dst
+}
+Copy-Item -Recurse -Force (Join-Path $Src "src\v1") $v1Dst
 if (Test-Path (Join-Path $Src "src\__init__.py")) {
     Copy-Item -Force (Join-Path $Src "src\__init__.py") (Join-Path $Dst "src\__init__.py")
 }
@@ -49,6 +53,8 @@ if (Test-Path (Join-Path $Src "src\__init__.py")) {
     "enrich_v1_input_demographics.py",
     "build_v1_governed_input_from_nhanes.py",
     "build_nhanes_weighted_reference_tables_v1_1.py",
+    "run_v2_contextualization.R",
+    "smoke_v2_shiny_integration.R",
     "confirm_nhanes_downloads.ps1",
     "download_nhanes_pfas.ps1"
 ) | ForEach-Object {
@@ -58,7 +64,28 @@ if (Test-Path (Join-Path $Src "src\__init__.py")) {
 
 # Governance + data
 Copy-Item -Recurse -Force (Join-Path $Src "validation\serum_v1") (Join-Path $Dst "validation\serum_v1")
-Copy-Item -Recurse -Force (Join-Path $Src "data\v1") (Join-Path $Dst "data\v1")
+if (Test-Path (Join-Path $Src "validation\serum_v2")) {
+    Copy-Item -Recurse -Force (Join-Path $Src "validation\serum_v2") (Join-Path $Dst "validation\serum_v2")
+}
+$v2Dst = Join-Path $Dst "src\v2"
+if (Test-Path (Join-Path $Src "src\v2")) {
+    if (Test-Path $v2Dst) { Remove-Item -Recurse -Force $v2Dst }
+    Copy-Item -Recurse -Force (Join-Path $Src "src\v2") $v2Dst
+}
+$v1DataDst = Join-Path $Dst "data\v1"
+if (Test-Path $v1DataDst) {
+    Get-ChildItem $v1DataDst -Exclude "outputs" | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+}
+Copy-Item -Recurse -Force (Join-Path $Src "data\v1\templates") (Join-Path $Dst "data\v1\templates")
+Copy-Item -Recurse -Force (Join-Path $Src "data\v1\fixtures") (Join-Path $Dst "data\v1\fixtures")
+if (Test-Path (Join-Path $Src "data\v2")) {
+    $v2Dst = Join-Path $Dst "data\v2"
+    Ensure-Dir (Join-Path $v2Dst "outputs")
+    Ensure-Dir (Join-Path $v2Dst "uploads")
+    if (Test-Path (Join-Path $Src "data\v2\fixtures")) {
+        Copy-Item -Recurse -Force (Join-Path $Src "data\v2\*") $v2Dst -ErrorAction SilentlyContinue
+    }
+}
 Copy-Item -Force (Join-Path $Src "data\config\matrix_pipeline_sop.csv") (Join-Path $Dst "data\config\matrix_pipeline_sop.csv")
 
 Get-ChildItem (Join-Path $Src "data\training\serum") -File | ForEach-Object {
