@@ -21,16 +21,18 @@
 
 ## Minimum ingestion contract (pre-implementation)
 
-Required fields before any contextualization:
-- analyte identifier
-- numeric concentration
-- concentration unit
-- sample matrix (serum/plasma)
-- cohort/site identifier
-- record-level or batch-level provenance
+Full field priorities: `FIELD_CONTRACT.md`.  
+Download targets: `ACQUISITION_TARGETS.md`.
 
-Optional but strongly preferred:
-- sex
-- age
-- race/ethnicity (if published)
-- collection window and method metadata
+**Required** before contextualization:
+
+- serum PFAS concentration, analyte, units, matrix
+- cohort/site identifier, collection year/window, LOD flags
+- record-level provenance (source file + SHA)
+
+**Strongly preferred:** sex, age, race/ethnicity, PFOS/PFOA/PFHxS/PFNA, water-source linkage.
+
+**Allowed uses:** cohort contextualization, NHANES deviation scoring, percentile shift,
+exposure clustering, hotspot profiling (RUO).
+
+**Forbidden:** disease prediction, black-box ML, health-outcome inference, pooling into NHANES reference tables.

@@ -12,6 +12,11 @@ Compare two governed cohort summary outputs using the same key strata:
 This supports external validation questions such as:
 "How does exposed cohort context differ from NHANES baseline context?"
 
+**Note:** Comparing two cohort summaries (e.g. NHANES-derived vs ATSDR-derived) is
+**step 1**. The planned **multi-reference percentile engine**
+(`validation/serum_multi_reference_v1/`) will attach **multiple reference layers**
+(NHANES + ATSDR + HBM4EU) to one cohort without pooling reference distributions.
+
 ## Inputs
 
 Two CSVs, each produced by governed cohort summarization flow

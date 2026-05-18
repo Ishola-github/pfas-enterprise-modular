@@ -1,0 +1,14 @@
+PFAS Enterprise 5.0 — Multi-reference percentile comparison (RUO)
+
+INTENDED USE
+- Research and operational support for comparing serum PFAS results against
+  multiple pinned population reference layers (NHANES baseline; ATSDR exposed
+  communities when available; HBM4EU when harmonized).
+- Manifest-backed, reproducible cross-reference deviation reporting.
+
+NOT INTENDED FOR
+- Clinical diagnosis, treatment decisions, or individual medical risk classification.
+- Regulatory compliance determination or litigation outcome prediction.
+- Automated disease or health-outcome inference.
+
+All outputs require qualified human review and RUO labeling.

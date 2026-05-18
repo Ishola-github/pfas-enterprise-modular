@@ -1,0 +1,8 @@
+HBM4EU harmonized serum PFAS reference data — pending acquisition.
+
+No European HBM cohort files have been ingested into PFAS Enterprise 5.0.
+Do not use this lane for contextualization until registry rows replace this notice
+with pinned raw file paths and SHA-256 values.
+
+Official portal: https://www.hbm4eu.eu/
+Dashboard: https://hbm.vito.be/eu-hbm-dashboard

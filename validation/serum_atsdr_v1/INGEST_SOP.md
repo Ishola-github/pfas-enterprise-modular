@@ -7,11 +7,19 @@ Status: scaffold. Execute only when ATSDR downloadable artifacts are confirmed.
 
 ## 1) Source confirmation
 
+Use **Exposure Assessment** biomonitoring sources only (not generic toxicology docs).
+See `ACQUISITION_TARGETS.md` for the full download list.
+
 1. Confirm source URL(s):
-   - https://www.atsdr.cdc.gov/pfas/activities/assessments/index.html
+   - https://www.atsdr.cdc.gov/pfas/exposure-assessments/index.html
+   - https://www.atsdr.cdc.gov/pfas/final-report/index.html
    - https://www.atsdr.cdc.gov/pfas/docs/PFAS-EA-Final-Report-508.pdf
+   - https://www.atsdr.cdc.gov/pfas/docs/PFAS-EA-Final-Report-Appendices-508.pdf
+   - https://www.atsdr.cdc.gov/pfas/docs/pfas-exposure-assessment-protocol-508.pdf
+   - Per-site pages under `…/pfas/exposure-assessments/<site>.html`
 2. Record acquisition date and downloader identity.
 3. Capture license/use terms at time of download.
+4. Classify each file: row-level serum (P0), summary table (P1), narrative only (P3).
 
 ## 2) Raw staging structure
 
@@ -48,20 +56,21 @@ Only row-level serum records may enter harmonization flow.
 
 ## 5) Harmonization contract (staging -> harmonized)
 
-Map input columns to governed serum schema fields:
+Map input columns per `FIELD_CONTRACT.md` (required + preferred fields).
 
-- `analyte`
-- `result_value`
-- `result_unit`
-- `sample_matrix`
+Minimum governed fields:
+
+- `analyte`, `result_value`, `result_unit`, `sample_matrix`
 - `source_program` (set to `ATSDR PFAS EA`)
+- `cohort_id` / `source_site`, collection year/window, LOD flags
 - optional demographics (`sex`, `age_years`, `race_ethnicity`)
+- optional drinking-water linkage fields (env metadata; not serum AD)
 
 Explicitly document:
 
 - unit conversions,
 - non-detect handling/LOD conventions,
-- analyte-name crosswalk decisions.
+- analyte-name crosswalk decisions (PFOS, PFOA, PFHxS, PFNA priority).
 
 ## 6) Separation and non-pooling rule
 

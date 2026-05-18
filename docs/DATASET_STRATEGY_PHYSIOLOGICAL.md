@@ -1,6 +1,6 @@
 # PFAS Enterprise 5.0 — Physiological dataset strategy (governed)
 
-**Revision:** 1.0 · **Date:** 2026-05-17  
+**Revision:** 1.2 · **Date:** 2026-05-18  
 **Status:** RUO planning document — not a data catalog commit  
 **Related:** [GOVERNANCE.md](GOVERNANCE.md), [RELEASES.md](RELEASES.md), `validation/serum_demo_v1/`
 
@@ -28,19 +28,41 @@ PFAS Enterprise 5.0 prioritizes datasets that support **population-reference con
 
 ---
 
+## Reference-layer architecture (core design)
+
+```text
+NHANES  = baseline U.S. population (weighted percentiles)
+ATSDR   = exposed-community validation (PFAS Exposure Assessments)
+HBM4EU  = international harmonized comparison
+UCMR5   = environmental exposure linkage (separate matrix lane)
+```
+
+**Product direction:** governed PFAS **exposure contextualization infrastructure** — not PFAS disease-prediction AI.
+
+**Next technical capability (planned):** multi-reference percentile comparison — one cohort scored against each pinned reference layer without pooling distributions. See `validation/serum_multi_reference_v1/SPEC.md`.
+
 ## Tier architecture (recommended)
 
 | Layer | Role | Primary dataset(s) | PFAS Enterprise status |
 |-------|------|-------------------|------------------------|
 | **Reference contextualization** | Weighted population percentiles | **NHANES** (cycles I, J, P; PFOS/PFOA isomers) | **Operational** — V1.1 + V2, pinned ref table |
 | **Temporal contextualization** | Cross-cycle population comparison | **NHANES** repeated cycles | **Operational** — V2 |
-| **External validation** | Non-NHANES general vs exposed contrast | **ATSDR PFAS exposure assessments** | **Scaffolded** — `validation/serum_atsdr_v1/` + ingest SOP |
-| **International validation** | Cross-country harmonized HBM | **HBM4EU / IPCHEM** | **Planned** — harmonization artifact required |
-| **High-burden cohorts** | Exposure-gradient / litigation-adjacent RUO | **C8 Health Project**, **Pease (NH)** | **Future** — messy; ontology per cohort |
-| **Occupational / adolescent** | Subgroup analytics | **HBM4EU** | **Future** |
-| **Reference framing (non-ML)** | Context thresholds, not training | **National Academies** biomonitoring chapter | **Citation only** — no ingestion without license review |
+| **External validation** | Exposed communities vs NHANES | **ATSDR PFAS Exposure Assessments** | **Scaffolded** — `validation/serum_atsdr_v1/` |
+| **International validation** | Cross-country harmonized HBM | **HBM4EU / IPCHEM / VITO dashboard** | **Scaffolded** — `validation/serum_hbm4eu_v1/` |
+| **Environmental linkage** | Drinking-water occurrence context | **UCMR5** | **Separate matrix lane** — not serum AD |
+| **High-burden cohorts** | Exposure-gradient / litigation-adjacent RUO | **C8**, **Pease (NH)** | **Future** — ontology per cohort |
+| **Reference framing (non-ML)** | Context thresholds, not training | **National Academies** | **Citation only** |
 
 **Do not** merge tiers into one training table without a documented harmonization artifact, ontology version bump, and new release tag.
+
+## Strict ML / analytics policy (physiological lane)
+
+| Allowed | Forbidden |
+|---------|-----------|
+| Cohort contextualization, percentile shift | Disease / outcome prediction |
+| NHANES deviation scoring, exposure clustering | Black-box ML on pooled multi-source tables |
+| Hotspot profiling, demographic-normalized contrast | Health-outcome inference |
+| Cross-cohort and multi-reference comparison (RUO) | Using ATSDR as NHANES reference replacement |
 
 ---
 
@@ -67,20 +89,27 @@ PFAS Enterprise 5.0 prioritizes datasets that support **population-reference con
 | Builder | `scripts/build_nhanes_weighted_reference_tables_v1_1.py` |
 | Engines | `src/v1/`, `src/v2/` |
 
-### ATSDR context (population stats — not a substitute for NHANES joins)
+### ATSDR context (narrative only — not acquisition target)
 
-- [ATSDR PFAS facts & stats](https://www.atsdr.cdc.gov/pfas/data-research/facts-stats/index.html) — useful for narrative; governed analytics use NHANES microdata.
+- [ATSDR PFAS facts & stats](https://www.atsdr.cdc.gov/pfas/data-research/facts-stats/index.html) — summary narrative; **not** row-level serum for ML.
 
 ---
 
-## Tier 2 — ATSDR PFAS exposure assessments (next external-validation priority)
+## Tier 2 — ATSDR PFAS Exposure Assessments (next external-validation priority)
 
-**Why:** Real exposed communities vs general population — supports contrast analytics and pilot consulting narratives.
+**Why:** Real human serum PFAS in exposed communities; drinking-water-linked exposure; demographics; ATSDR already contrasts to NHANES in published EA analyses.
 
-### Sources
+**Lane role:** high-exposure cohort validation — **not** baseline population reference.
 
-- [ATSDR PFAS exposure assessments](https://www.atsdr.cdc.gov/pfas/activities/assessments/index.html)
-- [PFAS Exposure Assessments — final report (PDF)](https://www.atsdr.cdc.gov/pfas/docs/PFAS-EA-Final-Report-508.pdf)
+### Sources (acquire these — not generic toxicology pages)
+
+- [PFAS Exposure Assessments](https://www.atsdr.cdc.gov/pfas/exposure-assessments/index.html)
+- [Final report — ten sites](https://www.atsdr.cdc.gov/pfas/final-report/index.html)
+- [Final report PDF](https://www.atsdr.cdc.gov/pfas/docs/PFAS-EA-Final-Report-508.pdf)
+- [Appendices PDF](https://www.atsdr.cdc.gov/pfas/docs/PFAS-EA-Final-Report-Appendices-508.pdf)
+- [EA protocol PDF](https://www.atsdr.cdc.gov/pfas/docs/pfas-exposure-assessment-protocol-508.pdf)
+
+Governance: `validation/serum_atsdr_v1/ACQUISITION_TARGETS.md`, `FIELD_CONTRACT.md`
 
 ### Integration policy (before any ingest)
 
@@ -96,13 +125,16 @@ PFAS Enterprise 5.0 prioritizes datasets that support **population-reference con
 
 ## Tier 3 — HBM4EU (European harmonized HBM)
 
-**Why:** Best public European harmonized biomonitoring; cross-country and occupational angles.
+**Why:** Harmonized European biomonitoring; occupational and multi-country serum PFAS distributions.
 
 ### Sources
 
-- [HBM4EU initiative (Umweltbundesamt)](https://www.umweltbundesamt.de/en/topics/health/assessing-environmentally-related-health-risks/human-biomonitoring-in-europe/hbm4eu-european-human-biomonitoring-initiative)
+- [HBM4EU portal](https://www.hbm4eu.eu/)
 - [HBM4EU PFAS substances](https://www.hbm4eu.eu/hbm4eu-substances/per-polyfluorinated-compounds/)
+- [European HBM Dashboard (VITO)](https://hbm.vito.be/eu-hbm-dashboard)
 - [IPCHEM HBM4EU portal](https://ipchem.jrc.ec.europa.eu/hbm4eu_overview.html)
+
+Scaffold: `validation/serum_hbm4eu_v1/`
 
 ### Integration policy
 
@@ -149,15 +181,25 @@ PFAS Enterprise 5.0 prioritizes datasets that support **population-reference con
 
 ---
 
+## Dataset ranking for governed contextualization (now)
+
+| Rank | Dataset | Best use |
+|------|---------|----------|
+| 1 | NHANES | Baseline physiological contextualization |
+| 2 | ATSDR EA | Exposed-cohort comparison |
+| 3 | HBM4EU | International comparison |
+| 4 | C8 | Longitudinal exposure research |
+| 5 | UCMR5 | Environmental linkage |
+
 ## Best public ecosystem (strict summary)
 
 ```text
-NHANES  +  ATSDR exposure cohorts  +  HBM4EU
+NHANES  +  ATSDR Exposure Assessments  +  HBM4EU  (+ UCMR5 for env linkage)
 ```
 
-That triad is large, physiologically meaningful, demographically rich, and suitable for **governed contextualization** — if kept in **separate lanes** with pinned provenance.
+That triad is suitable for **governed contextualization** only in **separate lanes** with pinned provenance.
 
-Most PFAS tools do not operationalize NHANES correctly. PFAS Enterprise 5.0 **already does** for cycles I/J/P (PFOS/PFOA isomers). The disciplined expansion path is **ATSDR external validation**, not more NHANES features.
+NHANES is operational (V1.1 + V2). Next disciplined steps: **ATSDR P0 row-level acquisition**, then **multi-reference percentile engine** (`validation/serum_multi_reference_v1/`).
 
 ---
 
@@ -190,3 +232,4 @@ Before adding any new physiological dataset:
 |-----|------|--------|
 | 1.0 | 2026-05-17 | Initial physiological dataset tier strategy |
 | 1.1 | 2026-05-18 | Added ATSDR lane scaffold + ingest SOP + registry protocol row |
+| 1.2 | 2026-05-18 | Multi-reference architecture; ATSDR EA acquisition targets; HBM4EU scaffold; ML policy |

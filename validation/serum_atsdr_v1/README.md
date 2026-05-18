@@ -12,10 +12,21 @@ Status: **spec-only scaffold**. No ATSDR raw dataset has been ingested yet.
 - Define acquisition controls before any download, transform, or merge.
 - Preserve RUO and matrix-isolation discipline.
 
+## Lane role
+
+```text
+NHANES = baseline U.S. population reference
+ATSDR  = high-exposure community validation (this lane)
+```
+
+Official hub: [PFAS Exposure Assessments](https://www.atsdr.cdc.gov/pfas/exposure-assessments/index.html)
+
 ## Governance files
 
 | File | Role |
 |------|------|
+| `ACQUISITION_TARGETS.md` | What to download (serum EA data, not toxicology docs) |
+| `FIELD_CONTRACT.md` | Required/preferred fields and allowed analytical uses |
 | `INTENDED_USE.txt` | Permitted and prohibited use statements |
 | `limitations.md` | Binding non-claims and caveats |
 | `scope.md` | Lane boundaries and output expectations |

@@ -158,12 +158,27 @@ Permitted framing: population-reference contextualization, research analytics, e
 
 ## 12. Physiological dataset strategy
 
-Tiered public dataset policy (NHANES operational; ATSDR / HBM4EU planned):  
+Tiered public dataset policy (NHANES operational; ATSDR / HBM4EU scaffolded):  
 [DATASET_STRATEGY_PHYSIOLOGICAL.md](DATASET_STRATEGY_PHYSIOLOGICAL.md)
+
+**Reference-layer model:**
+
+```text
+NHANES  → baseline population percentiles
+ATSDR   → exposed-community validation (PFAS Exposure Assessments)
+HBM4EU  → international comparison
+UCMR5   → environmental linkage (non-serum matrix)
+```
 
 **Rule:** New physiological cohorts require a **separate governed lane** — never silent merges into NHANES reference tables.
 
-## 13. Key paths
+**Analytics policy:** Contextualization, percentile shift, and cross-reference comparison are in scope; disease prediction and black-box ML on pooled multi-source tables are out of scope.
+
+## 13. Multi-reference comparison (planned)
+
+Spec: `validation/serum_multi_reference_v1/` — one cohort scored against multiple pinned reference layers without pooling distributions. Builds on `src/v2.cohort_cli` and `src/v2.cross_cohort_cli`.
+
+## 14. Key paths
 
 ```text
 src/v1/                          V1/V1.1 engine
@@ -178,6 +193,6 @@ scripts/sync_serum_lane_to_rstudio.ps1   Deploy to Shiny project
 
 ---
 
-## 14. Contact / change control
+## 15. Contact / change control
 
 Ontology or reference-table changes require: version increment, validation doc update, smoke + Docker recheck, new release tag, and RELEASES.md entry.
