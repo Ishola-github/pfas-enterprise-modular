@@ -1,0 +1,15 @@
+PFAS Enterprise 5.0 — Serum lane ATSDR scaffold (v1)
+
+Intended use (RUO):
+  - External validation context comparing exposed-community serum PFAS
+    distributions against NHANES population-reference outputs.
+  - Research and consulting workflows for cohort-level exposure intelligence.
+  - Governance and reproducibility demonstrations using manifest + SHA controls.
+
+Not intended for:
+  - Clinical diagnosis or individual treatment decisions.
+  - Regulatory compliance determination or legal certification.
+  - Silent pooling with NHANES reference engines or environmental matrix lanes.
+
+ATSDR lane outputs must preserve provenance metadata and remain explicitly
+labeled as non-NHANES cohort contextualization.

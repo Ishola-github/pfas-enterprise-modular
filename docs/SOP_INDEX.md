@@ -61,6 +61,7 @@ When QA approved **SOP Rev 1.0**, record in **`CONTROLLED_DOCUMENTS.md`**:
 | Topic | Path |
 | ----- | ---- |
 | **Frozen demo package (Phase 1 validation)** | `validation/serum_demo_v1/` |
+| ATSDR acquisition scaffold | `validation/serum_atsdr_v1/INGEST_SOP.md` |
 | External repro runbook | `validation/serum_demo_v1/EXTERNAL_REPRO_RUNBOOK.md` |
 | Evidence bundle builder | `scripts/build_serum_validation_evidence_bundle.ps1` |
 | SOP sections 31–38 | `docs/sop/PFAS_Enterprise_5_SOP_Rev2.1.md` |

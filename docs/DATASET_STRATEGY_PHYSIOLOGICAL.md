@@ -34,7 +34,7 @@ PFAS Enterprise 5.0 prioritizes datasets that support **population-reference con
 |-------|------|-------------------|------------------------|
 | **Reference contextualization** | Weighted population percentiles | **NHANES** (cycles I, J, P; PFOS/PFOA isomers) | **Operational** — V1.1 + V2, pinned ref table |
 | **Temporal contextualization** | Cross-cycle population comparison | **NHANES** repeated cycles | **Operational** — V2 |
-| **External validation** | Non-NHANES general vs exposed contrast | **ATSDR PFAS exposure assessments** | **Planned** — separate governed lane |
+| **External validation** | Non-NHANES general vs exposed contrast | **ATSDR PFAS exposure assessments** | **Scaffolded** — `validation/serum_atsdr_v1/` + ingest SOP |
 | **International validation** | Cross-country harmonized HBM | **HBM4EU / IPCHEM** | **Planned** — harmonization artifact required |
 | **High-burden cohorts** | Exposure-gradient / litigation-adjacent RUO | **C8 Health Project**, **Pease (NH)** | **Future** — messy; ontology per cohort |
 | **Occupational / adolescent** | Subgroup analytics | **HBM4EU** | **Future** |
@@ -84,7 +84,7 @@ PFAS Enterprise 5.0 prioritizes datasets that support **population-reference con
 
 ### Integration policy (before any ingest)
 
-1. Define **separate lane** (`validation/serum_atsdr_v1/` or similar) — not mixed into NHANES reference engine.
+1. Define **separate lane** (`validation/serum_atsdr_v1/`) — not mixed into NHANES reference engine. ✅ scaffold created
 2. Document units, LOD policy, matrix (serum), and cohort ID per site.
 3. Map to governed input schema or publish ATSDR-specific ontology.
 4. SHA-pin raw downloads; no silent updates.
@@ -189,3 +189,4 @@ Before adding any new physiological dataset:
 | Rev | Date | Change |
 |-----|------|--------|
 | 1.0 | 2026-05-17 | Initial physiological dataset tier strategy |
+| 1.1 | 2026-05-18 | Added ATSDR lane scaffold + ingest SOP + registry protocol row |
