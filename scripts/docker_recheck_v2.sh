@@ -54,6 +54,35 @@ echo "=== V2 CLI ==="
   --output-dir "$ROOT/data/v2/outputs/docker_recheck"
 
 echo ""
+echo "=== V1.1 race-aware column assertion (Docker guard) ==="
+"$PYTHON" -m src.v1.cli --v1-1 \
+  --input "$FIXTURE" \
+  --output-dir "$ROOT/data/v1/outputs/docker_recheck_v11_assert" >/tmp/v11_assert_summary.json
+"$PYTHON" - <<'PY'
+import csv
+import glob
+from pathlib import Path
+
+report_paths = sorted(glob.glob("data/v1/outputs/docker_recheck_v11_assert/v1_report_*.csv"))
+if not report_paths:
+    raise SystemExit("ERROR: no V1.1 report generated for race-aware assertion")
+report = Path(report_paths[-1])
+required = [
+    "race_ethnicity_requested",
+    "race_ethnicity_lookup",
+    "race_ethnicity_stratum",
+    "race_stratum_fallback",
+]
+with report.open("r", encoding="utf-8", newline="") as fh:
+    reader = csv.reader(fh)
+    header = next(reader)
+missing = [c for c in required if c not in header]
+if missing:
+    raise SystemExit(f"ERROR: V1.1 Docker race-aware assertion failed; missing columns: {missing}")
+print("V1.1_RACE_COLUMNS_ASSERT_PASS")
+PY
+
+echo ""
 echo "=== V2 Python tests (pytest-style functions) ==="
 "$PYTHON" -c "
 from src.v2.tests.test_temporal import test_temporal_flags_shift, test_cross_cycle_smoke
