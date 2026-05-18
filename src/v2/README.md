@@ -45,3 +45,21 @@ Outputs:
 
 - `v2_cohort_summary_<run_id>.csv` (analyte x sex x age x race strata)
 - `v2_cohort_manifest_<run_id>.json` (input/output SHA + overview counts)
+
+## Cross-cohort comparator CLI (summary -> comparison table)
+
+Compare two governed cohort summary CSVs:
+
+```powershell
+C:\pfasenv\Scripts\python.exe -m src.v2.cross_cohort_cli `
+  --left-summary  data\v2\outputs\cohort\left_summary.csv `
+  --right-summary data\v2\outputs\cohort\right_summary.csv `
+  --left-label NHANES `
+  --right-label ATSDR `
+  --output-dir data\v2\outputs\cross_cohort
+```
+
+Outputs:
+
+- `v2_cross_cohort_comparison_<run_id>.csv`
+- `v2_cross_cohort_manifest_<run_id>.json`

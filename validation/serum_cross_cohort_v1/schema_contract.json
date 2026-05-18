@@ -1,0 +1,50 @@
+{
+  "contract_id": "serum_cross_cohort_v1",
+  "version": "1.0.0",
+  "input_required_columns": [
+    "analyte",
+    "sex_stratum",
+    "age_group_stratum",
+    "race_ethnicity_stratum",
+    "n_rows",
+    "median_result_value",
+    "median_anchor_percentile",
+    "shift_ge_15_pct"
+  ],
+  "output_columns": [
+    "analyte",
+    "sex_stratum",
+    "age_group_stratum",
+    "race_ethnicity_stratum",
+    "left_n_rows",
+    "left_median_result_value",
+    "left_median_anchor_percentile",
+    "left_shift_ge_15_pct",
+    "right_n_rows",
+    "right_median_result_value",
+    "right_median_anchor_percentile",
+    "right_shift_ge_15_pct",
+    "row_source",
+    "delta_median_result_value",
+    "delta_median_anchor_percentile",
+    "delta_shift_ge_15_pct",
+    "delta_n_rows"
+  ],
+  "row_source_enum": ["both", "left_only", "right_only"],
+  "manifest_required_fields": [
+    "run_id",
+    "timestamp_utc",
+    "code_version",
+    "mode",
+    "left_label",
+    "right_label",
+    "left_summary_csv_path",
+    "left_summary_csv_sha256",
+    "right_summary_csv_path",
+    "right_summary_csv_sha256",
+    "output_csv_path",
+    "output_csv_sha256",
+    "overview"
+  ],
+  "ruo_only": true
+}

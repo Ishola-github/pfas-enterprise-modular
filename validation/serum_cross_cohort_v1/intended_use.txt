@@ -1,0 +1,13 @@
+PFAS Enterprise 5.0 — Serum cross-cohort comparator (v1 scaffold)
+
+Intended use (RUO):
+  - Compare governed cohort summary outputs across cohorts using a common
+    contextualization contract.
+  - Quantify subgroup deltas against NHANES baseline context.
+  - Support external-validation analytics workflows with manifest-backed outputs.
+
+Not intended for:
+  - Clinical diagnosis
+  - Regulatory compliance determination
+  - Causal inference claims
+  - Silent pooling of incompatible cohort schemas
