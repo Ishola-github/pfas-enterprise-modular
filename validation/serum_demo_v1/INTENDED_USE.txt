@@ -1,0 +1,25 @@
+PFAS Enterprise 5.0 — Serum contextualization demo package v1
+INTENDED USE (Research Use Only)
+
+This demo package demonstrates governed population-reference contextualization
+of serum PFOS/PFOA measurements against weighted CDC NHANES reference distributions,
+with optional cross-cycle temporal comparison across NHANES cycles I, J, and P.
+
+PERMITTED USES:
+- Research and method evaluation
+- Environmental-health analytics pilots
+- Consulting and academic collaboration demonstrations
+- Reproducibility and governance audits
+- Grant or SBIR technical appendices (with RUO labeling)
+
+PROHIBITED REPRESENTATIONS:
+- Clinical diagnosis or medical decision-making
+- Individual patient risk classification for treatment
+- EPA regulatory compliance or legal defensibility claims
+- ISO/IEC 17025 laboratory accreditation of the software
+- Replacement for certified analytical laboratory results
+
+V2 temporal outputs compare POPULATION reference percentiles across survey cycles.
+They do NOT constitute individual longitudinal medical follow-up.
+
+All outputs must retain manifest JSON and SHA-256 provenance when cited externally.

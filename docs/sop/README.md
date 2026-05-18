@@ -11,7 +11,17 @@ docs/sop/PFAS_Enterprise_5_SOP_Rev2.1.md
 Committed in git. Export to Word/PDF for QMS distribution:
 
 ```powershell
+# Install once (if 'pandoc' is not recognized):
+winget install --id JohnMacFarlane.Pandoc -e --accept-source-agreements --accept-package-agreements
+# Close and reopen PowerShell, then:
+cd C:\Users\techj\Downloads\pfas-toxicology\pfas-toxicology
 pandoc "docs\sop\PFAS_Enterprise_5_SOP_Rev2.1.md" -o "docs\sop\PFAS_Enterprise_5_SOP_Rev2.1.docx"
+```
+
+Winget installs Pandoc under your user profile (not `C:\Program Files\Pandoc`). If PATH is stale:
+
+```powershell
+& "$env:LOCALAPPDATA\Pandoc\pandoc.exe" "docs\sop\PFAS_Enterprise_5_SOP_Rev2.1.md" -o "docs\sop\PFAS_Enterprise_5_SOP_Rev2.1.docx"
 ```
 
 ## Expected filename (Rev 1.0 Word example — superseded)

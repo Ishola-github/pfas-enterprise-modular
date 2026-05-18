@@ -1,0 +1,13 @@
+﻿{
+    "bundle_id":  "serum_validation_evidence_v1",
+    "generated_at_utc":  "2026-05-18T15:53:13Z",
+    "repo_root":  "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology",
+    "git_revision":  "7d3e9a436d81d82075f4a093a785a47522304277",
+    "serum_tags":  "serum-v1.0-governed,serum-v1.1-demographics,serum-v1.1-race-aware,serum-v2.0.0-temporal",
+    "canonical_pins":  "canonical_pins.json",
+    "hashes":  "hashes.txt",
+    "intended_use":  "validation/serum_demo_v1/INTENDED_USE.txt",
+    "external_runbook":  "validation/serum_demo_v1/EXTERNAL_REPRO_RUNBOOK.md",
+    "sop":  "docs/sop/PFAS_Enterprise_5_SOP_Rev2.1.md",
+    "note":  "RUO - not diagnostic or regulatory. Add screenshots manually to evidence_bundle/screenshots/."
+}

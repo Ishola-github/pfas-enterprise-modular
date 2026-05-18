@@ -60,6 +60,9 @@ When QA approved **SOP Rev 1.0**, record in **`CONTROLLED_DOCUMENTS.md`**:
 
 | Topic | Path |
 | ----- | ---- |
+| **Frozen demo package (Phase 1 validation)** | `validation/serum_demo_v1/` |
+| External repro runbook | `validation/serum_demo_v1/EXTERNAL_REPRO_RUNBOOK.md` |
+| Evidence bundle builder | `scripts/build_serum_validation_evidence_bundle.ps1` |
 | SOP sections 31–38 | `docs/sop/PFAS_Enterprise_5_SOP_Rev2.1.md` |
 | Shiny V1.1 + V2 | `LatestPFAS.R` → Reports tab |
 | Sync to RStudio | `scripts/sync_serum_lane_to_rstudio.ps1` |

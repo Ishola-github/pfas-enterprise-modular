@@ -1,0 +1,4 @@
+# Regenerate with scripts/build_serum_validation_evidence_bundle.ps1
+reports/
+screenshots/
+logs/
