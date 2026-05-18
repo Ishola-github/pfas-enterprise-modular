@@ -156,7 +156,14 @@ Permitted framing: population-reference contextualization, research analytics, e
 
 ---
 
-## 12. Key paths
+## 12. Physiological dataset strategy
+
+Tiered public dataset policy (NHANES operational; ATSDR / HBM4EU planned):  
+[DATASET_STRATEGY_PHYSIOLOGICAL.md](DATASET_STRATEGY_PHYSIOLOGICAL.md)
+
+**Rule:** New physiological cohorts require a **separate governed lane** — never silent merges into NHANES reference tables.
+
+## 13. Key paths
 
 ```text
 src/v1/                          V1/V1.1 engine
@@ -171,6 +178,6 @@ scripts/sync_serum_lane_to_rstudio.ps1   Deploy to Shiny project
 
 ---
 
-## 13. Contact / change control
+## 14. Contact / change control
 
 Ontology or reference-table changes require: version increment, validation doc update, smoke + Docker recheck, new release tag, and RELEASES.md entry.

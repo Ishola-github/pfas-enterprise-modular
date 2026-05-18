@@ -15,7 +15,7 @@ This file is the **navigation hub** for quality and engineering. The **full SOP 
 | **2.1** | [`docs/sop/PFAS_Enterprise_5_SOP_Rev2.1.md`](sop/PFAS_Enterprise_5_SOP_Rev2.1.md) | **Current** — serum V1.1/V2, Docker parity, release tags |
 | 1.0 | `docs/sop/PFAS_Enterprise_5_SOP_Suite_Rev1_2026-05-10.docx` (Word; gitignored) | Superseded by 2.1 for serum lane |
 
-Serum doctrine: [`GOVERNANCE.md`](GOVERNANCE.md) · Release pins: [`RELEASES.md`](RELEASES.md)
+Serum doctrine: [`GOVERNANCE.md`](GOVERNANCE.md) · Release pins: [`RELEASES.md`](RELEASES.md) · Dataset tiers: [`DATASET_STRATEGY_PHYSIOLOGICAL.md`](DATASET_STRATEGY_PHYSIOLOGICAL.md)
 
 ## Freezing SOP Revision 1.0 (historical baseline)
 
