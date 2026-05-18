@@ -20,6 +20,7 @@ Status: **spec-only scaffold**. No ATSDR raw dataset has been ingested yet.
 | `limitations.md` | Binding non-claims and caveats |
 | `scope.md` | Lane boundaries and output expectations |
 | `INGEST_SOP.md` | Step-by-step ATSDR acquisition and ingest procedure |
+| `EXTERNAL_REVIEWER_PACKET.md` | Who to contact, packet contents, and pass/fail gates for kickoff |
 
 ## Hard rules
 
