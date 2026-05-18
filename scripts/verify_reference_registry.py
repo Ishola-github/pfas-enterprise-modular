@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
-"""Verify reference_registry.csv: files exist and SHA-256 matches (stdlib only)."""
+"""Verify reference_registry.csv: files exist and SHA-256 matches (stdlib only).
+
+Modes:
+  full (default) — every registry row must exist and match sha256.
+  ci — only rows with ci_required=TRUE (for GitHub Actions / minimal checkout).
+
+CI mode activates when --ci-mode is passed, or env CI=true / GITHUB_ACTIONS=true.
+"""
 
 from __future__ import annotations
 
 import argparse
 import csv
 import hashlib
+import os
 import sys
 from pathlib import Path
 
@@ -34,6 +42,23 @@ def _read_registry_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
     return list(fieldnames), rows
 
 
+def _ci_mode_requested(args: argparse.Namespace) -> bool:
+    if args.ci_mode:
+        return True
+    if args.full:
+        return False
+    ci = os.getenv("CI", "").strip().lower()
+    if ci in ("1", "true", "yes"):
+        return True
+    if os.getenv("GITHUB_ACTIONS", "").strip().lower() == "true":
+        return True
+    return False
+
+
+def _row_ci_required(row: dict[str, str]) -> bool:
+    return (row.get("ci_required") or "").strip().upper() == "TRUE"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify reference registry paths and hashes.")
     parser.add_argument(
@@ -47,6 +72,16 @@ def main() -> int:
         type=Path,
         default=None,
         help="Default: <project-root>/data/reference/registry/reference_registry.csv",
+    )
+    parser.add_argument(
+        "--ci-mode",
+        action="store_true",
+        help="Verify only rows with ci_required=TRUE",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Verify all rows (overrides CI env auto-detection)",
     )
     args = parser.parse_args()
     root = (args.project_root or _default_project_root()).resolve()
@@ -68,6 +103,19 @@ def main() -> int:
         print(f"ERROR: registry missing columns: {missing_cols}", file=sys.stderr)
         return 3
 
+    ci_mode = _ci_mode_requested(args)
+    if ci_mode:
+        if "ci_required" not in columns:
+            print(
+                "ERROR: ci_mode requires ci_required column in reference_registry.csv",
+                file=sys.stderr,
+            )
+            return 5
+        rows = [r for r in rows if _row_ci_required(r)]
+        if not rows:
+            print("ERROR: ci_mode selected but no ci_required=TRUE rows", file=sys.stderr)
+            return 6
+
     errors: list[str] = []
     for i, row in enumerate(rows):
         line_no = i + 2  # 1-based; row 1 is header
@@ -87,13 +135,16 @@ def main() -> int:
                 f"row {line_no}: sha256 mismatch {doc!r}\n  expected: {expect}\n  actual:   {got}"
             )
 
+    mode_label = "ci" if ci_mode else "full"
     if errors:
-        print("VERIFY FAILED:\n", file=sys.stderr)
+        print(f"VERIFY FAILED ({mode_label}):\n", file=sys.stderr)
         for e in errors:
             print(e, file=sys.stderr)
         return 4
 
-    print(f"OK: {len(rows)} registry row(s) - paths exist and hashes match.")
+    print(
+        f"OK ({mode_label}): {len(rows)} registry row(s) - paths exist and hashes match."
+    )
     return 0
 
 

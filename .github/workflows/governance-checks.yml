@@ -10,6 +10,9 @@ jobs:
   docker-verify:
     name: Docker Verify (Fail Fast)
     runs-on: ubuntu-latest
+    env:
+      CI: true
+      GITHUB_ACTIONS: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,11 +21,13 @@ jobs:
         run: docker build -f Dockerfile.linux-verify -t pfas-linux-verify .
 
       - name: Run full Linux verify
-        run: docker run --rm -v "${{ github.workspace }}:/app" -w /app pfas-linux-verify
+        run: docker run --rm -e CI=true -e GITHUB_ACTIONS=true -v "${{ github.workspace }}:/app" -w /app pfas-linux-verify
 
   schema-lock:
     name: Schema Lock Tests
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,6 +41,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: CI registry check (governed core only)
+        run: python scripts/verify_reference_registry.py --project-root .
 
       - name: Run schema lock tests
         run: |
