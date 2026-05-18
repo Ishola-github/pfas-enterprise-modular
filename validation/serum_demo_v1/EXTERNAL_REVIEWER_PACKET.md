@@ -37,9 +37,10 @@ Would you complete a ~45–90 minute reproducibility run and return a short
 checklist (pass/fail on canonical run_id and output SHA)?
 
 You receive:
-- EXTERNAL_REPRO_RUNBOOK.md (step-by-step)
+- BLIND_EXTERNAL_REPRO_PROTOCOL.md (primary — Docker-only Mode A preferred)
+- EXTERNAL_REPRO_RUNBOOK.md (host Python fallback)
 - canonical_pins.json (expected hashes)
-- optional evidence bundle layout example
+- REVIEWER_ATTESTATION_TEMPLATE.txt (signed return)
 
 Repo: https://github.com/Ishola-github/pfas-enterprise-modular
 Tag: serum-v2.0.0-temporal
@@ -54,13 +55,17 @@ Thank you,
 
 Send **only** these paths (zip or shared folder):
 
-1. `validation/serum_demo_v1/EXTERNAL_REPRO_RUNBOOK.md`
-2. `validation/serum_demo_v1/EVIDENCE_CHECKLIST.md`
-3. `validation/serum_demo_v1/README.md`
-4. `validation/serum_demo_v1/canonical_pins.json`
-5. `validation/serum_demo_v1/INTENDED_USE.txt`
-6. `docs/GOVERNANCE.md` (excerpt or full — reviewer preference)
-7. `docs/RELEASES.md` (release pin table)
+1. `validation/serum_demo_v1/BLIND_EXTERNAL_REPRO_PROTOCOL.md`
+2. `validation/serum_demo_v1/EXTERNAL_REPRO_RUNBOOK.md`
+3. `validation/serum_demo_v1/REVIEWER_ATTESTATION_TEMPLATE.txt`
+4. `validation/serum_demo_v1/EVIDENCE_CHECKLIST.md`
+5. `validation/serum_demo_v1/README.md`
+6. `validation/serum_demo_v1/canonical_pins.json`
+7. `validation/serum_demo_v1/INTENDED_USE.txt`
+8. `docs/GOVERNANCE.md` (excerpt or full — reviewer preference)
+9. `docs/RELEASES.md` (release pin table)
+
+**Do not** send pre-built report CSVs/PDFs from sponsor machines (defeats blind repro).
 
 Optional: `docs/sop/PFAS_Enterprise_5_SOP_Rev2.1.docx` export.
 

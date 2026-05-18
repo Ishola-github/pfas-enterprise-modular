@@ -1,6 +1,7 @@
 # Validation Evidence Bundle v1 — collection checklist
 
-Use after completing [EXTERNAL_REPRO_RUNBOOK.md](EXTERNAL_REPRO_RUNBOOK.md).  
+Use after completing [BLIND_EXTERNAL_REPRO_PROTOCOL.md](BLIND_EXTERNAL_REPRO_PROTOCOL.md) or [EXTERNAL_REPRO_RUNBOOK.md](EXTERNAL_REPRO_RUNBOOK.md).  
+Return signed [REVIEWER_ATTESTATION_TEMPLATE.txt](REVIEWER_ATTESTATION_TEMPLATE.txt).  
 Automated assembly: `scripts/build_serum_validation_evidence_bundle.ps1`
 
 ---

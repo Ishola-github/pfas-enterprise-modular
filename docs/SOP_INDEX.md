@@ -69,6 +69,8 @@ When QA approved **SOP Rev 1.0**, record in **`CONTROLLED_DOCUMENTS.md`**:
 | HBM4EU lane scaffold | `validation/serum_hbm4eu_v1/` |
 | Multi-reference comparison (planned) | `validation/serum_multi_reference_v1/` |
 | Cross-cohort comparator scaffold | `validation/serum_cross_cohort_v1/` |
+| Blind external repro protocol | `validation/serum_demo_v1/BLIND_EXTERNAL_REPRO_PROTOCOL.md` |
+| Reviewer attestation template | `validation/serum_demo_v1/REVIEWER_ATTESTATION_TEMPLATE.txt` |
 | External repro runbook | `validation/serum_demo_v1/EXTERNAL_REPRO_RUNBOOK.md` |
 | Reference table confirm (PS) | `scripts/confirm_reference_tables_powershell.ps1` |
 | Evidence bundle builder | `scripts/build_serum_validation_evidence_bundle.ps1` |

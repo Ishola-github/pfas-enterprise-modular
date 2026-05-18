@@ -3,6 +3,15 @@
 **Flagship governed workflow** for external technical validation (Phase 1).  
 **RUO only** — not diagnostic, clinical, or regulatory.
 
+## Validation status language (use precisely)
+
+| State | Meaning |
+|-------|---------|
+| Self-verified | Operator pre-flight passed (`evidence_bundle/LOCAL_REPRO_VERIFICATION.json`) |
+| Externally reproducible | ≥2 independent blind reviewers pass `BLIND_EXTERNAL_REPRO_PROTOCOL.md` |
+
+Do not claim external validation until the second row is true.
+
 ## What this demo proves
 
 | Capability | Evidence |
@@ -53,6 +62,8 @@ Output: `validation/serum_demo_v1/evidence_bundle/`
 |------|---------|
 | `README.md` | This overview |
 | `EXTERNAL_REPRO_RUNBOOK.md` | Step-by-step for 2–5 external reviewers |
+| `BLIND_EXTERNAL_REPRO_PROTOCOL.md` | Blind review rules (Docker-only preferred), divergence handling |
+| `REVIEWER_ATTESTATION_TEMPLATE.txt` | Signed/dated return template |
 | `EXTERNAL_REVIEWER_PACKET.md` | Outreach script, pass gates, 30-day cadence |
 | `EVIDENCE_CHECKLIST.md` | Screenshots and artifacts to collect |
 | `reviewer_log.csv` | Track reviewer returns (operator-maintained) |

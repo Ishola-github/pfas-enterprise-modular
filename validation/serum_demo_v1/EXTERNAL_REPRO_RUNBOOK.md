@@ -4,6 +4,9 @@
 **Time:** ~45–90 minutes first run (includes Docker build).  
 **Goal:** Reproduce canonical `run_id` and output SHA-256 values in [README.md](README.md).
 
+For **blind** external review (clean clone, no sponsor outputs, signed attestation), use
+[BLIND_EXTERNAL_REPRO_PROTOCOL.md](BLIND_EXTERNAL_REPRO_PROTOCOL.md) — **Mode A (Docker-only) preferred.**
+
 ---
 
 ## Prerequisites
