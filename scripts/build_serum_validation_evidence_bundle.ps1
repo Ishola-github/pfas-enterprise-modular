@@ -4,6 +4,7 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\build_serum_validation_evidence_bundle.ps1
 #
 # Optional: run V1.1 + V2 first so manifests exist under data/v1|v2/outputs
+#   powershell -ExecutionPolicy Bypass -File scripts\confirm_reference_tables_powershell.ps1
 
 $ErrorActionPreference = 'Stop'
 $Root = if (Test-Path (Join-Path $PSScriptRoot '..\LatestPFAS.R')) {
@@ -119,6 +120,11 @@ $bundle = [ordered]@{
   external_runbook  = 'validation/serum_demo_v1/EXTERNAL_REPRO_RUNBOOK.md'
   sop               = 'docs/sop/PFAS_Enterprise_5_SOP_Rev2.1.md'
   note              = 'RUO - not diagnostic or regulatory. Add screenshots manually to evidence_bundle/screenshots/.'
+}
+
+$localVerify = Join-Path $Root 'validation\serum_demo_v1\evidence_bundle\LOCAL_REPRO_VERIFICATION.json'
+if (Test-Path $localVerify) {
+  Copy-Item -Force $localVerify (Join-Path $BundleRoot 'LOCAL_REPRO_VERIFICATION.json')
 }
 
 $jsonPath = Join-Path $BundleRoot 'BUNDLE_MANIFEST.json'

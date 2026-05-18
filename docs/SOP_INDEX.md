@@ -61,9 +61,12 @@ When QA approved **SOP Rev 1.0**, record in **`CONTROLLED_DOCUMENTS.md`**:
 | Topic | Path |
 | ----- | ---- |
 | **Frozen demo package (Phase 1 validation)** | `validation/serum_demo_v1/` |
+| External reviewer packet (kickoff) | `validation/serum_demo_v1/EXTERNAL_REVIEWER_PACKET.md` |
+| Reviewer return log | `validation/serum_demo_v1/reviewer_log.csv` |
 | ATSDR acquisition scaffold | `validation/serum_atsdr_v1/INGEST_SOP.md` |
 | Cross-cohort comparator scaffold | `validation/serum_cross_cohort_v1/` |
 | External repro runbook | `validation/serum_demo_v1/EXTERNAL_REPRO_RUNBOOK.md` |
+| Reference table confirm (PS) | `scripts/confirm_reference_tables_powershell.ps1` |
 | Evidence bundle builder | `scripts/build_serum_validation_evidence_bundle.ps1` |
 | SOP sections 31–38 | `docs/sop/PFAS_Enterprise_5_SOP_Rev2.1.md` |
 | Shiny V1.1 + V2 | `LatestPFAS.R` → Reports tab |

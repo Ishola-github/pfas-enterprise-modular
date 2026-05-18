@@ -1,7 +1,7 @@
 # Three-environment confirmation -- Docker/Ubuntu (reference tables + raw XPTs)
 # Image:        ubuntu:22.04
-# Container:    Linux ce8e5a895aa0 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
-# Run timestamp: 2026-05-17T20:38:47Z
+# Container:    Linux DESKTOP-76LC33K 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+# Run timestamp: 2026-05-18T17:13:20Z
 
 28e193a477abdd63e941124ded41a25668fcf5cbaafe0747bb2a507bb1671d25  data/reference_tables/nhanes_pfas_reference_tables_v1.csv  (20226 bytes)
 715cd8968e21c9e2404b4a10054ea44d78e52707c70d4b10289f1ba9c463e45c  data/reference_tables/nhanes_pfas_weighted_reference_tables_v1.csv  (24956 bytes)

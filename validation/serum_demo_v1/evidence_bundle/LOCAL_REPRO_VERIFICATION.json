@@ -1,0 +1,41 @@
+{
+  "verification_id": "serum_demo_v1_local_operator",
+  "verified_at_utc": "2026-05-18T18:12:00Z",
+  "git_revision": "a269445c10fe7548972669a75be98c96a2ae6622",
+  "environment": "Windows PowerShell / Python 3.10",
+  "all_pass": true,
+  "checks": {
+    "input_fixture_sha256": {
+      "expected": "73b5b5da3faec469a05a082c53060b1b6bca2a9bb0900acab448e7b4cded96ee",
+      "actual": "73b5b5da3faec469a05a082c53060b1b6bca2a9bb0900acab448e7b4cded96ee",
+      "pass": true
+    },
+    "reference_v1_1_sha256": {
+      "expected": "fe195d6206d98d1e2281213fdc937dace468b57f9f8518bfca0e3496d0ba8f19",
+      "actual": "fe195d6206d98d1e2281213fdc937dace468b57f9f8518bfca0e3496d0ba8f19",
+      "pass": true
+    },
+    "v2_temporal": {
+      "run_id_expected": "2bda057f5ab18ff6",
+      "run_id_actual": "2bda057f5ab18ff6",
+      "output_csv_sha256_expected": "87c8b97e8a2c9002b183b0fabe161f531f1b933dd95e9ef4f4df980666310b67",
+      "output_csv_sha256_actual": "87c8b97e8a2c9002b183b0fabe161f531f1b933dd95e9ef4f4df980666310b67",
+      "n_in_domain": 7716,
+      "n_cross_cycle_shift_ge_15": 1189,
+      "pass": true
+    },
+    "v1_1_race_aware": {
+      "run_id_expected": "583780b861049800",
+      "run_id_actual": "583780b861049800",
+      "output_csv_sha256_expected": "ebb3daf421c291292b7c0c891d9fdf75313bd57fb8011f0aa1c8451ddd4057fa",
+      "output_csv_sha256_actual": "ebb3daf421c291292b7c0c891d9fdf75313bd57fb8011f0aa1c8451ddd4057fa",
+      "n_in_domain": 7716,
+      "pass": true
+    }
+  },
+  "output_dirs": {
+    "v2": "data/v2/outputs/external_repro",
+    "v1_1": "data/v1/outputs/external_repro"
+  },
+  "note": "Operator pre-flight before external reviewer send. Docker ALL PASS not run in this record."
+}

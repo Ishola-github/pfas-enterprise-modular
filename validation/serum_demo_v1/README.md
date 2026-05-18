@@ -53,7 +53,9 @@ Output: `validation/serum_demo_v1/evidence_bundle/`
 |------|---------|
 | `README.md` | This overview |
 | `EXTERNAL_REPRO_RUNBOOK.md` | Step-by-step for 2–5 external reviewers |
+| `EXTERNAL_REVIEWER_PACKET.md` | Outreach script, pass gates, 30-day cadence |
 | `EVIDENCE_CHECKLIST.md` | Screenshots and artifacts to collect |
+| `reviewer_log.csv` | Track reviewer returns (operator-maintained) |
 | `INTENDED_USE.txt` | RUO positioning (external-facing) |
 | `evidence_bundle/` | Generated audit package (gitignored contents optional) |
 

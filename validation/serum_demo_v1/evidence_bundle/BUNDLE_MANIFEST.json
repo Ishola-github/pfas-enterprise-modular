@@ -1,8 +1,8 @@
 ﻿{
     "bundle_id":  "serum_validation_evidence_v1",
-    "generated_at_utc":  "2026-05-18T15:53:13Z",
+    "generated_at_utc":  "2026-05-18T18:12:54Z",
     "repo_root":  "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology",
-    "git_revision":  "7d3e9a436d81d82075f4a093a785a47522304277",
+    "git_revision":  "a269445c10fe7548972669a75be98c96a2ae6622",
     "serum_tags":  "serum-v1.0-governed,serum-v1.1-demographics,serum-v1.1-race-aware,serum-v2.0.0-temporal",
     "canonical_pins":  "canonical_pins.json",
     "hashes":  "hashes.txt",
