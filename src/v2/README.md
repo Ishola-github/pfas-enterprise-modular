@@ -30,3 +30,18 @@ v2_report_<run_id>.csv / manifest / PDF
 ```
 
 V2 does **not** follow individuals over time; it compares cross-sectional NHANES references.
+
+## Cohort summary CLI (v2 report -> subgroup aggregates)
+
+Build governed subgroup summaries from a V2 report CSV:
+
+```powershell
+C:\pfasenv\Scripts\python.exe -m src.v2.cohort_cli `
+  --input-report data\v2\outputs\v2_report_2bda057f5ab18ff6.csv `
+  --output-dir data\v2\outputs\cohort
+```
+
+Outputs:
+
+- `v2_cohort_summary_<run_id>.csv` (analyte x sex x age x race strata)
+- `v2_cohort_manifest_<run_id>.json` (input/output SHA + overview counts)

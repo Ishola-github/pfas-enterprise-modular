@@ -41,3 +41,11 @@ Same governed columns as V1.1, with **`reference_cycle` required** on every row
 - Individual longitudinal trajectories
 - Causal attribution of temporal change
 - Regulatory trend compliance
+
+## Cohort summary extension (v2 report post-processing)
+
+V2 cohort summaries are computed from governed `v2_report_<run_id>.csv` outputs
+using `python -m src.v2.cohort_cli`.
+
+This extension produces subgroup aggregates (analyte x sex x age x race) and
+keeps the same RUO and non-claim boundaries as V2 row-level outputs.
