@@ -1,0 +1,10 @@
+ATSDR serum cohort dataset acquisition is pending.
+
+This file exists only to keep reference registry integrity checks reproducible
+before raw ATSDR files are downloaded.
+
+Before any ATSDR ingest:
+1) Download concrete source files into data/external/atsdr_pfas_ea/raw/
+2) Compute SHA-256 per file
+3) Replace the pending registry row with concrete file rows
+4) Retain this notice for audit history (optional)
