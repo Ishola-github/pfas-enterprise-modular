@@ -46,6 +46,4 @@ jobs:
         run: python scripts/verify_reference_registry.py --project-root .
 
       - name: Run schema lock tests
-        run: |
-          python -c "from src.v1.tests.test_schema_lock import test_v1_1_report_includes_race_aware_columns; test_v1_1_report_includes_race_aware_columns(); print('V1_SCHEMA_LOCK_PASS')"
-          python -c "from src.v2.tests.test_schema_lock import test_v2_cohort_summary_columns_locked; test_v2_cohort_summary_columns_locked(); print('V2_SCHEMA_LOCK_PASS')"
+        run: python -m pytest src/v1/tests/test_schema_lock.py src/v2/tests/test_schema_lock.py -q
