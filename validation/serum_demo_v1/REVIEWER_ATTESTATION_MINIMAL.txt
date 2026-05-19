@@ -1,0 +1,43 @@
+PFAS Enterprise 5.0 — Minimal reproducibility attestation (RUO)
+
+================================================================================
+REVIEWER
+================================================================================
+Name:
+Organization:
+Date (UTC):
+
+================================================================================
+EXECUTION
+================================================================================
+Git tag tested:     serum-v2.0.0-temporal
+Command run:        bash scripts/repro_one_shot.sh
+Docker available:   YES / NO
+
+================================================================================
+SINGLE HASH GATE (V2 temporal — primary)
+================================================================================
+Expected output_csv_sha256:
+  87c8b97e8a2c9002b183b0fabe161f531f1b933dd95e9ef4f4df980666310b67
+
+Observed output_csv_sha256:
+
+
+Match:  [ ] YES   [ ] NO
+
+Terminal ended with ONE_SHOT_REPRO: PASS:  [ ] YES   [ ] NO
+
+================================================================================
+OVERALL
+================================================================================
+Result:  [ ] PASS   [ ] FAIL
+
+If FAIL, one-line divergence note:
+
+
+================================================================================
+ATTESTATION
+================================================================================
+I ran repro_one_shot.sh on a clean clone without using sponsor-generated reports.
+
+Signature (typed name acceptable):

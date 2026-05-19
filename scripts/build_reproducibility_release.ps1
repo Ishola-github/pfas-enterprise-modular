@@ -15,6 +15,8 @@ $DemoDir = Join-Path $Root 'validation\serum_demo_v1'
 # Refresh reviewer ZIP (program + quickstart)
 $zipItems = @(
   'README.md',
+  'ONE_COMMAND_REPRO.md',
+  'REVIEWER_ATTESTATION_MINIMAL.txt',
   'QUICKSTART_5MIN.md',
   'REPRODUCIBILITY_PROGRAM.md',
   'BLIND_EXTERNAL_REPRO_PROTOCOL.md',

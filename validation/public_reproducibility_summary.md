@@ -13,8 +13,10 @@ validation until independent attestations are recorded below.
 | Field | Value |
 |-------|-------|
 | Analytical tag | `serum-v2.0.0-temporal` |
-| Program commit | `62377e1` |
+| Program commit | `f95ebb4` (repro program) · CI base `62377e1` |
 | Canonical pins | `validation/serum_demo_v1/canonical_pins.json` |
+| GitHub Release | *(operator: publish per `validation/releases/serum-v2.0.0-temporal/GITHUB_RELEASE_CHECKLIST.md`)* |
+| One-command path | `bash scripts/repro_one_shot.sh` |
 
 ---
 

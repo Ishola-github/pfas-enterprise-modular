@@ -44,10 +44,15 @@ Professors and executives are **not** first-wave executors — they are credibil
 
 ## Participant packet
 
-1. `QUICKSTART_5MIN.md` — primary entry (Docker → ALL PASS)
-2. `BLIND_EXTERNAL_REPRO_PROTOCOL.md` — full gates + divergence rules
-3. `canonical_pins.json` — expected hashes
-4. `REVIEWER_ATTESTATION_TEMPLATE.txt` — signed return
+**Minimal path (recruit first):**
+
+1. `ONE_COMMAND_REPRO.md` — clone → `bash scripts/repro_one_shot.sh` → one hash → sign
+2. `REVIEWER_ATTESTATION_MINIMAL.txt` — signed return
+
+**Extended path (if needed):**
+
+3. `QUICKSTART_5MIN.md` — Docker ALL PASS only
+4. `BLIND_EXTERNAL_REPRO_PROTOCOL.md` — full gates
 5. `serum_demo_reviewer_packet.zip` — bundled send
 
 **Do not** receive sponsor pre-built report CSVs (defeats blind repro).
