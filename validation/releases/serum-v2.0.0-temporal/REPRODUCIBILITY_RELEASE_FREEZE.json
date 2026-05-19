@@ -15,5 +15,6 @@
     "externally_reproducible_requires": "2 independent blind PASS attestations (Mode A preferred)",
     "attestation_log": "validation/serum_demo_v1/reviewer_log.csv"
   },
+  "scope_freeze": "validation/serum_demo_v1/PILOT_SCOPE_FREEZE.md",
   "note": "Analytical outputs (run_id, CSV SHA) are frozen in canonical_pins.json. Program docs/CI may reference program_manifest_commit; do not change canonical hashes during active pilot."
 }
