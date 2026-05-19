@@ -1,7 +1,10 @@
-# Serum Demo External Reviewer Packet (Kickoff v1)
+# Independent Reproducibility Pilot Program — participant packet (v1)
 
-Use this packet to run the first **2–5 external blind reproducibility reviews** for
-`validation/serum_demo_v1` (Phase 1 technical validation).
+You are enrolling in a **structured reproducibility program**, not an informal code review.
+
+Start with `QUICKSTART_5MIN.md` (Docker → `ALL PASS`). Full gates: `BLIND_EXTERNAL_REPRO_PROTOCOL.md`.
+
+Program overview: `REPRODUCIBILITY_PROGRAM.md`
 
 **RUO only.** Do not make clinical, regulatory, or certification claims.
 

@@ -1,0 +1,19 @@
+{
+  "release_id": "serum-v2.0.0-temporal-reproducibility-program",
+  "frozen_at_utc": "2026-05-19T00:00:00Z",
+  "do_not_modify_during_pilot": true,
+  "analytical_git_tag": "serum-v2.0.0-temporal",
+  "program_manifest_commit": "62377e11964dde1467062f956fa941d4baa74cae",
+  "canonical_pins": "validation/serum_demo_v1/canonical_pins.json",
+  "reviewer_packet_zip": "validation/serum_demo_v1/serum_demo_reviewer_packet.zip",
+  "quickstart": "validation/serum_demo_v1/QUICKSTART_5MIN.md",
+  "public_evidence": "validation/public_reproducibility_summary.md",
+  "pilot_program": "validation/serum_demo_v1/REPRODUCIBILITY_PROGRAM.md",
+  "zenodo_guide": "docs/ZENODO_ARCHIVE.md",
+  "whitepaper": "docs/whitepapers/PFAS_Enterprise_5_Reproducibility_Whitepaper.md",
+  "promotion_gate": {
+    "externally_reproducible_requires": "2 independent blind PASS attestations (Mode A preferred)",
+    "attestation_log": "validation/serum_demo_v1/reviewer_log.csv"
+  },
+  "note": "Analytical outputs (run_id, CSV SHA) are frozen in canonical_pins.json. Program docs/CI may reference program_manifest_commit; do not change canonical hashes during active pilot."
+}

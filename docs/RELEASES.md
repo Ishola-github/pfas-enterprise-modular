@@ -17,6 +17,9 @@ smoke evidence** (manifest `run_id` + output CSV hash).
 | `serum-v1.1-race-aware` | `17f3a2d` | *(alias of `serum-v1.1-demographics`)* | same as v1.1 | Synonym tag for external naming |
 | `serum-v2.0.0-temporal` | `d7f3398` | `pfos_pfoa_v2.json` v2.0.0 | uses v1.1 table (`fe195d62…`) | Cross-cycle population percentile comparison (I/J/P) |
 | *(infra)* | `e237739` | — | — | Docker verify + V2 recheck wired (`Dockerfile.linux-verify`) |
+| *(repro program)* | `62377e1` | — | CI registry scope + pandas pin | **Frozen reproducibility pilot** — do not change canonical pins during reviews |
+
+**Reproducibility program (frozen):** `validation/releases/serum-v2.0.0-temporal/` · Public evidence: `validation/public_reproducibility_summary.md` · Quick path: `validation/serum_demo_v1/QUICKSTART_5MIN.md`
 
 ---
 

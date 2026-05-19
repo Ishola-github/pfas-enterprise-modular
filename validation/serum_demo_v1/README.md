@@ -3,6 +3,15 @@
 **Flagship governed workflow** for external technical validation (Phase 1).  
 **RUO only** — not diagnostic, clinical, or regulatory.
 
+## Reproducibility program (start here)
+
+| Doc | Purpose |
+|-----|---------|
+| `QUICKSTART_5MIN.md` | Docker-only 5-minute PASS path |
+| `REPRODUCIBILITY_PROGRAM.md` | Independent Reproducibility Pilot Program |
+| `../public_reproducibility_summary.md` | Public evidence matrix |
+| `../releases/serum-v2.0.0-temporal/` | Frozen release + screenshots |
+
 ## Validation status language (use precisely)
 
 | State | Meaning |

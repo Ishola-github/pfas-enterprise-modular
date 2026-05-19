@@ -1,0 +1,79 @@
+# Public reproducibility evidence summary — PFAS Enterprise 5.0 (serum lane)
+
+**Last updated:** 2026-05-19 (UTC)  
+**Program:** Independent Reproducibility Pilot · **RUO only**
+
+This document is **operator-maintained public evidence**. It does not claim external
+validation until independent attestations are recorded below.
+
+---
+
+## Frozen release
+
+| Field | Value |
+|-------|-------|
+| Analytical tag | `serum-v2.0.0-temporal` |
+| Program commit | `62377e1` |
+| Canonical pins | `validation/serum_demo_v1/canonical_pins.json` |
+
+---
+
+## Environment verification matrix
+
+| Environment | Check | Result | Evidence |
+|-------------|-------|--------|----------|
+| GitHub Actions CI | Governance Checks workflow | **PASS** (expected on `62377e1`) | https://github.com/Ishola-github/pfas-enterprise-modular/actions |
+| GitHub Actions | Schema lock tests (V1.1 + V2 cohort) | **PASS** | Job: Schema Lock Tests |
+| GitHub Actions | Docker verify | **PASS** | Job: Docker Verify — ends `ALL PASS` |
+| Windows PowerShell | CI registry (`CI=true`) | **PASS** — 13 rows | Operator log 2026-05-18 |
+| Windows PowerShell | Full registry (`--full`) | **PASS** — 29 rows | Operator log 2026-05-18 |
+| Windows PowerShell | `pytest` schema-lock | **PASS** — 2/2 | Operator log 2026-05-18 |
+| Windows PowerShell | Canonical V1.1 + V2 CLI | **PASS** | `LOCAL_REPRO_VERIFICATION.json` |
+| Docker/Ubuntu | Full `docker_verify_linux.sh` | **PASS** (operator) | Add screenshot to `validation/releases/serum-v2.0.0-temporal/screenshots/` |
+| RStudio Shiny | V1.1 + V2 smoke | **PASS** (operator) | Optional screenshot |
+
+**CI screenshots:** place under `validation/releases/serum-v2.0.0-temporal/screenshots/ci/` before GitHub Release publish.
+
+---
+
+## Canonical output pins (must match for PASS)
+
+| Lane | run_id | output_csv_sha256 |
+|------|--------|-------------------|
+| V2 temporal | `2bda057f5ab18ff6` | `87c8b97e8a2c9002b183b0fabe161f531f1b933dd95e9ef4f4df980666310b67` |
+| V1.1 race-aware | `583780b861049800` | `ebb3daf421c291292b7c0c891d9fdf75313bd57fb8011f0aa1c8451ddd4057fa` |
+
+Input fixture SHA: `73b5b5da3faec469a05a082c53060b1b6bca2a9bb0900acab448e7b4cded96ee`  
+Reference v1.1 SHA: `fe195d6206d98d1e2281213fdc937dace468b57f9f8518bfca0e3496d0ba8f19`
+
+---
+
+## Independent blind reproduction (external)
+
+| reviewer_id | date | Mode | V2 SHA match | V1.1 SHA match | Docker ALL PASS | Status |
+|-------------|------|------|--------------|----------------|-----------------|--------|
+| *(pending)* | | | | | | |
+
+**Promotion:** ≥2 rows with all gates YES → update status to **Externally reproducible**.
+
+Source log: `validation/serum_demo_v1/reviewer_log.csv`
+
+---
+
+## Governance artifacts (versioned in git)
+
+- Schema-lock tests: `src/v1/tests/test_schema_lock.py`, `src/v2/tests/test_schema_lock.py`
+- CI registry scope: `ci_required` column in `data/reference/registry/reference_registry.csv`
+- Blind protocol: `validation/serum_demo_v1/BLIND_EXTERNAL_REPRO_PROTOCOL.md`
+- Doctrine: `docs/GOVERNANCE.md`
+
+---
+
+## What this does NOT claim
+
+- Clinical diagnosis or individual medical risk
+- EPA/regulatory compliance or ISO certification
+- PFAS disease prediction or litigation automation
+- Enterprise SaaS readiness
+
+**Intended use:** governed PFAS exposure contextualization infrastructure (RUO).

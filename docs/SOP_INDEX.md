@@ -61,6 +61,12 @@ When QA approved **SOP Rev 1.0**, record in **`CONTROLLED_DOCUMENTS.md`**:
 | Topic | Path |
 | ----- | ---- |
 | **Frozen demo package (Phase 1 validation)** | `validation/serum_demo_v1/` |
+| 5-minute reviewer Docker path | `validation/serum_demo_v1/QUICKSTART_5MIN.md` |
+| Independent Reproducibility Pilot Program | `validation/serum_demo_v1/REPRODUCIBILITY_PROGRAM.md` |
+| Public reproducibility evidence | `validation/public_reproducibility_summary.md` |
+| Frozen release bundle | `validation/releases/serum-v2.0.0-temporal/` |
+| Zenodo / DOI archive guide | `docs/ZENODO_ARCHIVE.md` |
+| Reproducibility whitepaper (draft) | `docs/whitepapers/PFAS_Enterprise_5_Reproducibility_Whitepaper.md` |
 | External reviewer packet (kickoff) | `validation/serum_demo_v1/EXTERNAL_REVIEWER_PACKET.md` |
 | Reviewer return log | `validation/serum_demo_v1/reviewer_log.csv` |
 | ATSDR acquisition targets | `validation/serum_atsdr_v1/ACQUISITION_TARGETS.md` |
