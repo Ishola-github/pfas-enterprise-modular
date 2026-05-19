@@ -18,3 +18,6 @@ sqlalchemy==2.0.49
 psycopg2-binary==2.9.12
 reportlab==4.5.1
 requests==2.34.0
+
+# CI schema-lock job (governance-checks.yml)
+pytest==8.3.5

@@ -4,5 +4,8 @@
 
 # Governed reproducibility pins — exact bytes on all platforms (no CRLF conversion)
 data/v1/fixtures/nhanes_j_governed_v1_input.csv binary
+data/reference_tables/nhanes_pfas_weighted_reference_tables_v1_1.csv binary
+src/v1/data/ontology/pfos_pfoa_v1_1.json binary
 src/v2/data/ontology/pfos_pfoa_v2.json binary
 data/ad_models/serum/ad_model.json binary
+validation/serum_v1/schema_contract.json binary
