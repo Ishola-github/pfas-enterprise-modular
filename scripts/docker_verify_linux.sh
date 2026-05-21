@@ -45,10 +45,13 @@ if [ ! -f "$ROOT/LatestPFAS.R" ]; then
   exit 1
 fi
 
-# Prefer active venv, then repo-local .venv, then system python3 (PEP 668 safe order).
-if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ]; then
+# Prefer active venv, then repo-local .venv only if it runs on this OS (bind-mount
+# from Windows often leaves a non-Linux .venv that breaks imports inside Docker).
+if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ] \
+    && "${VIRTUAL_ENV}/bin/python" -c "import sys" >/dev/null 2>&1; then
   PYTHON="${VIRTUAL_ENV}/bin/python"
-elif [ -x "$ROOT/.venv/bin/python" ]; then
+elif [ -x "$ROOT/.venv/bin/python" ] \
+    && "$ROOT/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
   PYTHON="$ROOT/.venv/bin/python"
 else
   PYTHON=python3

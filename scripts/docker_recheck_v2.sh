@@ -23,9 +23,11 @@ else
 fi
 cd "$ROOT"
 
-if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ]; then
+if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ] \
+    && "${VIRTUAL_ENV}/bin/python" -c "import sys" >/dev/null 2>&1; then
   PYTHON="${VIRTUAL_ENV}/bin/python"
-elif [ -x "$ROOT/.venv/bin/python" ]; then
+elif [ -x "$ROOT/.venv/bin/python" ] \
+    && "$ROOT/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
   PYTHON="$ROOT/.venv/bin/python"
 else
   PYTHON="${PFAS_PYTHON:-python3}"

@@ -12,10 +12,20 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+os.chdir(REPO_ROOT)
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+# Avoid shadow imports of unrelated top-level `api` packages on PYTHONPATH.
+for _name in list(sys.modules):
+    if _name == "api" or _name.startswith("api."):
+        _mod_file = getattr(sys.modules[_name], "__file__", "") or ""
+        _norm = _mod_file.replace("\\", "/")
+        if _norm and not str(REPO_ROOT).replace("\\", "/") in _norm:
+            del sys.modules[_name]
 
 os.environ["APP_ENV"] = "test"
 os.environ["PFAS_API_KEYS"] = "ci:ci_smoke_secret_token,ops:ops_smoke_secret_token"
@@ -53,7 +63,38 @@ def _attach_log_buffer() -> None:
     logger.setLevel(logging.DEBUG)
 
 
+def _response_json(response: Any) -> dict[str, Any]:
+    try:
+        data = response.json()
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _detail_error(body: dict[str, Any], key: str) -> Any:
+    detail = body.get("detail")
+    if isinstance(detail, dict):
+        return detail.get(key)
+    return None
+
+
+def _route_paths(app: Any) -> set[str]:
+    paths: set[str] = set()
+    for route in getattr(app, "routes", []):
+        path = getattr(route, "path", None)
+        if isinstance(path, str):
+            paths.add(path)
+    return paths
+
+
 _attach_log_buffer()
+
+_route_set = _route_paths(api_main.app)
+if "/v1/whoami" not in _route_set:
+    print("ERROR: /v1/whoami not registered on api.main.app", file=sys.stderr)
+    print(f"  api.main file: {getattr(api_main, '__file__', '?')}", file=sys.stderr)
+    print(f"  sample routes: {sorted(_route_set)[:20]}", file=sys.stderr)
+    sys.exit(2)
 
 client = TestClient(api_main.app)
 HEADERS_OK = {"X-API-Key": "ci_smoke_secret_token"}
@@ -70,11 +111,11 @@ def check(label: str, ok: bool, detail: str = "") -> None:
 print(">>> 1. Unauthenticated /v1/whoami should be 401")
 r = client.get("/v1/whoami")
 check("unauth 401", r.status_code == 401, f"got {r.status_code}")
-body = r.json()
+body = _response_json(r)
 check(
     "unauth error code",
-    body.get("detail", {}).get("error") == "missing_api_key",
-    f"detail={body.get('detail')}",
+    _detail_error(body, "error") == "missing_api_key",
+    f"detail={body.get('detail')!r}",
 )
 check("unauth response_id header present", r.headers.get("X-Request-Id") is not None)
 
@@ -82,7 +123,7 @@ check("unauth response_id header present", r.headers.get("X-Request-Id") is not 
 print(">>> 2. /v1/whoami with valid key")
 r = client.get("/v1/whoami", headers=HEADERS_OK)
 check("whoami 200", r.status_code == 200, f"got {r.status_code}")
-body = r.json()
+body = _response_json(r)
 check(
     "whoami returns api_key_id 'ci'",
     body.get("api_key_id") == "ci",
@@ -94,7 +135,7 @@ check("whoami has request_id", bool(body.get("request_id")))
 print(">>> 3. /health is unauthenticated and rich")
 r = client.get("/health")
 check("health 200", r.status_code == 200, f"got {r.status_code}")
-body = r.json()
+body = _response_json(r)
 check(
     "health has ad.available_lanes",
     isinstance(body.get("ad", {}).get("available_lanes"), list)
@@ -119,7 +160,7 @@ in_dom = {
 }
 r = client.post("/v1/predict", json=in_dom, headers=HEADERS_OK)
 check("in-dom 200", r.status_code == 200, f"got {r.status_code}")
-body = r.json()
+body = _response_json(r)
 check("in-dom ad_status == in_domain", body.get("ad_status") == "in_domain")
 check("in-dom prediction_refused == false", body.get("prediction_refused") is False)
 check("in-dom threshold_version present", bool(body.get("threshold_version")))
@@ -130,7 +171,7 @@ print(">>> 5. /v1/predict out-of-envelope -> 422 + refusal")
 out = dict(in_dom, sample_id="smoke-out-env", result_value_numeric=5000.0)
 r = client.post("/v1/predict", json=out, headers=HEADERS_OK)
 check("oob 422", r.status_code == 422, f"got {r.status_code}")
-body = r.json()
+body = _response_json(r)
 check("oob ad_status == reject", body.get("ad_status") == "reject")
 check("oob prediction_refused == true", body.get("prediction_refused") is True)
 check(
@@ -143,7 +184,7 @@ print(">>> 6. /v1/predict analyte_unseen -> 422")
 fake = dict(in_dom, sample_id="smoke-fake", analyte="MadeUpPFAS")
 r = client.post("/v1/predict", json=fake, headers=HEADERS_OK)
 check("fake-analyte 422", r.status_code == 422, f"got {r.status_code}")
-check("fake-analyte ad_reason analyte_unseen", r.json().get("ad_reason") == "analyte_unseen")
+check("fake-analyte ad_reason analyte_unseen", _response_json(r).get("ad_reason") == "analyte_unseen")
 
 
 print(">>> 7. burst overrun returns 429 with Retry-After")
@@ -151,7 +192,9 @@ limiter = api_main._rate_limiter
 bucket_key = f"k:{HEADERS_OK['X-API-Key'][:32]}"
 
 with limiter._lock:
-    limiter._buckets[bucket_key] = BucketState(tokens=0.0, last_refill=time.monotonic())
+    limiter._buckets[bucket_key] = BucketState(
+        tokens=0.0, last_refill=time.monotonic() + 3600.0
+    )
 
 r = client.get("/v1/whoami", headers=HEADERS_OK)
 saw_429 = r.status_code == 429
