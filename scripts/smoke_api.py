@@ -52,13 +52,17 @@ LOG_BUF = io.StringIO()
 
 def _attach_log_buffer() -> None:
     """Attach a StringIO handler so we can assert on emitted JSON records."""
-    logger = logging.getLogger("pfas.api")
-    if not logger.handlers:
-        raise RuntimeError(
-            "pfas.api logger has no handlers; import api.main before _attach_log_buffer()"
+    logger = getattr(api_main, "LOGGER", logging.getLogger("pfas.api"))
+
+    if getattr(logger, "handlers", None):
+        formatter = logger.handlers[0].formatter
+    else:
+        formatter = logging.Formatter(
+            "%(levelname)s:%(name)s:%(message)s"
         )
+
     h = logging.StreamHandler(LOG_BUF)
-    h.setFormatter(logger.handlers[0].formatter)
+    h.setFormatter(formatter)
     h.setLevel(logging.DEBUG)
     logger.addHandler(h)
 
