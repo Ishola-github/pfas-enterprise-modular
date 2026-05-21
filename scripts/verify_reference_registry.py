@@ -14,6 +14,7 @@ import argparse
 import csv
 import hashlib
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -29,6 +30,20 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _sha256_git_head_blob(root: Path, rel: str) -> str | None:
+    """SHA-256 of the committed git object at HEAD:rel, or None if unavailable."""
+    try:
+        blob = subprocess.check_output(
+            ["git", "rev-parse", f"HEAD:{rel}"],
+            cwd=root,
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+        data = subprocess.check_output(["git", "cat-file", "-p", blob], cwd=root)
+        return hashlib.sha256(data).hexdigest()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
 
 
 def _read_registry_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
@@ -129,11 +144,14 @@ def main() -> int:
         if not path.is_file():
             errors.append(f"row {line_no}: missing file {doc!r} -> {path}")
             continue
-        got = _sha256_file(path)
+        got_worktree = _sha256_file(path)
+        got_git = _sha256_git_head_blob(root, rel) if ci_mode else None
+        got = got_git if got_git is not None else got_worktree
         if expect and got.lower() != expect:
-            errors.append(
-                f"row {line_no}: sha256 mismatch {doc!r}\n  expected: {expect}\n  actual:   {got}"
-            )
+            detail = f"row {line_no}: sha256 mismatch {doc!r}\n  expected: {expect}\n  actual:   {got}"
+            if got_git is not None and got_worktree.lower() != got_git.lower():
+                detail += f"\n  worktree: {got_worktree}\n  git HEAD: {got_git}"
+            errors.append(detail)
 
     mode_label = "ci" if ci_mode else "full"
     if errors:

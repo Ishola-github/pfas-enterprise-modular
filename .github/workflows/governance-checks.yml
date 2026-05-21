@@ -17,6 +17,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Materialize governed pins from git HEAD
+        run: |
+          git config core.autocrlf false
+          python scripts/materialize_governed_pins_from_git.py
+
       - name: Build verify image
         run: docker build -f Dockerfile.linux-verify -t pfas-linux-verify .
 
@@ -43,7 +48,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: CI registry check (governed core only)
-        run: python scripts/verify_reference_registry.py --project-root .
+        run: |
+          git rev-parse HEAD
+          python scripts/verify_reference_registry.py --project-root .
 
       - name: Run schema lock tests
         run: python -m pytest src/v1/tests/test_schema_lock.py src/v2/tests/test_schema_lock.py -q
