@@ -170,8 +170,11 @@ print(">>> 7. burst overrun returns 429 with Retry-After")
 # Exhaust the CI key bucket deterministically, then fire one more request.
 limiter = api_main._rate_limiter
 bucket_key = f"k:{HEADERS_OK['X-API-Key'][:32]}"
+# last_refill in the future blocks token refill until after this smoke step.
 with limiter._lock:
-    limiter._buckets[bucket_key] = BucketState(tokens=0.0, last_refill=time.monotonic())
+    limiter._buckets[bucket_key] = BucketState(
+        tokens=0.0, last_refill=time.monotonic() + 3600.0
+    )
 
 r = client.get("/v1/whoami", headers=HEADERS_OK)
 saw_429 = r.status_code == 429
