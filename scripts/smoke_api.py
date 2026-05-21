@@ -27,6 +27,7 @@ import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -46,20 +47,23 @@ os.environ["PFAS_API_AD_STRICT_REFUSAL"] = "true"
 from fastapi.testclient import TestClient  # noqa: E402
 
 from api import main as api_main  # noqa: E402
+from api.rate_limit import BucketState  # noqa: E402
 
 LOG_BUF = io.StringIO()
 
 
 def _attach_log_buffer() -> None:
     """Attach a StringIO handler so we can assert on emitted JSON records."""
-    logger = getattr(api_main, "LOGGER", logging.getLogger("pfas.api"))
+    # configure_logger() registers handlers on the named logger (api/main may
+    # not export LOGGER on older revisions).
+    logger = logging.getLogger("pfas.api")
+    if not logger.handlers:
+        logger = getattr(api_main, "LOGGER", logger)
 
-    if getattr(logger, "handlers", None):
+    if logger.handlers:
         formatter = logger.handlers[0].formatter
     else:
-        formatter = logging.Formatter(
-            "%(levelname)s:%(name)s:%(message)s"
-        )
+        formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
 
     h = logging.StreamHandler(LOG_BUF)
     h.setFormatter(formatter)
@@ -161,15 +165,18 @@ check("fake-analyte ad_reason analyte_unseen",
 
 # ----- 7. Rate-limit burst overrun ------------------------------------------
 print(">>> 7. burst overrun returns 429 with Retry-After")
-saw_429 = False
-saw_retry_after = False
-for i in range(20):
-    r = client.get("/v1/whoami", headers=HEADERS_OK)
-    if r.status_code == 429:
-        saw_429 = True
-        saw_retry_after = "Retry-After" in r.headers
-        break
-check("rate limit triggers 429", saw_429, "")
+# Prior steps consume tokens; with per_minute=300 the bucket also refills
+# ~5 tokens/sec, so a naive loop never trips 429 after a slow /health call.
+# Exhaust the CI key bucket deterministically, then fire one more request.
+limiter = api_main._rate_limiter
+bucket_key = f"k:{HEADERS_OK['X-API-Key'][:32]}"
+with limiter._lock:
+    limiter._buckets[bucket_key] = BucketState(tokens=0.0, last_refill=time.monotonic())
+
+r = client.get("/v1/whoami", headers=HEADERS_OK)
+saw_429 = r.status_code == 429
+saw_retry_after = "Retry-After" in r.headers if saw_429 else False
+check("rate limit triggers 429", saw_429, f"got {r.status_code}")
 check("rate limit response has Retry-After", saw_retry_after, "")
 
 # ----- 8. Structured access log has our fields ------------------------------
