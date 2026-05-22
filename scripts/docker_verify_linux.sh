@@ -31,6 +31,9 @@
 #   bash scripts/docker_verify_linux.sh
 
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/pick_verify_python.sh
+source "${SCRIPT_DIR}/lib/pick_verify_python.sh"
 # Docker image installs this script under /usr/local/bin; the repo is bind-mounted at /app.
 # Native / WSL: script lives in <repo>/scripts/docker_verify_linux.sh — parent dir is repo root.
 if [ -f "/app/LatestPFAS.R" ]; then
@@ -38,7 +41,7 @@ if [ -f "/app/LatestPFAS.R" ]; then
 elif [ -n "${PFAS_VERIFY_ROOT:-}" ] && [ -f "${PFAS_VERIFY_ROOT}/LatestPFAS.R" ]; then
   ROOT="$(cd "${PFAS_VERIFY_ROOT}" && pwd)"
 else
-  ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 fi
 cd "$ROOT"
 
@@ -49,24 +52,7 @@ if [ ! -f "$ROOT/LatestPFAS.R" ]; then
   exit 1
 fi
 
-# Prefer active venv, then repo-local .venv only if it runs on this OS (bind-mount
-# from Windows often leaves a non-Linux .venv that breaks imports inside Docker).
-case "${ROOT}" in
-  *docker-desktop-bind-mounts*|/mnt/*)
-    PYTHON=python3
-    ;;
-  *)
-    if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ] \
-        && "${VIRTUAL_ENV}/bin/python" -c "import sys" >/dev/null 2>&1; then
-      PYTHON="${VIRTUAL_ENV}/bin/python"
-    elif [ -x "$ROOT/.venv/bin/python" ] \
-        && "$ROOT/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
-      PYTHON="$ROOT/.venv/bin/python"
-    else
-      PYTHON=python3
-    fi
-    ;;
-esac
+PYTHON="$(pick_verify_python_or_die "$ROOT")"
 
 echo "=== Linux verify: host ==="
 uname -a
@@ -74,18 +60,6 @@ echo "=== Linux verify: repo root ==="
 echo "$ROOT"
 echo "=== Linux verify: Python ==="
 echo "$("$PYTHON" -c "import sys; print(sys.executable)")"
-
-if ! "$PYTHON" -c "import fastapi, httpx" 2>/dev/null; then
-  echo "" >&2
-  echo "ERROR: FastAPI / httpx not importable with: $PYTHON" >&2
-  echo "  Ubuntu 24+ enforces PEP 668 (externally-managed-environment)." >&2
-  echo "  Fix (recommended):" >&2
-  echo "    cd $ROOT" >&2
-  echo "    python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt" >&2
-  echo "    bash scripts/docker_verify_linux.sh" >&2
-  echo "  Or use Docker (see header comments in this file)." >&2
-  exit 1
-fi
 
 echo "=== R: parse LatestPFAS.R ==="
 Rscript -e "invisible(parse('LatestPFAS.R')); cat('PARSE_OK\n')"

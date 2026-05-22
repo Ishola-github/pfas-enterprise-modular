@@ -17,6 +17,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/verify_output_dir.sh
 source "${SCRIPT_DIR}/lib/verify_output_dir.sh"
+# shellcheck source=lib/pick_verify_python.sh
+source "${SCRIPT_DIR}/lib/pick_verify_python.sh"
 
 if [ -f "/app/LatestPFAS.R" ]; then
   ROOT="/app"
@@ -27,23 +29,7 @@ else
 fi
 cd "$ROOT"
 
-# Docker Desktop WSL bind mounts: use image/system python3, not Windows .venv.
-case "${ROOT}" in
-  *docker-desktop-bind-mounts*|/mnt/*)
-    PYTHON="${PFAS_PYTHON:-python3}"
-    ;;
-  *)
-    if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ] \
-        && "${VIRTUAL_ENV}/bin/python" -c "import sys" >/dev/null 2>&1; then
-      PYTHON="${VIRTUAL_ENV}/bin/python"
-    elif [ -x "$ROOT/.venv/bin/python" ] \
-        && "$ROOT/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
-      PYTHON="$ROOT/.venv/bin/python"
-    else
-      PYTHON="${PFAS_PYTHON:-python3}"
-    fi
-    ;;
-esac
+PYTHON="$(pick_verify_python_or_die "$ROOT")"
 
 export PFAS_PYTHON="$PYTHON"
 export PFAS_SMOKE_PROJECT_ROOT="$ROOT"
