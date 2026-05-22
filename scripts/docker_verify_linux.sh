@@ -18,6 +18,10 @@
 #   docker build -f Dockerfile.linux-verify -t pfas-linux-verify .
 #   docker run --rm -v "${PWD}:/app" -w /app pfas-linux-verify
 #
+# If V2 CLI fails with PermissionError under docker-desktop-bind-mounts, pull
+# latest scripts (outputs go to /tmp/pfas_verify_outputs when repo is not writable).
+# Best practice on WSL: clone the repo under ~/ (native Linux ext4), not /mnt/c/.
+#
 # Native Ubuntu / WSL — PEP 668 blocks "pip3 install" system-wide. Use a venv:
 #   sudo apt-get update && sudo apt-get install -y r-base python3 python3-venv python3-pip
 #   cd ~/Downloads/pfas-toxicology/pfas-toxicology   # <-- your real path
@@ -47,15 +51,22 @@ fi
 
 # Prefer active venv, then repo-local .venv only if it runs on this OS (bind-mount
 # from Windows often leaves a non-Linux .venv that breaks imports inside Docker).
-if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ] \
-    && "${VIRTUAL_ENV}/bin/python" -c "import sys" >/dev/null 2>&1; then
-  PYTHON="${VIRTUAL_ENV}/bin/python"
-elif [ -x "$ROOT/.venv/bin/python" ] \
-    && "$ROOT/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
-  PYTHON="$ROOT/.venv/bin/python"
-else
-  PYTHON=python3
-fi
+case "${ROOT}" in
+  *docker-desktop-bind-mounts*|/mnt/*)
+    PYTHON=python3
+    ;;
+  *)
+    if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ] \
+        && "${VIRTUAL_ENV}/bin/python" -c "import sys" >/dev/null 2>&1; then
+      PYTHON="${VIRTUAL_ENV}/bin/python"
+    elif [ -x "$ROOT/.venv/bin/python" ] \
+        && "$ROOT/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
+      PYTHON="$ROOT/.venv/bin/python"
+    else
+      PYTHON=python3
+    fi
+    ;;
+esac
 
 echo "=== Linux verify: host ==="
 uname -a

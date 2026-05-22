@@ -14,24 +14,36 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/verify_output_dir.sh
+source "${SCRIPT_DIR}/lib/verify_output_dir.sh"
+
 if [ -f "/app/LatestPFAS.R" ]; then
   ROOT="/app"
 elif [ -n "${PFAS_VERIFY_ROOT:-}" ] && [ -f "${PFAS_VERIFY_ROOT}/LatestPFAS.R" ]; then
   ROOT="$(cd "${PFAS_VERIFY_ROOT}" && pwd)"
 else
-  ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 fi
 cd "$ROOT"
 
-if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ] \
-    && "${VIRTUAL_ENV}/bin/python" -c "import sys" >/dev/null 2>&1; then
-  PYTHON="${VIRTUAL_ENV}/bin/python"
-elif [ -x "$ROOT/.venv/bin/python" ] \
-    && "$ROOT/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
-  PYTHON="$ROOT/.venv/bin/python"
-else
-  PYTHON="${PFAS_PYTHON:-python3}"
-fi
+# Docker Desktop WSL bind mounts: use image/system python3, not Windows .venv.
+case "${ROOT}" in
+  *docker-desktop-bind-mounts*|/mnt/*)
+    PYTHON="${PFAS_PYTHON:-python3}"
+    ;;
+  *)
+    if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ] \
+        && "${VIRTUAL_ENV}/bin/python" -c "import sys" >/dev/null 2>&1; then
+      PYTHON="${VIRTUAL_ENV}/bin/python"
+    elif [ -x "$ROOT/.venv/bin/python" ] \
+        && "$ROOT/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
+      PYTHON="$ROOT/.venv/bin/python"
+    else
+      PYTHON="${PFAS_PYTHON:-python3}"
+    fi
+    ;;
+esac
 
 export PFAS_PYTHON="$PYTHON"
 export PFAS_SMOKE_PROJECT_ROOT="$ROOT"
@@ -50,22 +62,31 @@ echo "$ROOT"
 echo "=== V2 recheck: Python ==="
 echo "$("$PYTHON" -c "import sys; print(sys.executable)")"
 
+V2_OUT="$(verify_pick_output_dir "data/v2/outputs/docker_recheck")"
+V11_OUT="$(verify_pick_output_dir "data/v1/outputs/docker_recheck_v11_assert")"
+V2_SMOKE_OUT="$(verify_pick_output_dir "data/v2/outputs/smoke_shiny")"
+mkdir -p "$V2_OUT" "$V11_OUT" "$V2_SMOKE_OUT"
+echo "=== V2 output dir (writable) ==="
+echo "$V2_OUT"
+
 echo "=== V2 CLI ==="
 "$PYTHON" -m src.v2.cli \
   --input "$FIXTURE" \
-  --output-dir "$ROOT/data/v2/outputs/docker_recheck"
+  --output-dir "$V2_OUT"
 
 echo ""
 echo "=== V1.1 race-aware column assertion (Docker guard) ==="
 "$PYTHON" -m src.v1.cli --v1-1 \
   --input "$FIXTURE" \
-  --output-dir "$ROOT/data/v1/outputs/docker_recheck_v11_assert" >/tmp/v11_assert_summary.json
-"$PYTHON" - <<'PY'
+  --output-dir "$V11_OUT" >/tmp/v11_assert_summary.json
+PFAS_V11_ASSERT_DIR="$V11_OUT" "$PYTHON" - <<'PY'
 import csv
 import glob
+import os
 from pathlib import Path
 
-report_paths = sorted(glob.glob("data/v1/outputs/docker_recheck_v11_assert/v1_report_*.csv"))
+assert_dir = os.environ["PFAS_V11_ASSERT_DIR"]
+report_paths = sorted(glob.glob(os.path.join(assert_dir, "v1_report_*.csv")))
 if not report_paths:
     raise SystemExit("ERROR: no V1.1 report generated for race-aware assertion")
 report = Path(report_paths[-1])
@@ -105,6 +126,7 @@ if ! Rscript -e 'quit(status=if (requireNamespace("jsonlite", quietly=TRUE)) 0 e
   echo "  Ubuntu: sudo apt-get install -y r-cran-jsonlite" >&2
   exit 1
 fi
+export PFAS_V2_SMOKE_OUTPUT_DIR="$V2_SMOKE_OUT"
 Rscript "$ROOT/scripts/smoke_v2_shiny_integration.R"
 
 if [ "${PFAS_V2_SKIP_R_PARSE:-0}" != "1" ]; then

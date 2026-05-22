@@ -6,7 +6,8 @@ if (!nzchar(root)) {
 source(file.path(root, "scripts", "run_v2_contextualization.R"), local = TRUE)
 
 fixture <- file.path(root, "data", "v1", "fixtures", "nhanes_j_governed_v1_input.csv")
-out <- file.path(root, "data", "v2", "outputs", "smoke_shiny")
+out_env <- Sys.getenv("PFAS_V2_SMOKE_OUTPUT_DIR", unset = "")
+out <- if (nzchar(out_env)) out_env else file.path(root, "data", "v2", "outputs", "smoke_shiny")
 dir.create(out, recursive = TRUE, showWarnings = FALSE)
 
 res <- run_v2_serum_contextualization(
