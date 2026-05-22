@@ -111,11 +111,18 @@ def check(label: str, ok: bool, detail: str = "") -> None:
 print(">>> 1. Unauthenticated /v1/whoami should be 401")
 r = client.get("/v1/whoami")
 check("unauth 401", r.status_code == 401, f"got {r.status_code}")
-body = _response_json(r)
+body = r.json()
+detail = body.get("detail") if isinstance(body, dict) else None
+
+if isinstance(detail, dict):
+    unauth_error_ok = detail.get("error") == "missing_api_key"
+else:
+    unauth_error_ok = "missing_api_key" in str(detail)
+
 check(
     "unauth error code",
-    _detail_error(body, "error") == "missing_api_key",
-    f"detail={body.get('detail')!r}",
+    unauth_error_ok,
+    f"detail={detail}",
 )
 check("unauth response_id header present", r.headers.get("X-Request-Id") is not None)
 
