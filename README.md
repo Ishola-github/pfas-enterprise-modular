@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20348369.svg)](https://doi.org/10.5281/zenodo.20348369)
 # PFAS Enterprise 5.0
 
 Human-centered PFAS screening intelligence platform.
