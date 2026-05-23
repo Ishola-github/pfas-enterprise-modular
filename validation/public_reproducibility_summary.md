@@ -1,6 +1,6 @@
 # Public reproducibility evidence summary — PFAS Enterprise 5.0 (serum lane)
 
-**Last updated:** 2026-05-19 (UTC)  
+**Last updated:** 2026-05-22 (UTC)  
 **Program:** Independent Reproducibility Pilot · **RUO only**
 
 This document is **operator-maintained public evidence**. It does not claim external
@@ -13,10 +13,18 @@ validation until independent attestations are recorded below.
 | Field | Value |
 |-------|-------|
 | Analytical tag | `serum-v2.0.0-temporal` |
-| Program commit | `f95ebb4` (repro program) · CI base `62377e1` |
+| CI-verified commit | `8ce2492` |
 | Canonical pins | `validation/serum_demo_v1/canonical_pins.json` |
-| GitHub Release | *(operator: publish per `validation/releases/serum-v2.0.0-temporal/GITHUB_RELEASE_CHECKLIST.md`)* |
+| GitHub Release | https://github.com/Ishola-github/pfas-enterprise-modular/releases/tag/serum-v2.0.0-temporal |
+| Zenodo DOI | https://doi.org/10.5281/zenodo.20348369 |
 | One-command path | `bash scripts/repro_one_shot.sh` |
+| Grant positioning (17025-style, not certification) | `docs/grants/ISO_17025_WORKFLOW_SUPPORT_BLURB.md` |
+
+---
+
+## Grant-safe summary (ISO/IEC 17025 workflow support)
+
+**PFAS Enterprise 5.0** is an **RUO** serum PFOS/PFOA contextualization scaffold with **17025-aligned workflow elements** (provenance, registry verification, schema locks, human review, applicability-domain gating)—**not** ISO accreditation or regulatory certification. Full grant-safe text: **`docs/grants/ISO_17025_WORKFLOW_SUPPORT_BLURB.md`**.
 
 ---
 
@@ -24,7 +32,7 @@ validation until independent attestations are recorded below.
 
 | Environment | Check | Result | Evidence |
 |-------------|-------|--------|----------|
-| GitHub Actions CI | Governance Checks workflow | **PASS** (expected on `62377e1`) | https://github.com/Ishola-github/pfas-enterprise-modular/actions |
+| GitHub Actions CI | Governance Checks workflow | **PASS** on `8ce2492` (run #24) | https://github.com/Ishola-github/pfas-enterprise-modular/actions |
 | GitHub Actions | Schema lock tests (V1.1 + V2 cohort) | **PASS** | Job: Schema Lock Tests |
 | GitHub Actions | Docker verify | **PASS** | Job: Docker Verify — ends `ALL PASS` |
 | Windows PowerShell | CI registry (`CI=true`) | **PASS** — 13 rows | Operator log 2026-05-18 |
