@@ -1,6 +1,6 @@
 # Public reproducibility evidence summary — PFAS Enterprise 5.0 (serum lane)
 
-**Last updated:** 2026-05-22 (UTC)  
+**Last updated:** 2026-05-25 (UTC)  
 **Program:** Independent Reproducibility Pilot · **RUO only**
 
 This document is **operator-maintained public evidence**. It does not claim external
@@ -28,6 +28,19 @@ validation until independent attestations are recorded below.
 
 ---
 
+## Operator evidence note (2026-05-25)
+
+**Gate result:** Smoke API `24/24 PASS`; Linux verify `ALL PASS`.  
+The `422` fake-analyte response confirms the applicability-domain reject path is working.  
+The `429` burst response confirms rate limiting is working.  
+Structured JSON logs were captured as expected.
+
+Environments: Windows PowerShell, Docker/Linux (`pfas-linux-verify`), WSL (`.venv`).  
+Operator precondition for Docker/WSL bind mounts: `python scripts/materialize_governed_pins_from_git.py` before verify when worktree bytes drift from registry pins.  
+**Do not retag. Do not change canonical hashes.**
+
+---
+
 ## Environment verification matrix
 
 | Environment | Check | Result | Evidence |
@@ -35,14 +48,11 @@ validation until independent attestations are recorded below.
 | GitHub Actions CI | Governance Checks workflow | **PASS** on `8ce2492` (run #24) | https://github.com/Ishola-github/pfas-enterprise-modular/actions |
 | GitHub Actions | Schema lock tests (V1.1 + V2 cohort) | **PASS** | Job: Schema Lock Tests |
 | GitHub Actions | Docker verify | **PASS** | Job: Docker Verify — ends `ALL PASS` |
-| Windows PowerShell | CI registry (`CI=true`) | **PASS** — 13 rows | Operator log 2026-05-18 |
-| Windows PowerShell | Full registry (`--full`) | **PASS** — 29 rows | Operator log 2026-05-18 |
-| Windows PowerShell | `pytest` schema-lock | **PASS** — 2/2 | Operator log 2026-05-18 |
-| Windows PowerShell | Canonical V1.1 + V2 CLI | **PASS** | `LOCAL_REPRO_VERIFICATION.json` |
-| Docker/Ubuntu | Full `docker_verify_linux.sh` | **PASS** (operator) | Add screenshot to `validation/releases/serum-v2.0.0-temporal/screenshots/` |
+| Windows PowerShell | CI registry + smoke + pytest | **PASS** | Operator recheck 2026-05-25 |
+| WSL / Docker Desktop | `docker_verify_linux.sh` + smoke | **PASS** | Operator recheck 2026-05-25 — `ALL PASS` |
+| Docker/Ubuntu | Full `docker_verify_linux.sh` | **PASS** (operator) | `EXTERNAL_REPRO_DOCKER_20260522_080853.log` on release |
+| Windows PowerShell | External repro log | **PASS** | `EXTERNAL_REPRO_PS_20260522_080851.log` on release |
 | RStudio Shiny | V1.1 + V2 smoke | **PASS** (operator) | Optional screenshot |
-
-**CI screenshots:** place under `validation/releases/serum-v2.0.0-temporal/screenshots/ci/` before GitHub Release publish.
 
 ---
 
