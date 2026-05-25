@@ -48,6 +48,7 @@ External executors: use the **tag only** — not branch `main`.
 
 | Document | Purpose |
 |----------|---------|
+| [docs/blog/POST_01_REPRODUCIBILITY_PFAS_WORKFLOWS.md](blog/POST_01_REPRODUCIBILITY_PFAS_WORKFLOWS.md) | Draft: Why reproducibility matters (publish externally) |
 | [docs/grants/ISO_17025_WORKFLOW_SUPPORT_BLURB.md](grants/ISO_17025_WORKFLOW_SUPPORT_BLURB.md) | Grant-safe 17025-*aligned* wording (not certification) |
 | [docs/whitepapers/PFAS_Enterprise_5_Reproducibility_Whitepaper.md](whitepapers/PFAS_Enterprise_5_Reproducibility_Whitepaper.md) | Long-form reproducibility narrative |
 
