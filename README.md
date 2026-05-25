@@ -5,7 +5,52 @@ Human-centered PFAS screening intelligence platform.
 
 PFAS Enterprise 5.0 helps laboratories, consultants, and environmental teams harmonize PFAS data, screen samples, generate model-card reports, route uncertain results to human review, and track sustainability impact.
 
-**Reality check:** This repository is a **technical prototype / research scaffold** with compliance-oriented *architecture*, not a certified regulatory or analytical product. Read **[DISCLAIMER.md](DISCLAIMER.md)** for honest scope, limitations, and suggested positioning.
+> **Positioning:** Governed, reproducible PFAS **decision-support infrastructure**—frozen releases, provenance, and human-reviewed screening—not a replacement for accredited laboratories. **RUO only.**
+
+**Reality check:** This repository is a **technical prototype / research scaffold** with compliance-oriented *architecture*, not a certified regulatory or analytical product. Read **[DISCLAIMER.md](DISCLAIMER.md)** and the **[Governance index](docs/GOVERNANCE_INDEX.md)** for scope, limitations, and reproducibility artifacts.
+
+## Workflow (high level)
+
+```mermaid
+flowchart LR
+  A[Sample CSV] --> B[Applicability domain gate]
+  B -->|in domain| C[Contextualize / screen]
+  B -->|out of domain| D[Refuse + human review]
+  C --> E[Manifest + audit log]
+  E --> F[Model-card report / summary]
+  D --> F
+```
+
+## Quick start (reproducibility)
+
+Blind reviewers and operators verifying the frozen serum release:
+
+```bash
+git clone https://github.com/Ishola-github/pfas-enterprise-modular.git
+cd pfas-enterprise-modular
+git checkout serum-v2.0.0-temporal
+bash scripts/repro_one_shot.sh
+```
+
+**PASS** ends with `ONE_SHOT_REPRO: PASS` and `=== Linux verify: ALL PASS ===`. See **[validation/serum_demo_v1/ONE_COMMAND_REPRO.md](validation/serum_demo_v1/ONE_COMMAND_REPRO.md)**.
+
+## Documentation screenshots
+
+Add PNGs under [`docs/images/`](docs/images/) (see checklist there), then uncomment the gallery in README:
+
+- **workflow_upload.png** — sample intake
+- **dashboard_shiny.png** — screening UI
+- **report_pdf.png** — governed report output
+- **provenance_manifest.png** — manifest / audit trail
+- **governance_ci_green.png** — Governance Checks PASS on `8ce2492`
+
+```markdown
+<!-- Gallery (enable after PNGs exist):
+![Upload](docs/images/workflow_upload.png)
+![Dashboard](docs/images/dashboard_shiny.png)
+![Report](docs/images/report_pdf.png)
+-->
+```
 
 ## 5.0 Pillars
 
@@ -38,6 +83,8 @@ For a fuller statement of what the software **can and cannot** honestly claim to
 Frozen serum reproducibility release **`serum-v2.0.0-temporal`** (commit `8ce2492`): **[Zenodo](https://doi.org/10.5281/zenodo.20348369)** · **[GitHub Release](https://github.com/Ishola-github/pfas-enterprise-modular/releases/tag/serum-v2.0.0-temporal)** · evidence summary **[validation/public_reproducibility_summary.md](validation/public_reproducibility_summary.md)**.
 
 Grant-safe **ISO/IEC 17025 workflow support** wording (not certification): **[docs/grants/ISO_17025_WORKFLOW_SUPPORT_BLURB.md](docs/grants/ISO_17025_WORKFLOW_SUPPORT_BLURB.md)**.
+
+**Governance hub:** **[docs/GOVERNANCE_INDEX.md](docs/GOVERNANCE_INDEX.md)** — reproducibility, pilot freeze, attestation, safe public narrative.
 
 ## Shiny front ends
 
