@@ -1,5 +1,4 @@
- DOI: 10.5281/zenodo.20425189
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20348369.svg)](https://doi.org/10.5281/zenodo.20348369)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20425189.svg)](https://doi.org/10.5281/zenodo.20425189)
 # PFAS Enterprise 5.0
 
 Human-centered PFAS screening intelligence platform.
@@ -81,7 +80,7 @@ For a fuller statement of what the software **can and cannot** honestly claim to
 
 ## Reproducibility and grants
 
-Frozen serum reproducibility release **`serum-v2.0.0-temporal`** (commit `8ce2492`): **[Zenodo](https://doi.org/10.5281/zenodo.20348369)** · **[GitHub Release](https://github.com/Ishola-github/pfas-enterprise-modular/releases/tag/serum-v2.0.0-temporal)** · evidence summary **[validation/public_reproducibility_summary.md](validation/public_reproducibility_summary.md)**.
+Frozen serum reproducibility release **`serum-v2.0.0-temporal`** (commit `8ce2492`): **[Zenodo](https://doi.org/10.5281/zenodo.20425189)** · **[GitHub Release](https://github.com/Ishola-github/pfas-enterprise-modular/releases/tag/serum-v2.0.0-temporal)** · evidence summary **[validation/public_reproducibility_summary.md](validation/public_reproducibility_summary.md)**.
 
 Grant-safe **ISO/IEC 17025 workflow support** wording (not certification): **[docs/grants/ISO_17025_WORKFLOW_SUPPORT_BLURB.md](docs/grants/ISO_17025_WORKFLOW_SUPPORT_BLURB.md)**.
 
