@@ -1,9 +1,0 @@
-metric_name,metric_value,predeclared_target,status,notes
-recall,,,,Populate from blind results if labels available
-precision,,,,Populate from blind results if labels available
-specificity,,,,Populate from blind results if labels available
-npv,,,,Populate from blind results if labels available
-false_positive_rate_negative,,,,Populate from blind results if labels available
-flags_per_10k,,,,Operational workload proxy for screening
-applicability_domain_warning_rate,,,,Fraction of rows flagged out-of-scope
-exclusion_rate,,,,Rows excluded under predeclared rules
