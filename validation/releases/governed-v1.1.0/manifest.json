@@ -1,0 +1,13 @@
+﻿{
+  "release": "governed-v1.1.0",
+  "commit": "587b591",
+  "release_type": "manual_governed_release",
+  "governance_checks": "PASS",
+  "created": "2026-05-31",
+  "artifacts": [
+    "release_notes.md",
+    "manifest.json",
+    "validation_report.json",
+    "workflow_pass.png"
+  ]
+}

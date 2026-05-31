@@ -1,0 +1,13 @@
+{
+  "release": "governed-v1.1.0",
+  "commit": "587b591",
+  "status": "PASS",
+  "validation_type": "internal_governed_release",
+  "controls": [
+    "SOP",
+    "provenance",
+    "metrics",
+    "manual_release"
+  ],
+  "note": "Internal governed software release only. Not regulatory approval."
+}
