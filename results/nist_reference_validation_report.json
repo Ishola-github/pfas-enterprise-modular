@@ -1,0 +1,99 @@
+{
+  "provenance": {
+    "reference_source": "NIST SRM 1957",
+    "reference_file": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\reference\\nist\\srm1957\\serum_pfas.csv",
+    "certificate_version": "SRM 1957",
+    "download_date": "2026-05-11",
+    "validation_run_timestamp_utc": "2026-05-11T18:21:30.012275+00:00",
+    "pipeline_version": "5.0",
+    "model_version": null,
+    "threshold_version": "unspecified"
+  },
+  "reference_metadata": {
+    "reference_source": "NIST SRM 1957",
+    "reference_material": "SRM 1957",
+    "reference_type": "non-certified",
+    "software_benchmarking_statement": "The PFAS app was benchmarked using NIST SRM 1957 non-certified PFAS mass-fraction reference values in serum (SRM 1957 reconstituted human serum per NIST documentation).",
+    "validation_scope": "Reference-data validation for software benchmarking (analyte recognition, matrix separation, units, uncertainty propagation, non-certified flagging, LC/MS/MS workflow metadata); not ISO/IEC 17025 laboratory validation. Do not claim NIST-certified PFAS values for Table A2. This pack supports validation architecture, QC simulation, and ISO-style documentation hooks; it is not EPA certification, ISO 17025 accreditation, CLIA validation, wet-lab validation, prospective field validation, or accredited proficiency-testing performance.",
+    "value_status": "non-certified per NIST SRM 1957 Appendix A Table A2 (mass fractions in serum / reconstituted SRM 1957 material; weighted LC-MS/MS means; not certified values)",
+    "value_status_csv": "non-certified",
+    "matrix": "serum",
+    "matrix_regulatory_context_dominant": "physiological",
+    "analytical_basis": "LC/MS/MS",
+    "interlaboratory": "yes (per NIST SRM 1957 Appendix A Table A2 context: interlaboratory contributions)",
+    "uncertainty": "expanded uncertainty with coverage factor k=2 (per NIST Table A2)",
+    "coverage_factor": 2.0,
+    "traceability": "unspecified",
+    "isomer_reporting": "unspecified",
+    "linear_isomer": "unspecified",
+    "branched_isomer": "unspecified",
+    "combined_isomer_reporting": "unspecified",
+    "external_lab_source": "unspecified",
+    "weighted_mean_basis": "weighted means from LC-MS/MS methods (per NIST Table A2 documentation)",
+    "consensus_mean_note": "The concentration column is the NIST Table A2 reported consensus value (weighted mean); it is not a certified property value.",
+    "nist_documentation": "NIST SRM 1957 Appendix A Table A2 - Non-Certified Mass Fraction Values for PFAS in Reconstituted SRM 1957"
+  },
+  "matrix_architecture": {
+    "reference_regulatory_context": "physiological",
+    "allowed_workflows": [
+      "serum_body_burden_benchmarking",
+      "physiological_pfas_module_validation",
+      "analyte_ontology_mapping",
+      "uncertainty_aware_screening_calibration"
+    ],
+    "excluded_workflows": [
+      "epa_drinking_water_mcl_compliance",
+      "iso_17025_lab_validation_claims",
+      "environmental_matrix_recovery_or_mdl_claims"
+    ],
+    "rationale": "Table A2 / serum extracts provide NIST non-certified PFAS mass-fraction reference values for software benchmarking in human serum context \u2014 not certified values, not drinking-water evidence, and not ISO 17025 lab validation."
+  },
+  "reference_pack_files_present": {
+    "nist/srm1957/serum_pfas.csv": true,
+    "nist/rm8446/methanol_pfas.csv": true,
+    "nist/rm8690/afff_pfas.csv": true,
+    "nist/manifest.json": true,
+    "nist/hashes.txt": true,
+    "registry/reference_registry.csv": true,
+    "nist_srm1957_pfas_reference.csv": true,
+    "nist_srm1957_pfas.csv": true,
+    "nist_srm1957_pfas_noncertified.csv": true,
+    "epa_1633a_method_metadata.csv": true,
+    "epa_1633a_qc_limits.csv": true,
+    "epa_1633a_qc_batch_schema.csv": true,
+    "holding_times.csv": true,
+    "pfas_matrix_registry.csv": true,
+    "contamination_control_rules.csv": true
+  },
+  "integrity": {
+    "required_columns_resolved": {
+      "analyte": "analyte",
+      "value": "value",
+      "uncertainty": "uncertainty",
+      "unit": "unit"
+    },
+    "row_count": 7
+  },
+  "value_tier_counts": {
+    "non_certified": 7
+  },
+  "acceptance": {
+    "analyte_mapping": "PASS",
+    "unit_consistency": "PASS",
+    "matrix_recognition": "PASS",
+    "physiological_reference_only": "PASS",
+    "missing_values": {
+      "value_na": 0,
+      "uncertainty_na": 0,
+      "unit_empty_na": 0
+    },
+    "missing_values_pass": true,
+    "applicability_domain_failures_documented": true,
+    "uncertainty_logging_required": true
+  },
+  "comparison": {
+    "skipped": true,
+    "reason": "no predictions_csv provided or file missing"
+  },
+  "summary_text": "Validation Summary (reference-data / software benchmarking)\n-------------------------------------------------------------\nThe PFAS app was benchmarked using NIST SRM 1957 non-certified PFAS mass-fraction reference values in serum (SRM 1957 reconstituted human serum per NIST documentation).\n\nReference-data validation for software benchmarking (analyte recognition, matrix separation, units, uncertainty propagation, non-certified flagging, LC/MS/MS workflow metadata); not ISO/IEC 17025 laboratory validation. Do not claim NIST-certified PFAS values for Table A2. This pack supports validation architecture, QC simulation, and ISO-style documentation hooks; it is not EPA certification, ISO 17025 accreditation, CLIA validation, wet-lab validation, prospective field validation, or accredited proficiency-testing performance.\n\nDataset: NIST reference extract (file: serum_pfas.csv)\nAnalytes (rows): 7\nMatrix (first row): serum\nReference Type: See value_tier counts (non-certified Table A2 rows are not certified values).\nValidation Scope: Serum/reference benchmark only - do not apply drinking-water MCL logic.\n\nReference metadata (audit):\n  - reference_source: NIST SRM 1957\n  - reference_material: SRM 1957\n  - value_status: non-certified per NIST SRM 1957 Appendix A Table A2 (mass fractions in serum / reconstituted SRM 1957 material; weighted LC-MS/MS means; not certified values)\n  - matrix: serum\n  - reference_type: non-certified\n  - analytical_basis: LC/MS/MS\n  - interlaboratory: yes (per NIST SRM 1957 Appendix A Table A2 context: interlaboratory contributions)\n  - uncertainty: expanded uncertainty with coverage factor k=2 (per NIST Table A2)\n  - coverage_factor (k): 2.0\n  - traceability: unspecified\n  - isomer_reporting: unspecified\n  - weighted_mean_basis: weighted means from LC-MS/MS methods (per NIST Table A2 documentation)\n\nValue tier counts:\n  - non_certified: 7\n\nResults:\n- analyte mapping: PASS (known-code rate 1.000)\n- unit normalization: PASS\n- matrix separation: PASS\n- physiological-only reference: PASS\n- uncertainty logging: PASS (missing value/uncertainty/unit counts: {'value_na': 0, 'uncertainty_na': 0, 'unit_empty_na': 0})\n- applicability domain: PASS (placeholder - tie to governed AD module for production)\n\nProvenance (see JSON for full):\n  pipeline_version=5.0, model_version=None"
+}

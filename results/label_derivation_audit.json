@@ -1,0 +1,54 @@
+{
+  "label_definition_version": "v1",
+  "train_script_version": "3.2.4",
+  "script_version": "3.2.4",
+  "pipeline_kind": "nhanes_serum_high_burden_quantile",
+  "threshold_rule": "high_serum_pfas_burden_flag=1 iff serum_pfas_burden_sum_ng_per_ml >= 12.7 (empirical 0.75 quantile of the burden sum among participants with >=1 quantified LBX analyte).",
+  "burden_quantile": 0.75,
+  "serum_pfas_burden_threshold_ng_per_ml": 12.7,
+  "label_column": "high_serum_pfas_burden_flag",
+  "source_dataset": "NHANES CDC laboratory PFAS serum (P_PFAS) + demographics (P_DEMO); optional P_INQ",
+  "source_files": {
+    "pfas_xpt": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\raw\\nhanes_pfas\\P_PFAS_2017_2020.XPT",
+    "demo_xpt": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\raw\\nhanes_pfas\\P_DEMO_2017_2020.XPT",
+    "inq_xpt": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\raw\\nhanes_pfas\\P_INQ_2017_2020.XPT"
+  },
+  "source_file_hashes": {
+    "pfas_xpt": "sha256:da4d166996bc7cdf04e189ee6160f97907346bbf9e013fa3ce40a1b942981b7a",
+    "demo_xpt": "sha256:2e46c6c26bf77cd8989f64011ace12cbf42c0f3e03414eb59acc5328c8f87913",
+    "inq_xpt": "sha256:bb541b57c918475cdbbb690ea5f7d243ca1efc5d0b98af17bdce34b486a987bc"
+  },
+  "n_lbx_analytes_used": 9,
+  "lbx_columns": [
+    "LBXPFDE",
+    "LBXPFHS",
+    "LBXMPAH",
+    "LBXPFNA",
+    "LBXPFUA",
+    "LBXNFOA",
+    "LBXBFOA",
+    "LBXNFOS",
+    "LBXMFOS"
+  ],
+  "n_positive": 775,
+  "n_negative": 2293,
+  "n_modeled_cohort_rows": 3068,
+  "n_pfas_participants_deduped": 3460,
+  "n_after_demo_inner_join": 3460,
+  "excluded_rows": 392,
+  "excluded_breakdown": {
+    "no_demographics_match": 0,
+    "zero_quantified_serum_analytes": 392
+  },
+  "missing_value_policy": "Per-participant burden = numpy.nansum of cleaned LBX columns; NaN LBX contributes 0 to sum. Participants with serum_pfas_detected_analyte_count==0 are excluded from the modeled training cohort.",
+  "non_detect_policy": "Paired NHANES comment codes (LBD*L): LBX values masked when flag in [1.0] (disabled=False). Sub-1e-30 float sentinels nulled.",
+  "unit_conversion_rule": "No unit conversion in trainer; concentrations as published in NHANES XPT (PFAS laboratory documentation; typically ng/mL).",
+  "missing_limit_after_join": 0,
+  "limit_join_note": "NHANES serum burden pipeline does not join regulatory MCL/health advisory limits; missing_limit_after_join is 0 by definition. UCMR/MCL-style label audits live in multisource builders.",
+  "positive_rate_after_derive": 0.2526075619295958,
+  "top_analytes_missing_limit_among_rows_with_result": {},
+  "top_analytes_missing_limit_note": "Empty: serum-quantile labels do not use per-analyte regulatory limits. Histogram applies to UCMR-style exceedance pipelines.",
+  "created_utc": "2026-05-11T08:29:11Z",
+  "operator": "techj",
+  "results_artifact_subdir": ""
+}

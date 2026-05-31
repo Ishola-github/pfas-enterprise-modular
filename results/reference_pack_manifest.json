@@ -1,0 +1,264 @@
+{
+  "generated_at_utc": "2026-05-11T18:01:32.308313+00:00",
+  "reference_dir": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\reference",
+  "disclaimer": "Manifest describes bundled reference tables for app logic and benchmarking. Numeric QC limits in epa_1633a_qc_limits.csv are placeholders until loaded from a controlled Method 1633A PDF. epa_1633a_qc_batch_schema.csv is a LIMS-oriented row template (TEMPLATE_* ids) \u2014 replace with real batch data. NIST Table A2 concentrations are non-certified consensus values. RM 8446 / RM 8690 tables are separate matrices (methanol calibration vs AFFF foam) \u2014 do not merge with serum. reference_registry.csv records SHA-256 for curated files; run scripts/verify_reference_registry.py in CI or before release. This is not EPA certification, ISO 17025 accreditation, or wet-lab validation evidence.",
+  "files": [
+    {
+      "file": "nist/srm1957/serum_pfas.csv",
+      "present": true,
+      "rows": 7,
+      "columns": [
+        "reference_material",
+        "matrix",
+        "analyte",
+        "short_name",
+        "value",
+        "uncertainty",
+        "unit",
+        "value_type",
+        "method",
+        "coverage_factor",
+        "source_pdf"
+      ]
+    },
+    {
+      "file": "nist/rm8446/methanol_pfas.csv",
+      "present": true,
+      "rows": 12,
+      "columns": [
+        "reference_material",
+        "matrix",
+        "analyte",
+        "short_name",
+        "value",
+        "uncertainty",
+        "unit",
+        "value_type",
+        "method",
+        "coverage_factor",
+        "source_pdf"
+      ]
+    },
+    {
+      "file": "nist/rm8690/afff_pfas.csv",
+      "present": true,
+      "rows": 16,
+      "columns": [
+        "reference_material",
+        "matrix",
+        "analyte",
+        "short_name",
+        "value",
+        "uncertainty",
+        "unit",
+        "value_type",
+        "method",
+        "coverage_factor",
+        "source_pdf"
+      ]
+    },
+    {
+      "file": "nist/manifest.json",
+      "present": true,
+      "rows": 21,
+      "columns": [
+        "{"
+      ]
+    },
+    {
+      "file": "nist/hashes.txt",
+      "present": true,
+      "rows": 2,
+      "columns": [
+        "data/reference/nist/rm8446/methanol_pfas.csv\tb70bedbd23edf602b4625f774e69c4d4f4444ff6cb89ce3c4764f64d25d10c82"
+      ]
+    },
+    {
+      "file": "registry/reference_registry.csv",
+      "present": true,
+      "rows": 4,
+      "columns": [
+        "source_org",
+        "document_type",
+        "document_id",
+        "url",
+        "local_path",
+        "sha256",
+        "matrix_domain",
+        "intended_use",
+        "limitations"
+      ]
+    },
+    {
+      "file": "nist_srm1957_pfas_reference.csv",
+      "present": true,
+      "rows": 7,
+      "columns": [
+        "reference_source",
+        "reference_material",
+        "srm_id",
+        "matrix",
+        "analyte",
+        "abbrev",
+        "concentration",
+        "uncertainty",
+        "unit",
+        "coverage_factor",
+        "interlaboratory",
+        "analytical_method",
+        "traceability",
+        "isomer_reporting",
+        "linear_isomer",
+        "branched_isomer",
+        "combined_isomer_reporting",
+        "external_lab_source",
+        "weighted_mean_basis",
+        "status",
+        "nist_table_citation"
+      ]
+    },
+    {
+      "file": "nist_srm1957_pfas.csv",
+      "present": true,
+      "rows": 7,
+      "columns": [
+        "reference_source",
+        "reference_material",
+        "srm_id",
+        "matrix",
+        "analyte",
+        "abbrev",
+        "concentration",
+        "uncertainty",
+        "unit",
+        "coverage_factor",
+        "interlaboratory",
+        "analytical_method",
+        "traceability",
+        "isomer_reporting",
+        "linear_isomer",
+        "branched_isomer",
+        "combined_isomer_reporting",
+        "external_lab_source",
+        "weighted_mean_basis",
+        "status",
+        "nist_table_citation"
+      ]
+    },
+    {
+      "file": "nist_srm1957_pfas_noncertified.csv",
+      "present": true,
+      "rows": 7,
+      "columns": [
+        "reference_source",
+        "reference_material",
+        "srm_id",
+        "matrix",
+        "analyte",
+        "abbrev",
+        "concentration",
+        "uncertainty",
+        "unit",
+        "coverage_factor",
+        "interlaboratory",
+        "analytical_method",
+        "traceability",
+        "isomer_reporting",
+        "linear_isomer",
+        "branched_isomer",
+        "combined_isomer_reporting",
+        "external_lab_source",
+        "weighted_mean_basis",
+        "status",
+        "nist_table_citation"
+      ]
+    },
+    {
+      "file": "epa_1633a_method_metadata.csv",
+      "present": true,
+      "rows": 2,
+      "columns": [
+        "method_source",
+        "instrument_type",
+        "column_type",
+        "spe_type",
+        "quantification_mode",
+        "ionization_mode",
+        "internal_standard",
+        "cleanup_strategy",
+        "notes"
+      ]
+    },
+    {
+      "file": "epa_1633a_qc_limits.csv",
+      "present": true,
+      "rows": 12,
+      "columns": [
+        "qc_parameter",
+        "description",
+        "target_app_fields",
+        "eis_recovery",
+        "nis_recovery",
+        "recovery_status",
+        "recovery_limit_low",
+        "recovery_limit_high",
+        "limit_placeholder",
+        "notes"
+      ]
+    },
+    {
+      "file": "epa_1633a_qc_batch_schema.csv",
+      "present": true,
+      "rows": 8,
+      "columns": [
+        "batch_id",
+        "qc_type",
+        "mdl",
+        "loq",
+        "blank_pass",
+        "duplicate_rpd",
+        "calibration_pass",
+        "eis_pass",
+        "nis_pass",
+        "notes"
+      ]
+    },
+    {
+      "file": "holding_times.csv",
+      "present": true,
+      "rows": 6,
+      "columns": [
+        "matrix_group",
+        "max_days_0_to_6_c",
+        "max_days_minus_20_c_or_below",
+        "source_section",
+        "notes"
+      ]
+    },
+    {
+      "file": "pfas_matrix_registry.csv",
+      "present": true,
+      "rows": 10,
+      "columns": [
+        "matrix_category",
+        "supported",
+        "regulatory_domain",
+        "source_note"
+      ]
+    },
+    {
+      "file": "contamination_control_rules.csv",
+      "present": true,
+      "rows": 5,
+      "columns": [
+        "rule_id",
+        "ptfe_free",
+        "reagent_verified",
+        "container_verified",
+        "cross_contamination_flag",
+        "method_blank_status",
+        "guidance_notes"
+      ]
+    }
+  ]
+}

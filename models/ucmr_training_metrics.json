@@ -1,0 +1,44 @@
+{
+  "accuracy_default_threshold_0_5": 0.74,
+  "roc_auc": 0.5855,
+  "recall_floor": 0.98,
+  "classification_report_default_0_5": {
+    "non-detect (<)": {
+      "precision": 0.3007,
+      "recall": 0.3445,
+      "f1-score": 0.3211,
+      "support": 357.0
+    },
+    "detect (=)": {
+      "precision": 0.8529,
+      "recall": 0.8259,
+      "f1-score": 0.8392,
+      "support": 1643.0
+    },
+    "accuracy": 0.74,
+    "macro avg": {
+      "precision": 0.5768,
+      "recall": 0.5852,
+      "f1-score": 0.5802,
+      "support": 2000.0
+    },
+    "weighted avg": {
+      "precision": 0.7544,
+      "recall": 0.74,
+      "f1-score": 0.7467,
+      "support": 2000.0
+    }
+  },
+  "best_high_recall_screening_threshold": {
+    "threshold": 0.289,
+    "recall_detect": 1.0,
+    "precision_detect": 0.8215,
+    "f1_detect": 0.902,
+    "flags_per_10k": 10000.0,
+    "false_positives_per_true_positive": 0.2173,
+    "true_positives": 1643,
+    "false_positives": 357
+  },
+  "threshold_sweep_file": "ucmr_threshold_sweep.csv",
+  "provenance_file": "ucmr_training_provenance.json"
+}

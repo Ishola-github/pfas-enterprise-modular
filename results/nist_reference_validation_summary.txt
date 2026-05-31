@@ -1,0 +1,39 @@
+Validation Summary (reference-data / software benchmarking)
+-------------------------------------------------------------
+The PFAS app was benchmarked using NIST SRM 1957 non-certified PFAS mass-fraction reference values in serum (SRM 1957 reconstituted human serum per NIST documentation).
+
+Reference-data validation for software benchmarking (analyte recognition, matrix separation, units, uncertainty propagation, non-certified flagging, LC/MS/MS workflow metadata); not ISO/IEC 17025 laboratory validation. Do not claim NIST-certified PFAS values for Table A2. This pack supports validation architecture, QC simulation, and ISO-style documentation hooks; it is not EPA certification, ISO 17025 accreditation, CLIA validation, wet-lab validation, prospective field validation, or accredited proficiency-testing performance.
+
+Dataset: NIST reference extract (file: serum_pfas.csv)
+Analytes (rows): 7
+Matrix (first row): serum
+Reference Type: See value_tier counts (non-certified Table A2 rows are not certified values).
+Validation Scope: Serum/reference benchmark only - do not apply drinking-water MCL logic.
+
+Reference metadata (audit):
+  - reference_source: NIST SRM 1957
+  - reference_material: SRM 1957
+  - value_status: non-certified per NIST SRM 1957 Appendix A Table A2 (mass fractions in serum / reconstituted SRM 1957 material; weighted LC-MS/MS means; not certified values)
+  - matrix: serum
+  - reference_type: non-certified
+  - analytical_basis: LC/MS/MS
+  - interlaboratory: yes (per NIST SRM 1957 Appendix A Table A2 context: interlaboratory contributions)
+  - uncertainty: expanded uncertainty with coverage factor k=2 (per NIST Table A2)
+  - coverage_factor (k): 2.0
+  - traceability: unspecified
+  - isomer_reporting: unspecified
+  - weighted_mean_basis: weighted means from LC-MS/MS methods (per NIST Table A2 documentation)
+
+Value tier counts:
+  - non_certified: 7
+
+Results:
+- analyte mapping: PASS (known-code rate 1.000)
+- unit normalization: PASS
+- matrix separation: PASS
+- physiological-only reference: PASS
+- uncertainty logging: PASS (missing value/uncertainty/unit counts: {'value_na': 0, 'uncertainty_na': 0, 'unit_empty_na': 0})
+- applicability domain: PASS (placeholder - tie to governed AD module for production)
+
+Provenance (see JSON for full):
+  pipeline_version=5.0, model_version=None

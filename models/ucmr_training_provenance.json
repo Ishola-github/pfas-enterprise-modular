@@ -1,0 +1,16 @@
+{
+  "source_path": "synthetic",
+  "source_file": "builtin",
+  "row_cap": 8000,
+  "encoding": "latin-1",
+  "test_size": 0.25,
+  "seed": 42,
+  "n_rows_used": 8000,
+  "n_train": 6000,
+  "n_test": 2000,
+  "positive_class": "=",
+  "model_file": "pfas_detect_sklearn.joblib",
+  "recall_floor": 0.98,
+  "json_float_digits": 4,
+  "created_at": "2026-05-11T19:53:20.346770Z"
+}
