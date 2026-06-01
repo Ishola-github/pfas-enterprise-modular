@@ -1,0 +1,17 @@
+{
+  "generated_at_utc": "2026-05-13T19:53:46Z",
+  "ad_framework_version": "1.0.0",
+  "sop_separation_note": "SOP \u00a76: AD models are matrix-scoped. A drinking-water AD model MUST NOT be used to gate serum predictions, etc. Cross-lane reuse is forbidden by construction.",
+  "lanes": [
+    {
+      "pipeline_lane": "serum",
+      "status": "ok",
+      "ad_model_json": "data/ad_models/serum/ad_model.json",
+      "ad_model_sha256": "dd751879bba750570c797a20601690727a74e336168abdf55ff45b54a04a0492",
+      "training_csv_sha256": "b950a7a6d4da2e9d0d27352f815c6e22c424c076d275107147e7446003185f38",
+      "training_csv_rows": 27619,
+      "ad_model_version": "1.0.0",
+      "ad_method": "per_analyte_envelope_v1"
+    }
+  ]
+}
