@@ -1,0 +1,90 @@
+{
+  "registry_id": "acs_chemrestox_priority_registry",
+  "version": "governed-v1.1.0",
+  "generated_utc": "2026-06-01T17:00:00Z",
+  "source": "ACS Chem Res Toxicol e-alert DOI triage (resolved links)",
+  "selection_policy": [
+    "Do not include papers by publisher alone.",
+    "Include only work that directly strengthens PFAS Enterprise modules.",
+    "Defer papers when full-text content review is still pending."
+  ],
+  "strategic_categories": [
+    "PFAS Registry",
+    "Matrix Registry",
+    "Ontology",
+    "NAM screening",
+    "Read-across",
+    "Mixture Toxicology",
+    "Non-target Screening",
+    "Source Attribution",
+    "Validation Evidence"
+  ],
+  "papers": [
+    {
+      "doi": "10.1021/acs.chemrestox.6c00057",
+      "decision": "include_now",
+      "confidence": "medium",
+      "review_status": "triaged_for_integration",
+      "relevance_hypothesis": [
+        "chemical structure recognition",
+        "patent mining",
+        "early-warning chemical discovery",
+        "novel chemistry identification"
+      ],
+      "mapped_modules": [
+        "PFAS Structure Registry",
+        "Emerging PFAS Detection",
+        "Unknown PFAS Prioritization",
+        "Source Attribution"
+      ],
+      "integration_notes": "Prioritized because structure-centric discovery directly supports registry and emerging PFAS detection workflows."
+    },
+    {
+      "doi": "10.1021/acs.chemrestox.6c00093",
+      "decision": "defer_pending_full_text_review",
+      "confidence": "low",
+      "review_status": "content_review_required",
+      "relevance_hypothesis": [
+        "NAMs",
+        "hazard prediction",
+        "high-throughput screening",
+        "toxicological prioritization"
+      ],
+      "mapped_modules": [
+        "NAM screening",
+        "Screening-only governance",
+        "Uncertainty scoring"
+      ],
+      "integration_notes": "Retain in queue until full paper confirms direct architecture fit."
+    },
+    {
+      "doi": "10.1021/acs.chemrestox.6c00099",
+      "decision": "defer_pending_full_text_review",
+      "confidence": "low",
+      "review_status": "content_review_required",
+      "relevance_hypothesis": [
+        "PFAS bioactivity",
+        "mechanistic toxicology",
+        "mixture modeling",
+        "read-across"
+      ],
+      "mapped_modules": [
+        "Bioactivity profiling",
+        "Read-across",
+        "Mixture toxicology"
+      ],
+      "integration_notes": "Potentially high value, but specific implementation is gated on full content review."
+    },
+    {
+      "doi": "10.1021/acs.chemrestox.5c00490",
+      "decision": "defer_pending_full_text_review",
+      "confidence": "low",
+      "review_status": "content_review_required",
+      "relevance_hypothesis": [
+        "unknown until full content inspection"
+      ],
+      "mapped_modules": [],
+      "integration_notes": "No integration decision until article scope is confirmed."
+    }
+  ]
+}

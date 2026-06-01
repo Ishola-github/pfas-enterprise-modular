@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -167,6 +167,13 @@ def _manifest_availability() -> dict[str, bool]:
         "matrix_pipeline_summary": (settings.project_root / "data" / "training" / "matrix_pipeline_summary.json").is_file(),
         "ad_index": (settings.project_root / "data" / "ad_models" / "index.json").is_file(),
         "blind_validation_dir": (settings.project_root / "validation" / "blind_external").is_dir(),
+        "literature_priority_registry": (
+            settings.project_root
+            / "data"
+            / "reference"
+            / "literature"
+            / "acs_chemrestox_priority_registry.json"
+        ).is_file(),
     }
 
 
@@ -184,6 +191,160 @@ def _resolve_threshold_version(lane: str) -> str:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()[:12]
+
+
+def _load_literature_priority_registry() -> dict[str, Any]:
+    """Load governed literature-triage decisions from the reference pack."""
+    path = (
+        settings.project_root
+        / "data"
+        / "reference"
+        / "literature"
+        / "acs_chemrestox_priority_registry.json"
+    )
+    if not path.is_file():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "literature_registry_missing",
+                "path": str(path.relative_to(settings.project_root)),
+            },
+        )
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "literature_registry_unreadable",
+                "exception": type(exc).__name__,
+            },
+        ) from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "literature_registry_invalid_shape"},
+        )
+    return payload
+
+
+def _build_literature_backlog(
+    papers: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert curated paper decisions into module-level integration tasks."""
+    module_index: dict[str, dict[str, Any]] = {}
+    for paper in papers:
+        doi = str(paper.get("doi", "")).strip()
+        decision = str(paper.get("decision", "")).strip()
+        mapped_modules = paper.get("mapped_modules", [])
+        hypotheses = paper.get("relevance_hypothesis", [])
+        if not doi or not isinstance(mapped_modules, list):
+            continue
+        for module in mapped_modules:
+            if not isinstance(module, str) or not module.strip():
+                continue
+            bucket = module_index.setdefault(
+                module.strip(),
+                {"dois": set(), "decisions": set(), "hypotheses": set()},
+            )
+            bucket["dois"].add(doi)
+            if decision:
+                bucket["decisions"].add(decision)
+            if isinstance(hypotheses, list):
+                for h in hypotheses:
+                    if isinstance(h, str) and h.strip():
+                        bucket["hypotheses"].add(h.strip())
+
+    backlog: list[dict[str, Any]] = []
+    for module in sorted(module_index):
+        item = module_index[module]
+        decisions = sorted(item["decisions"])
+        dois = sorted(item["dois"])
+        hypotheses = sorted(item["hypotheses"])
+        ready = "include_now" in item["decisions"]
+        task_id = "lit-" + module.lower().replace(" ", "-").replace("/", "-")
+        backlog.append(
+            {
+                "task_id": task_id,
+                "module": module,
+                "priority": "high" if ready else "medium",
+                "status": "ready" if ready else "blocked_pending_full_text_review",
+                "source_dois": dois,
+                "source_decisions": decisions,
+                "action": (
+                    f"Design and implement literature-backed feature increments for {module}."
+                ),
+                "rationale_signals": hypotheses[:5],
+            }
+        )
+    return backlog
+
+
+def _export_backlog_items(
+    tasks: list[dict[str, Any]],
+    target: str,
+) -> list[dict[str, Any]]:
+    """Convert backlog tasks into tracker-friendly payloads."""
+    out: list[dict[str, Any]] = []
+    for task in tasks:
+        module = str(task.get("module", "")).strip()
+        if not module:
+            continue
+        dois = task.get("source_dois", [])
+        doi_text = ", ".join(dois) if isinstance(dois, list) else ""
+        status = str(task.get("status", "")).strip()
+        priority = str(task.get("priority", "")).strip().upper()
+        action = str(task.get("action", "")).strip()
+        rationale = task.get("rationale_signals", [])
+        rationale_text = (
+            ", ".join(rationale[:5])
+            if isinstance(rationale, list)
+            else ""
+        )
+        title = f"[PFAS Literature] {module}"
+        description = (
+            f"{action}\n\n"
+            f"Source DOIs: {doi_text}\n"
+            f"Generated status: {status}\n"
+            f"Rationale signals: {rationale_text}"
+        )
+        labels = [
+            "pfas-enterprise",
+            "literature-integration",
+            module.lower().replace(" ", "-"),
+        ]
+        if status == "blocked_pending_full_text_review":
+            labels.append("blocked")
+        if target == "jira":
+            out.append(
+                {
+                    "summary": title,
+                    "description": description,
+                    "labels": labels,
+                    "priority": priority,
+                    "custom_fields": {
+                        "module": module,
+                        "source_dois": dois,
+                        "integration_status": status,
+                    },
+                }
+            )
+        else:
+            out.append(
+                {
+                    "title": title,
+                    "description": description,
+                    "labels": labels,
+                    "priority": priority,
+                    "state": "Todo" if status == "ready" else "Backlog",
+                    "metadata": {
+                        "module": module,
+                        "source_dois": dois,
+                        "integration_status": status,
+                    },
+                }
+            )
+    return out
 
 
 # --------------------------------------------------------------------- #
@@ -270,6 +431,145 @@ def ad_model_info(
         "global": model.get("global", {}),
         "value_lane": model.get("value_lane", False),
         "refusal_rules": model.get("refusal_rules", []),
+    }
+
+
+@app.get("/v1/literature/priorities")
+def literature_priorities(
+    request: Request,
+    include_deferred: bool = Query(
+        default=False,
+        description=(
+            "When false, return only `include_now` decisions. "
+            "When true, include `defer_pending_full_text_review` entries."
+        ),
+    ),
+    ctx: dict[str, Any] = Depends(authenticate_request),
+) -> dict[str, Any]:
+    """Governed literature triage aligned to PFAS Enterprise modules."""
+    request.state.api_key_id = ctx["api_key_id"]
+    data = _load_literature_priority_registry()
+    papers = data.get("papers", [])
+    if not isinstance(papers, list):
+        papers = []
+    filtered = [
+        p for p in papers
+        if isinstance(p, dict)
+        and (
+            include_deferred
+            or p.get("decision") == "include_now"
+        )
+    ]
+    include_now_count = sum(
+        1 for p in papers
+        if isinstance(p, dict) and p.get("decision") == "include_now"
+    )
+    defer_count = sum(
+        1 for p in papers
+        if isinstance(p, dict) and p.get("decision") == "defer_pending_full_text_review"
+    )
+    return {
+        "registry_id": data.get("registry_id", ""),
+        "version": data.get("version", ""),
+        "generated_utc": data.get("generated_utc", ""),
+        "selection_policy": data.get("selection_policy", []),
+        "strategic_categories": data.get("strategic_categories", []),
+        "summary": {
+            "total_papers": len(papers),
+            "include_now": include_now_count,
+            "defer_pending_full_text_review": defer_count,
+            "returned": len(filtered),
+        },
+        "papers": filtered,
+    }
+
+
+@app.get("/v1/literature/integration-backlog")
+def literature_integration_backlog(
+    request: Request,
+    include_deferred: bool = Query(
+        default=False,
+        description=(
+            "When false, generate backlog from `include_now` papers only. "
+            "When true, include deferred papers as blocked tasks."
+        ),
+    ),
+    ctx: dict[str, Any] = Depends(authenticate_request),
+) -> dict[str, Any]:
+    """Actionable module backlog generated from governed literature triage."""
+    request.state.api_key_id = ctx["api_key_id"]
+    data = _load_literature_priority_registry()
+    raw = data.get("papers", [])
+    papers = [p for p in raw if isinstance(p, dict)] if isinstance(raw, list) else []
+    selected = [
+        p for p in papers
+        if include_deferred or p.get("decision") == "include_now"
+    ]
+    backlog = _build_literature_backlog(selected)
+    return {
+        "registry_id": data.get("registry_id", ""),
+        "version": data.get("version", ""),
+        "generated_utc": data.get("generated_utc", ""),
+        "include_deferred": include_deferred,
+        "summary": {
+            "source_papers_considered": len(selected),
+            "tasks_generated": len(backlog),
+            "ready_tasks": sum(1 for t in backlog if t.get("status") == "ready"),
+            "blocked_tasks": sum(
+                1 for t in backlog if t.get("status") == "blocked_pending_full_text_review"
+            ),
+        },
+        "tasks": backlog,
+    }
+
+
+@app.post("/v1/literature/integration-backlog/export")
+def export_literature_integration_backlog(
+    request: Request,
+    target: str = Query(
+        default="linear",
+        description="Export payload shape. One of: linear, jira.",
+    ),
+    include_deferred: bool = Query(
+        default=False,
+        description=(
+            "When false, export only implementation-ready tasks. "
+            "When true, include blocked deferred-review tasks."
+        ),
+    ),
+    ctx: dict[str, Any] = Depends(authenticate_request),
+) -> dict[str, Any]:
+    """Export literature backlog tasks into tracker-ingest payloads."""
+    request.state.api_key_id = ctx["api_key_id"]
+    target_norm = target.strip().lower()
+    if target_norm not in {"linear", "jira"}:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "invalid_export_target",
+                "allowed_targets": ["linear", "jira"],
+            },
+        )
+    data = _load_literature_priority_registry()
+    raw = data.get("papers", [])
+    papers = [p for p in raw if isinstance(p, dict)] if isinstance(raw, list) else []
+    selected = [
+        p for p in papers
+        if include_deferred or p.get("decision") == "include_now"
+    ]
+    tasks = _build_literature_backlog(selected)
+    issues = _export_backlog_items(tasks=tasks, target=target_norm)
+    return {
+        "registry_id": data.get("registry_id", ""),
+        "version": data.get("version", ""),
+        "generated_utc": data.get("generated_utc", ""),
+        "target": target_norm,
+        "include_deferred": include_deferred,
+        "summary": {
+            "source_papers_considered": len(selected),
+            "tasks_exported": len(issues),
+        },
+        "issues": issues,
     }
 
 

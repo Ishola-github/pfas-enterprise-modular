@@ -50,3 +50,20 @@ LatestPFAS.R
 **/UCMR5_*
 **/epa_ucmr5
 **/epa_icis_npdes
+
+# --- include governed reference + release evidence in image context ---
+!data/reference/**
+!data/training
+!data/training/matrix_pipeline_summary.json
+!data/training/pfas_training_target_progress.json
+!data/training/ucmr_exceedance_manifest.json
+
+!validation/
+!validation/releases/
+!validation/releases/governed-v1.1.0/
+!validation/releases/governed-v1.1.0/**
+
+!results/
+!results/reference_pack_manifest.json
+!results/nist_reference_validation_report.json
+!results/nist_reference_validation_summary.txt

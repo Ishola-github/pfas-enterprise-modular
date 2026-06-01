@@ -21,6 +21,8 @@ COPY api/        /app/api/
 COPY scripts/    /app/scripts/
 COPY modules/    /app/modules/
 COPY data/       /app/data/
+COPY validation/ /app/validation/
+COPY results/    /app/results/
 
 # Non-root runtime user (UID 10001 is well outside any host range).
 RUN groupadd --system --gid 10001 pfas \

@@ -32,7 +32,7 @@ os.environ["PFAS_API_KEYS"] = "ci:ci_smoke_secret_token,ops:ops_smoke_secret_tok
 os.environ["PFAS_API_AUTH_OPEN"] = "false"
 os.environ["PFAS_API_RATE_LIMIT_ENABLED"] = "true"
 os.environ["PFAS_API_RATE_LIMIT_PER_MINUTE"] = "300"
-os.environ["PFAS_API_RATE_LIMIT_BURST"] = "5"
+os.environ["PFAS_API_RATE_LIMIT_BURST"] = "16"
 os.environ["PFAS_API_LOG_JSON"] = "true"
 os.environ["PFAS_API_LOG_LEVEL"] = "INFO"
 os.environ["PFAS_API_AD_STRICT_REFUSAL"] = "true"
@@ -151,9 +151,101 @@ check(
 )
 check("health has registry_verification", isinstance(body.get("registry_verification"), dict))
 check("health does NOT include paths by default", "paths" not in body)
+check(
+    "health has literature_priority_registry manifest boolean",
+    isinstance(body.get("manifests", {}).get("literature_priority_registry"), bool),
+)
 
 
-print(">>> 4. /v1/predict in-domain")
+print(">>> 4. /v1/literature/priorities returns governed subset")
+r = client.get("/v1/literature/priorities", headers=HEADERS_OK)
+check("literature priorities 200", r.status_code == 200, f"got {r.status_code}")
+body = _response_json(r)
+check(
+    "literature priorities include_now only by default",
+    body.get("summary", {}).get("returned") == body.get("summary", {}).get("include_now"),
+)
+papers = body.get("papers")
+first = papers[0] if isinstance(papers, list) and papers else {}
+check(
+    "literature priorities has expected top DOI",
+    isinstance(first, dict) and first.get("doi") == "10.1021/acs.chemrestox.6c00057",
+)
+
+r = client.get("/v1/literature/priorities?include_deferred=true", headers=HEADERS_OK)
+body = _response_json(r)
+check(
+    "literature priorities deferred expansion works",
+    body.get("summary", {}).get("returned") == body.get("summary", {}).get("total_papers"),
+)
+
+
+print(">>> 5. /v1/literature/integration-backlog generates actionable tasks")
+r = client.get("/v1/literature/integration-backlog", headers=HEADERS_OK)
+check("integration backlog 200", r.status_code == 200, f"got {r.status_code}")
+body = _response_json(r)
+tasks = body.get("tasks")
+check(
+    "integration backlog default has ready tasks",
+    isinstance(tasks, list) and len(tasks) >= 1 and all(t.get("status") == "ready" for t in tasks if isinstance(t, dict)),
+)
+check(
+    "integration backlog includes PFAS Structure Registry task",
+    isinstance(tasks, list)
+    and any(
+        isinstance(t, dict) and t.get("module") == "PFAS Structure Registry"
+        for t in tasks
+    ),
+)
+
+r = client.get("/v1/literature/integration-backlog?include_deferred=true", headers=HEADERS_OK)
+body = _response_json(r)
+tasks = body.get("tasks")
+check(
+    "integration backlog deferred mode exposes blocked tasks",
+    isinstance(tasks, list)
+    and any(
+        isinstance(t, dict) and t.get("status") == "blocked_pending_full_text_review"
+        for t in tasks
+    ),
+)
+
+
+print(">>> 6. /v1/literature/integration-backlog/export emits tracker payloads")
+r = client.post(
+    "/v1/literature/integration-backlog/export?target=linear",
+    headers=HEADERS_OK,
+)
+check("integration export linear 200", r.status_code == 200, f"got {r.status_code}")
+body = _response_json(r)
+issues = body.get("issues")
+check(
+    "integration export linear has title/metadata",
+    isinstance(issues, list)
+    and len(issues) >= 1
+    and isinstance(issues[0], dict)
+    and bool(issues[0].get("title"))
+    and isinstance(issues[0].get("metadata"), dict),
+)
+
+r = client.post(
+    "/v1/literature/integration-backlog/export?target=jira&include_deferred=true",
+    headers=HEADERS_OK,
+)
+check("integration export jira 200", r.status_code == 200, f"got {r.status_code}")
+body = _response_json(r)
+issues = body.get("issues")
+check(
+    "integration export jira has summary/custom_fields",
+    isinstance(issues, list)
+    and len(issues) >= 1
+    and isinstance(issues[0], dict)
+    and bool(issues[0].get("summary"))
+    and isinstance(issues[0].get("custom_fields"), dict),
+)
+
+
+print(">>> 7. /v1/predict in-domain")
 in_dom = {
     "sample_id": "smoke-in-dom-1",
     "matrix_lane": "drinking_water",
@@ -174,7 +266,7 @@ check("in-dom threshold_version present", bool(body.get("threshold_version")))
 check("in-dom request_id echoed in header", r.headers.get("X-Request-Id") == body.get("request_id"))
 
 
-print(">>> 5. /v1/predict out-of-envelope -> 422 + refusal")
+print(">>> 8. /v1/predict out-of-envelope -> 422 + refusal")
 out = dict(in_dom, sample_id="smoke-out-env", result_value_numeric=5000.0)
 r = client.post("/v1/predict", json=out, headers=HEADERS_OK)
 check("oob 422", r.status_code == 422, f"got {r.status_code}")
@@ -187,14 +279,14 @@ check(
 )
 
 
-print(">>> 6. /v1/predict analyte_unseen -> 422")
+print(">>> 9. /v1/predict analyte_unseen -> 422")
 fake = dict(in_dom, sample_id="smoke-fake", analyte="MadeUpPFAS")
 r = client.post("/v1/predict", json=fake, headers=HEADERS_OK)
 check("fake-analyte 422", r.status_code == 422, f"got {r.status_code}")
 check("fake-analyte ad_reason analyte_unseen", _response_json(r).get("ad_reason") == "analyte_unseen")
 
 
-print(">>> 7. burst overrun returns 429 with Retry-After")
+print(">>> 10. burst overrun returns 429 with Retry-After")
 limiter = api_main._rate_limiter
 bucket_key = f"k:{HEADERS_OK['X-API-Key'][:32]}"
 
@@ -211,7 +303,7 @@ check("rate limit triggers 429", saw_429, f"got {r.status_code}")
 check("rate limit response has Retry-After", saw_retry_after)
 
 
-print(">>> 8. Access log contains structured fields")
+print(">>> 11. Access log contains structured fields")
 lines = [ln for ln in LOG_BUF.getvalue().splitlines() if ln.strip().startswith("{")]
 
 have_pred_log = False
