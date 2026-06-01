@@ -1,0 +1,17 @@
+reference_material,matrix,analyte,short_name,value,uncertainty,unit,value_type,method,coverage_factor,source_pdf
+RM 8690,AFFF foam,Perfluorobutanoic Acid,PFBA,0.104,0.016,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluorohexanoic Acid,PFHxA,0.295,0.026,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluoroheptanoic Acid,PFHpA,0.0918,0.0370,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluorooctanoic Acid,PFOA,0.317,0.078,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluoropropanesulfonic Acid,PFPrS,0.302,0.016,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluorobutanesulfonic Acid,PFBS,0.473,0.032,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluoropentanesulfonic Acid,PFPeS,0.409,0.085,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluorohexanesulfonic Acid,PFHxS,2.64,0.12,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluoroheptanesulfonic Acid,PFHpS,0.315,0.225,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluorooctanesulfonic Acid,PFOS,19.4,0.4,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluorobutane Sulfonamide,PFBSA,0.0356,0.0065,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluorohexane Sulfonamide,PFHxSA,0.035,0.013,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,6:2 Fluorotelomer Sulfonic Acid,6:2 FTS,0.222,0.066,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,Perfluorohexane Sulfonamido Amine,N-AP-FHxSA,9.12,1.71,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,N-TAmP-FHxSA,N-TAmP-FHxSA,0.293,0.023,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+RM 8690,AFFF foam,6:2 Fluorotelomer Sulfonamide Propyl Betaine,6:2 FTAB,2.50,0.5,ug/g,non-certified,LC-MS/MS,2,https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf

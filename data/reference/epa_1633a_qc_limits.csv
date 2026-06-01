@@ -1,0 +1,13 @@
+qc_parameter,description,target_app_fields,eis_recovery,nis_recovery,recovery_status,recovery_limit_low,recovery_limit_high,limit_placeholder,notes
+EIS_recovery,Extracted internal standard recovery,eis_recovery_pct,,,PER_BATCH_RULE,PER_METHOD_TABLE,PER_METHOD_TABLE,PER_METHOD_TABLE,EPA 1633A — load numeric windows from controlled PDF
+NIS_recovery,Non-extracted internal standard recovery,nis_recovery_pct,,,PER_BATCH_RULE,PER_METHOD_TABLE,PER_METHOD_TABLE,PER_METHOD_TABLE,If applicable per method revision
+IPR,Initial precision and recovery,ipr_recovery_pct; ipr_rsd,,,,,,PER_METHOD_TABLE,Populate from Method 1633A tables
+OPR,Ongoing precision and recovery,opr_recovery_pct,,,,,,PER_METHOD_TABLE,Populate from Method 1633A tables
+LLOPR,Low-level precision and recovery,llopr_recovery_pct,,,,,,PER_METHOD_TABLE,Populate from Method 1633A tables
+MDL,Method detection limit,mdl,,,,,,PER_MATRIX_TABLE,Pooled or matrix-specific — do not invent
+LOQ,Limit of quantitation,loq,,,,,,PER_MATRIX_TABLE,Per method tables
+method_blank,Blank contamination,blank_pass; method_blank_status,,,,,,BOOLEAN_OR_RULE,Define pass rule in lab SOP
+field_duplicate,Field duplicate,duplicate_rpd; batch_id,,,,,,PER_METHOD_RULE,Per method
+lab_duplicate,Laboratory duplicate,duplicate_rpd; batch_id,,,,,,PER_METHOD_RULE,Tie to batch_id
+calibration_verification,Calibration verification,calibration_pass,,,,,,PER_METHOD_RULE,Included per Method 1633A QC architecture — define pass rule in SOP
+holding_time,Storage / COC compliance,holding_time_ok,,,,,,SEE holding_times.csv,Section 8.5 style checks — verify against current PDF

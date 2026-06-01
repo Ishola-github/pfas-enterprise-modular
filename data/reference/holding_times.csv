@@ -1,0 +1,7 @@
+matrix_group,max_days_0_to_6_c,max_days_minus_20_c_or_below,source_section,notes
+aqueous,28,90,EPA Method 1633A Sec. 8.5 style,Verify holding times against your controlled method PDF
+soils,90,90,EPA Method 1633A Sec. 8.5 style,Includes soil/sediment context per method — confirm wording in PDF
+biosolids,90,90,EPA Method 1633A Sec. 8.5 style,Per method Sec. 8.5
+tissue,90,90,EPA Method 1633A Sec. 8.5 style,Fish/shellfish tissue per method scope
+extracts,90,90,EPA Method 1633A Sec. 8.5 style,Unextracted and extracted sample storage per method
+SPECIAL_ANALYTE_EXCEPTIONS,n/a,n/a,per method,"NMeFOSE; NEtFOSE; NMeFOSAA; NEtFOSAA; NFDHA; 11Cl-PF3OUdS; 9Cl-PF3ONS — confirm exceptions in current 1633A revision"

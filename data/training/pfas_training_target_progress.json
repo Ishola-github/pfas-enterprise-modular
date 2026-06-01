@@ -1,0 +1,13 @@
+{
+  "current_rows": 0,
+  "target_rows": 100000000,
+  "pct_of_target_raw": 0,
+  "rows_remaining": 100000000,
+  "rows_above_target": 0,
+  "generated_at_utc": "2026-05-12T08:25:18Z",
+  "sources_merged": 0,
+  "pipeline_lanes_per_part": [],
+  "pipeline_lane_effective": "none",
+  "sop_merge_bypassed": false,
+  "note": "SOP matrix separation: one pipeline per pfas_multisource_training.csv (see data/config/matrix_pipeline_sop.csv). Includes EPA ICIS-NPDES PFAS-filtered DMR rows when npdes_dmr_pfas_fy*.csv present."
+}

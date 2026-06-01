@@ -1,0 +1,13 @@
+reference_material,matrix,analyte,short_name,value,uncertainty,unit,value_type,method,coverage_factor,source_pdf
+RM 8446,methanol,Perfluorobutanoic acid,PFBA,43,11,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluoropentanoic acid,PFPeA,60.9,0.9,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluorohexanoic acid,PFHxA,59.1,1.4,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluoroheptanoic acid,PFHpA,76.0,7.2,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluorooctanoic acid,PFOA,54.8,2.2,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluorononanoic acid,PFNA,63.0,1.4,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluorodecanoic acid,PFDA,58.1,4.0,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluoroundecanoic acid,PFUnA,62.8,6.5,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluorododecanoic acid,PFDoA,59.5,7.0,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluorotridecanoic acid,PFTriA,62.9,2.8,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluorotetradecanoic acid,PFTA,58.0,3.8,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+RM 8446,methanol,Perfluorooctanesulfonamide,PFOSA,66.9,1.7,mg/kg,non-certified,LC-MS/MS,2,https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US

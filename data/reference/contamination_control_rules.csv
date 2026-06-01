@@ -1,0 +1,6 @@
+rule_id,ptfe_free,reagent_verified,container_verified,cross_contamination_flag,method_blank_status,guidance_notes
+LABWARE_PTFE,required_where_method_specifies,TRUE,TRUE,TRUE,pass_fail_per_SOP,EPA 1633A — PTFE and fluoropolymer PFAS contamination awareness; encode workflow flags not a substitute for lab SOP
+TUBING_FITTINGS,required_where_method_specifies,TRUE,TRUE,TRUE,pass_fail_per_SOP,PFAS in tubing/fittings — use validated low-background paths per method
+REAGENTS_LOT,na,TRUE,TRUE,FALSE,pass_fail_per_SOP,PFAS in reagents — lot verification and blank evidence
+GLASSWARE_PREP,na,TRUE,TRUE,TRUE,pass_fail_per_SOP,PFAS in glassware — cleaning discipline tied to method blanks
+FIELD_HYGIENE,na,na,na,TRUE,na,Personal care / consumer product PFAS — field hygiene; audit metadata only

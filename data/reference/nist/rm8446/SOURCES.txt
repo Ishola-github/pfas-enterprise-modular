@@ -1,0 +1,3 @@
+NIST RM 8446 — PFAS in methanol (calibration / process-control line; not environmental field samples).
+NIST PFAS product catalog: https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+Replace source_pdf column in CSV with the current certificate PDF URL from NIST when you pin a CoA revision.

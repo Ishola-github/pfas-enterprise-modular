@@ -1,0 +1,43 @@
+{
+  "generated_at_utc": "2026-05-07T19:49:30Z",
+  "project_root": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology",
+  "inputs": {
+    "ucmr_files": [
+      "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\external\\epa_ucmr5\\UCMR5_All.txt"
+    ],
+    "max_rows_per_file": 20000,
+    "ucmr_rows": 20000,
+    "bridge_csv": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\external\\comptox\\pfasmaster_bridge.csv",
+    "bridge_sha256": "1b1e9369f6a0009f39d7a48f5ab2a56e2f7907e743ce894ff5a0068d0f577f0e",
+    "bridge_duplicate_cas_rows_collapsed": 0,
+    "bridge_name_lookup_rows": 7,
+    "limits_csv": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\config\\ucmr_analyte_limits_ngl.csv",
+    "limits_sha256": "f88fb8f613e693a0f03f37fe270b03c143bd26cfd44a0e74355321d18e69bb48"
+  },
+  "outputs": {
+    "training_csv": "C:\\Users\\techj\\Downloads\\pfas-toxicology\\pfas-toxicology\\data\\training\\ucmr_exceedance_labeled.csv",
+    "labeled_rows": 20000,
+    "labeled_distribution": {
+      "0": 19600,
+      "-1": 355,
+      "1": 45
+    },
+    "bridge_match_rate": 0.0667,
+    "bridge_match_via_counts": {
+      "none": 18666,
+      "name": 1334
+    },
+    "ucmr_dtxsid_disagreement_rate": 0.0
+  },
+  "definition": {
+    "join_keys": [
+      "cas_key (digits-only CAS from UCMR when present)",
+      "analyte_key: normalized Contaminant name \u2194 bridge preferred_name/synonyms",
+      "limit merge on cas_key_effective (CAS from row or from name bridge)"
+    ],
+    "target": "PFAS_Risk_Flag: 1 if conc_ng_l >= limit_ng_l for cas_key_effective; 0 if nondetect_flag; -1 if no limit or unparseable conc",
+    "outputs_layout": "single_merged_training_table",
+    "python": "3.10.11",
+    "pandas": "2.3.2"
+  }
+}

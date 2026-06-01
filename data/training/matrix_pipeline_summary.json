@@ -1,0 +1,49 @@
+{
+  "generated_at_utc": "2026-05-12T09:08:33Z",
+  "sop_separation_note": "Each lane has its own training.csv and manifest.json. This summary lists per-lane outputs; rows from different lanes are NEVER merged here.",
+  "lanes": [
+    {
+      "pipeline_id": "drinking_water",
+      "rows": 20000,
+      "csv": "data/training/drinking_water/training.csv",
+      "notes": []
+    },
+    {
+      "pipeline_id": "serum",
+      "rows": 12279,
+      "csv": "data/training/serum/training.csv",
+      "notes": []
+    },
+    {
+      "pipeline_id": "biosolids_sludge",
+      "rows": 12450,
+      "csv": "data/training/biosolids_sludge/training.csv",
+      "notes": [
+        "NPDES_BIOSOLIDS_INSPECTIONS.csv: 2298 records (used for per-facility enrichment).",
+        "NPDES_BIOSOLIDS_SEV_VIOLATIONS.csv: 538 records (used for per-facility enrichment).",
+        "NPDES_BIOSOLIDS_FORMAL_ACTIONS.csv: 61 records (used for per-facility enrichment).",
+        "NPDES_BIOSOLIDS_INFML_ENF_ACTIONS.csv: 0 records (used for per-facility enrichment).",
+        "NPDES_BIOSOLIDS_PERMITS.csv: 12449 permits in file, 12449 retained (BIOSOLIDS_FLAG='Y').",
+        "SCOPE: this lane emits program/facility metadata + EPA Method 1633A analytical metadata only. It does NOT contain nationwide PFAS-in-biosolids concentrations (no such bulk dataset is published by EPA). Use upstream Method 1633(A) PFAS sludge measurements (state programs, EPA studies, lab reports) for analytical training data; treat these rows as the matrix label space + compliance enrichment."
+      ]
+    },
+    {
+      "pipeline_id": "afff",
+      "rows": 16,
+      "csv": "data/training/afff/training.csv",
+      "notes": []
+    },
+    {
+      "pipeline_id": "methanol_standards",
+      "rows": 12,
+      "csv": "data/training/methanol_standards/training.csv",
+      "notes": []
+    },
+    {
+      "pipeline_id": "air_emissions",
+      "rows": 922,
+      "csv": "data/training/air_emissions/training.csv",
+      "notes": []
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+batch_id,qc_type,mdl,loq,blank_pass,duplicate_rpd,calibration_pass,eis_pass,nis_pass,notes
+TEMPLATE_BATCH_000,method_blank,,,FALSE,,TRUE,TRUE,TRUE,Replace with real batch_id; blank_pass from method/SOP rules
+TEMPLATE_BATCH_000,calibration_check,,,,,TRUE,,,calibration_pass per Method 1633A / lab SOP
+TEMPLATE_BATCH_000,ipr,,,,,TRUE,TRUE,,Initial precision and recovery row — populate recovery fields in LIMS extension if needed
+TEMPLATE_BATCH_000,opr,,,,,TRUE,TRUE,,Ongoing precision and recovery
+TEMPLATE_BATCH_000,field_duplicate,,,,PER_METHOD_RULE,,,,duplicate_rpd or RPD surrogate per SOP
+TEMPLATE_BATCH_000,lab_duplicate,,,,PER_METHOD_RULE,,,,laboratory duplicate pair
+TEMPLATE_BATCH_000,mdl_study,,PER_MATRIX_TABLE,,,,,,MDL row — numeric mdl/loq from controlled method only
+TEMPLATE_BATCH_000,loq_study,,PER_MATRIX_TABLE,,,,,,LOQ row — do not invent limits here

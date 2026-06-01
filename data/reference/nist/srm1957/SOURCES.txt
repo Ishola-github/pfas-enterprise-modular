@@ -1,0 +1,4 @@
+Official NIST SRM 1957 (reconstituted human serum PFAS — Table A2 non-certified mass fractions).
+Certificate PDF: https://tsapps.nist.gov/srmext/certificates/1957.pdf
+Data catalog (PDR): https://data.nist.gov/pdr/lps/4765EE7CC5A6A396E0531A57068160031643
+Do not merge serum reference rows with drinking-water occurrence or AFFF matrices.

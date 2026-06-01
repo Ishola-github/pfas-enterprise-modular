@@ -1,0 +1,22 @@
+{
+  "generated_at_utc": "2026-05-11T18:21:28.068337+00:00",
+  "nist_root": "C:/Users/techj/Downloads/pfas-toxicology/pfas-toxicology/data/reference/nist",
+  "disclaimer": "Bundled extracts for software benchmarking; not ISO 17025 evidence. Matrices (serum / methanol / AFFF) must stay separate. Pin official NIST PDFs into sibling folders when permitted; update source_pdf in CSVs when you do.",
+  "files": [
+    {
+      "path": "data/reference/nist/rm8446/methanol_pfas.csv",
+      "sha256": "b70bedbd23edf602b4625f774e69c4d4f4444ff6cb89ce3c4764f64d25d10c82",
+      "data_rows_estimate": 12
+    },
+    {
+      "path": "data/reference/nist/rm8690/afff_pfas.csv",
+      "sha256": "18b2dc99b6d9ff1b2c8e6fb783c93a5433c393226e275b68438b203bbfe65b74",
+      "data_rows_estimate": 16
+    },
+    {
+      "path": "data/reference/nist/srm1957/serum_pfas.csv",
+      "sha256": "ce5fc87a6a1e875af4fcc8df4cbffe6919fd6939f9dedb6e4f0af7b3d199f52f",
+      "data_rows_estimate": 7
+    }
+  ]
+}

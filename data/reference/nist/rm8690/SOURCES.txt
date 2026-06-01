@@ -1,0 +1,6 @@
+NIST RM 8690 (AFFF foam PFAS characterization; RM 8690–8693 family).
+Publication overview: https://www.nist.gov/publications/characterization-reference-materials-8690-8693
+NIST.SP.260-234 (PDF): https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.260-234.pdf
+Example RM 8691 certificate (related series): https://tsapps.nist.gov/srmext/certificates/8691.pdf
+Store listing: https://shop.nist.gov/ccrz__ProductList?categoryId=a0l3d0000005KqIAAU&cclcl=en_US
+Do not merge AFFF foam reference rows with serum or drinking-water occurrence tables.

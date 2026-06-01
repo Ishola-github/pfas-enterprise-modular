@@ -1,0 +1,11 @@
+matrix_category,supported,regulatory_domain,source_note
+groundwater,yes,environmental,EPA Method 1633A validated matrices — separate from physiological serum benchmarking
+wastewater,yes,environmental,EPA Method 1633A
+surface water,yes,environmental,EPA Method 1633A
+landfill leachate,yes,environmental,EPA Method 1633A
+soil,yes,environmental,EPA Method 1633A
+sediment,yes,environmental,EPA Method 1633A
+biosolids,yes,environmental,EPA Method 1633A
+fish tissue,yes,environmental,EPA Method 1633A — environmental tissue; not clinical serum
+shellfish tissue,yes,environmental,EPA Method 1633A — environmental tissue; not clinical serum
+serum,yes,physiological,NIST SRM 1957 Table A2 (non-certified); software benchmarking only — do not route to drinking-water MCL logic
