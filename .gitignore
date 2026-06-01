@@ -40,3 +40,15 @@ validation/**/runs/
 .gradle-bootstrap/
 build/
 bin/
+# local DB/runtime
+*.sqlite
+
+# generated v2 outputs
+data/v2/outputs/
+
+# local trained model binaries
+models/*.joblib
+
+# local model result dumps (track only if governance-approved)
+results/nhanes_model_metrics.json
+results/nhanes_model_metrics_by_task.json
