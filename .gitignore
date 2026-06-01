@@ -28,6 +28,8 @@ data/training/*
 !data/training/matrix_pipeline_summary.json
 !data/training/pfas_training_target_progress.json
 !data/training/ucmr_exceedance_manifest.json
+data/audit/*.jsonl
+data/audit/*.csv
 
 # Local run outputs
 runs/
