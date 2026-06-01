@@ -1,0 +1,85 @@
+{
+  "registry_id": "acs_chemrestox_priority_registry",
+  "version": "governed-v1.1.0",
+  "generated_utc": "2026-06-01T17:00:00Z",
+  "target": "linear",
+  "include_deferred": false,
+  "summary": {
+    "source_papers_considered": 1,
+    "tasks_exported": 4
+  },
+  "issues": [
+    {
+      "title": "[PFAS Literature] Emerging PFAS Detection",
+      "description": "Design and implement literature-backed feature increments for Emerging PFAS Detection.\n\nSource DOIs: 10.1021/acs.chemrestox.6c00057\nGenerated status: ready\nRationale signals: chemical structure recognition, early-warning chemical discovery, novel chemistry identification, patent mining",
+      "labels": [
+        "pfas-enterprise",
+        "literature-integration",
+        "emerging-pfas-detection"
+      ],
+      "priority": "HIGH",
+      "state": "Todo",
+      "metadata": {
+        "module": "Emerging PFAS Detection",
+        "source_dois": [
+          "10.1021/acs.chemrestox.6c00057"
+        ],
+        "integration_status": "ready"
+      }
+    },
+    {
+      "title": "[PFAS Literature] PFAS Structure Registry",
+      "description": "Design and implement literature-backed feature increments for PFAS Structure Registry.\n\nSource DOIs: 10.1021/acs.chemrestox.6c00057\nGenerated status: ready\nRationale signals: chemical structure recognition, early-warning chemical discovery, novel chemistry identification, patent mining",
+      "labels": [
+        "pfas-enterprise",
+        "literature-integration",
+        "pfas-structure-registry"
+      ],
+      "priority": "HIGH",
+      "state": "Todo",
+      "metadata": {
+        "module": "PFAS Structure Registry",
+        "source_dois": [
+          "10.1021/acs.chemrestox.6c00057"
+        ],
+        "integration_status": "ready"
+      }
+    },
+    {
+      "title": "[PFAS Literature] Source Attribution",
+      "description": "Design and implement literature-backed feature increments for Source Attribution.\n\nSource DOIs: 10.1021/acs.chemrestox.6c00057\nGenerated status: ready\nRationale signals: chemical structure recognition, early-warning chemical discovery, novel chemistry identification, patent mining",
+      "labels": [
+        "pfas-enterprise",
+        "literature-integration",
+        "source-attribution"
+      ],
+      "priority": "HIGH",
+      "state": "Todo",
+      "metadata": {
+        "module": "Source Attribution",
+        "source_dois": [
+          "10.1021/acs.chemrestox.6c00057"
+        ],
+        "integration_status": "ready"
+      }
+    },
+    {
+      "title": "[PFAS Literature] Unknown PFAS Prioritization",
+      "description": "Design and implement literature-backed feature increments for Unknown PFAS Prioritization.\n\nSource DOIs: 10.1021/acs.chemrestox.6c00057\nGenerated status: ready\nRationale signals: chemical structure recognition, early-warning chemical discovery, novel chemistry identification, patent mining",
+      "labels": [
+        "pfas-enterprise",
+        "literature-integration",
+        "unknown-pfas-prioritization"
+      ],
+      "priority": "HIGH",
+      "state": "Todo",
+      "metadata": {
+        "module": "Unknown PFAS Prioritization",
+        "source_dois": [
+          "10.1021/acs.chemrestox.6c00057"
+        ],
+        "integration_status": "ready"
+      }
+    }
+  ]
+}
