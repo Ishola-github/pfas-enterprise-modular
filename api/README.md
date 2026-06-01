@@ -89,6 +89,7 @@ What lands in the image (see `.dockerignore`):
 | `data/config/matrix_pipeline_sop.csv` | `/health.manifests.matrix_pipeline_sop` boolean |
 | `data/reference/registry/reference_registry.csv` | `/health.registry_verification` block |
 | `data/reference/literature/acs_chemrestox_priority_registry.json` | `/v1/literature/priorities` governed triage feed |
+| `data/reference/epa_1633a_qc_limits.csv` + `epa_1633a_qc_batch_schema.csv` + `epa_1633a_method_metadata.csv` | `/v1/qaqc/validate` governed QC checks |
 
 Heavy training corpora (`data/raw/`, `data/processed/`, `data/training/`,
 `validation/`, `legacy/`, `LatestPFAS.R`, the SQLite DB) are **deliberately
@@ -191,6 +192,17 @@ python scripts/export_literature_backlog.py \
   --targets linear jira \
   --out-dir results/literature_exports
 ```
+
+### `POST /v1/qaqc/validate` (authenticated)
+
+Validates EPA 1633A-style QC batch rows against governed reference schema
+and writes an evidence artifact under `results/qaqc_evidence/`.
+
+- Validates `method_source` against `data/reference/epa_1633a_method_metadata.csv`.
+- Validates `qc_type` rows against `data/reference/epa_1633a_qc_batch_schema.csv`.
+- Enforces hard batch failures for key gates (`method_blank`, `calibration_check`,
+  and EIS checks for IPR/OPR/LLOPR).
+- Returns `HTTP 422` when `strict=true` and validation fails.
 
 ### `POST /v1/predict` (authenticated, AD-gated)
 

@@ -52,3 +52,4 @@ models/*.joblib
 # local model result dumps (track only if governance-approved)
 results/nhanes_model_metrics.json
 results/nhanes_model_metrics_by_task.json
+results/qaqc_evidence/

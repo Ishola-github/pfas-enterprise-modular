@@ -24,7 +24,9 @@ Out of scope (per current SaaS phase):
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
+import hashlib
 import json
 import logging
 import os
@@ -122,6 +124,31 @@ class LegacyPredictRequest(BaseModel):
     matrix: str
 
 
+class QAQCRow(BaseModel):
+    batch_id: str = Field(..., min_length=1, max_length=128)
+    qc_type: str = Field(..., min_length=1, max_length=64)
+    mdl: float | None = None
+    loq: float | None = None
+    blank_pass: bool | None = None
+    duplicate_rpd: float | None = None
+    calibration_pass: bool | None = None
+    eis_pass: bool | None = None
+    nis_pass: bool | None = None
+    notes: str | None = None
+
+
+class QAQCValidateRequest(BaseModel):
+    batch_id: str = Field(..., min_length=1, max_length=128)
+    method_source: str = Field(default="EPA_1633A", min_length=1, max_length=128)
+    matrix: str | None = None
+    strict: bool = Field(
+        default=True,
+        description="When true, hard-fail batch QC violations with HTTP 422.",
+    )
+    rows: list[QAQCRow] = Field(..., min_length=1)
+    evidence_tag: str | None = Field(default=None, max_length=128)
+
+
 # --------------------------------------------------------------------- #
 # Helpers                                                               #
 # --------------------------------------------------------------------- #
@@ -173,6 +200,15 @@ def _manifest_availability() -> dict[str, bool]:
             / "reference"
             / "literature"
             / "acs_chemrestox_priority_registry.json"
+        ).is_file(),
+        "qaqc_limits_1633a": (
+            settings.project_root / "data" / "reference" / "epa_1633a_qc_limits.csv"
+        ).is_file(),
+        "qaqc_batch_schema_1633a": (
+            settings.project_root / "data" / "reference" / "epa_1633a_qc_batch_schema.csv"
+        ).is_file(),
+        "qaqc_method_metadata_1633a": (
+            settings.project_root / "data" / "reference" / "epa_1633a_method_metadata.csv"
         ).is_file(),
     }
 
@@ -345,6 +381,65 @@ def _export_backlog_items(
                 }
             )
     return out
+
+
+def _csv_rows(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        reader = csv.DictReader(fh)
+        return [
+            {str(k): (v or "") for k, v in row.items()}
+            for row in reader
+            if isinstance(row, dict)
+        ]
+
+
+def _sha256_prefix(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()[:12]
+
+
+def _load_qaqc_reference_bundle() -> dict[str, Any]:
+    ref_dir = settings.project_root / "data" / "reference"
+    paths = {
+        "qaqc_limits": ref_dir / "epa_1633a_qc_limits.csv",
+        "qaqc_batch_schema": ref_dir / "epa_1633a_qc_batch_schema.csv",
+        "method_metadata": ref_dir / "epa_1633a_method_metadata.csv",
+    }
+    missing = [name for name, p in paths.items() if not p.is_file()]
+    if missing:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "qaqc_reference_missing",
+                "missing": missing,
+            },
+        )
+    rows = {k: _csv_rows(p) for k, p in paths.items()}
+    method_sources = sorted(
+        {
+            str(r.get("method_source", "")).strip()
+            for r in rows["method_metadata"]
+            if str(r.get("method_source", "")).strip()
+        }
+    )
+    allowed_qc_types = sorted(
+        {
+            str(r.get("qc_type", "")).strip()
+            for r in rows["qaqc_batch_schema"]
+            if str(r.get("qc_type", "")).strip()
+            and not str(r.get("qc_type", "")).strip().startswith("TEMPLATE_")
+        }
+    )
+    return {
+        "rows": rows,
+        "paths": {k: str(v.relative_to(settings.project_root)) for k, v in paths.items()},
+        "hashes": {k: _sha256_prefix(v) for k, v in paths.items()},
+        "method_sources": method_sources,
+        "allowed_qc_types": allowed_qc_types,
+    }
 
 
 # --------------------------------------------------------------------- #
@@ -571,6 +666,173 @@ def export_literature_integration_backlog(
         },
         "issues": issues,
     }
+
+
+@app.post("/v1/qaqc/validate")
+def qaqc_validate(
+    payload: QAQCValidateRequest,
+    request: Request,
+    ctx: dict[str, Any] = Depends(authenticate_request),
+) -> JSONResponse:
+    """Validate EPA 1633A-style QC batch rows and emit evidence artifact."""
+    request.state.api_key_id = ctx["api_key_id"]
+    bundle = _load_qaqc_reference_bundle()
+    allowed_qc_types = set(bundle["allowed_qc_types"])
+    if payload.method_source not in set(bundle["method_sources"]):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "unknown_method_source",
+                "method_source": payload.method_source,
+                "allowed_method_sources": bundle["method_sources"],
+            },
+        )
+
+    failures: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
+    row_checks: list[dict[str, Any]] = []
+    present_qc_types: set[str] = set()
+
+    for i, row in enumerate(payload.rows):
+        qc_type = row.qc_type.strip()
+        present_qc_types.add(qc_type)
+        if row.batch_id != payload.batch_id:
+            failures.append(
+                {
+                    "row": str(i),
+                    "code": "batch_id_mismatch",
+                    "message": "Row batch_id differs from payload batch_id.",
+                }
+            )
+        if qc_type not in allowed_qc_types:
+            failures.append(
+                {
+                    "row": str(i),
+                    "code": "unknown_qc_type",
+                    "message": f"qc_type '{qc_type}' not present in governed schema.",
+                }
+            )
+        if qc_type == "method_blank" and row.blank_pass is not True:
+            failures.append(
+                {
+                    "row": str(i),
+                    "code": "method_blank_failed",
+                    "message": "method_blank requires blank_pass=true.",
+                }
+            )
+        if qc_type == "calibration_check" and row.calibration_pass is not True:
+            failures.append(
+                {
+                    "row": str(i),
+                    "code": "calibration_failed",
+                    "message": "calibration_check requires calibration_pass=true.",
+                }
+            )
+        if qc_type in {"ipr", "opr", "llopr"} and row.eis_pass is not True:
+            failures.append(
+                {
+                    "row": str(i),
+                    "code": "recovery_gate_failed",
+                    "message": f"{qc_type} requires eis_pass=true.",
+                }
+            )
+        if qc_type in {"field_duplicate", "lab_duplicate"} and row.duplicate_rpd is None:
+            warnings.append(
+                {
+                    "row": str(i),
+                    "code": "duplicate_rpd_missing",
+                    "message": f"{qc_type} has no duplicate_rpd; evaluate per method/SOP.",
+                }
+            )
+        if qc_type in {"mdl_study", "loq_study"} and row.mdl is None and row.loq is None:
+            warnings.append(
+                {
+                    "row": str(i),
+                    "code": "mdl_loq_missing",
+                    "message": f"{qc_type} missing mdl/loq numeric values.",
+                }
+            )
+        row_checks.append(
+            {
+                "row": i,
+                "batch_id": row.batch_id,
+                "qc_type": qc_type,
+                "blank_pass": row.blank_pass,
+                "calibration_pass": row.calibration_pass,
+                "eis_pass": row.eis_pass,
+                "nis_pass": row.nis_pass,
+                "duplicate_rpd": row.duplicate_rpd,
+                "mdl": row.mdl,
+                "loq": row.loq,
+            }
+        )
+
+    for required in ("method_blank", "calibration_check", "ipr", "opr"):
+        if required not in present_qc_types:
+            failures.append(
+                {
+                    "row": "global",
+                    "code": "required_qc_type_missing",
+                    "message": f"Required qc_type '{required}' not present in payload rows.",
+                }
+            )
+
+    validation_status = (
+        "fail" if failures else
+        ("pass_with_warnings" if warnings else "pass")
+    )
+
+    evidence_dir = settings.project_root / "results" / "qaqc_evidence"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    evidence_path = evidence_dir / f"{payload.batch_id}_{request.state.request_id}.json"
+    evidence_body = {
+        "request_id": request.state.request_id,
+        "generated_utc": _utcnow_iso(),
+        "batch_id": payload.batch_id,
+        "method_source": payload.method_source,
+        "matrix": payload.matrix,
+        "strict": payload.strict,
+        "evidence_tag": payload.evidence_tag or "",
+        "validation_status": validation_status,
+        "summary": {
+            "rows_received": len(payload.rows),
+            "failures": len(failures),
+            "warnings": len(warnings),
+        },
+        "failures": failures,
+        "warnings": warnings,
+        "row_checks": row_checks,
+        "reference_bundle": {
+            "paths": bundle["paths"],
+            "hashes": bundle["hashes"],
+            "allowed_qc_types": sorted(allowed_qc_types),
+            "allowed_method_sources": bundle["method_sources"],
+        },
+        "intended_use": (
+            "Screening QA/QC automation support only. Not EPA-approved, "
+            "ISO-accredited, or a certified laboratory method."
+        ),
+    }
+    evidence_path.write_text(
+        json.dumps(evidence_body, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
+
+    response_body = {
+        "request_id": request.state.request_id,
+        "batch_id": payload.batch_id,
+        "method_source": payload.method_source,
+        "validation_status": validation_status,
+        "summary": evidence_body["summary"],
+        "failures": failures,
+        "warnings": warnings,
+        "evidence_artifact_path": str(evidence_path.relative_to(settings.project_root)),
+        "reference_hashes": bundle["hashes"],
+    }
+
+    if payload.strict and validation_status == "fail":
+        return JSONResponse(status_code=422, content=response_body)
+    return JSONResponse(status_code=200, content=response_body)
 
 
 @app.post("/v1/predict")

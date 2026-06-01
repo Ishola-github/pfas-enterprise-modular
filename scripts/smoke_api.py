@@ -32,7 +32,7 @@ os.environ["PFAS_API_KEYS"] = "ci:ci_smoke_secret_token,ops:ops_smoke_secret_tok
 os.environ["PFAS_API_AUTH_OPEN"] = "false"
 os.environ["PFAS_API_RATE_LIMIT_ENABLED"] = "true"
 os.environ["PFAS_API_RATE_LIMIT_PER_MINUTE"] = "300"
-os.environ["PFAS_API_RATE_LIMIT_BURST"] = "16"
+os.environ["PFAS_API_RATE_LIMIT_BURST"] = "20"
 os.environ["PFAS_API_LOG_JSON"] = "true"
 os.environ["PFAS_API_LOG_LEVEL"] = "INFO"
 os.environ["PFAS_API_AD_STRICT_REFUSAL"] = "true"
@@ -245,7 +245,50 @@ check(
 )
 
 
-print(">>> 7. /v1/predict in-domain")
+print(">>> 7. /v1/qaqc/validate pass path")
+qaqc_ok = {
+    "batch_id": "SMOKE_BATCH_001",
+    "method_source": "EPA_1633A",
+    "strict": True,
+    "rows": [
+        {"batch_id": "SMOKE_BATCH_001", "qc_type": "method_blank", "blank_pass": True},
+        {"batch_id": "SMOKE_BATCH_001", "qc_type": "calibration_check", "calibration_pass": True},
+        {"batch_id": "SMOKE_BATCH_001", "qc_type": "ipr", "eis_pass": True},
+        {"batch_id": "SMOKE_BATCH_001", "qc_type": "opr", "eis_pass": True},
+    ],
+}
+r = client.post("/v1/qaqc/validate", json=qaqc_ok, headers=HEADERS_OK)
+check("qaqc pass 200", r.status_code == 200, f"got {r.status_code}")
+body = _response_json(r)
+check(
+    "qaqc pass status in pass/pass_with_warnings",
+    body.get("validation_status") in {"pass", "pass_with_warnings"},
+    f"got {body.get('validation_status')}",
+)
+check("qaqc pass writes evidence path", bool(body.get("evidence_artifact_path")))
+
+qaqc_fail = dict(qaqc_ok)
+qaqc_fail["batch_id"] = "SMOKE_BATCH_002"
+qaqc_fail["rows"] = [
+    {"batch_id": "SMOKE_BATCH_002", "qc_type": "method_blank", "blank_pass": False},
+    {"batch_id": "SMOKE_BATCH_002", "qc_type": "calibration_check", "calibration_pass": True},
+    {"batch_id": "SMOKE_BATCH_002", "qc_type": "ipr", "eis_pass": True},
+    {"batch_id": "SMOKE_BATCH_002", "qc_type": "opr", "eis_pass": True},
+]
+r = client.post("/v1/qaqc/validate", json=qaqc_fail, headers=HEADERS_OK)
+check("qaqc fail strict 422", r.status_code == 422, f"got {r.status_code}")
+body = _response_json(r)
+check("qaqc fail status", body.get("validation_status") == "fail")
+check(
+    "qaqc fail includes method_blank_failed",
+    any(
+        isinstance(f, dict) and f.get("code") == "method_blank_failed"
+        for f in (body.get("failures") or [])
+    ),
+)
+
+
+print(">>> 8. /v1/predict in-domain")
 in_dom = {
     "sample_id": "smoke-in-dom-1",
     "matrix_lane": "drinking_water",
@@ -266,7 +309,7 @@ check("in-dom threshold_version present", bool(body.get("threshold_version")))
 check("in-dom request_id echoed in header", r.headers.get("X-Request-Id") == body.get("request_id"))
 
 
-print(">>> 8. /v1/predict out-of-envelope -> 422 + refusal")
+print(">>> 9. /v1/predict out-of-envelope -> 422 + refusal")
 out = dict(in_dom, sample_id="smoke-out-env", result_value_numeric=5000.0)
 r = client.post("/v1/predict", json=out, headers=HEADERS_OK)
 check("oob 422", r.status_code == 422, f"got {r.status_code}")
@@ -279,14 +322,14 @@ check(
 )
 
 
-print(">>> 9. /v1/predict analyte_unseen -> 422")
+print(">>> 10. /v1/predict analyte_unseen -> 422")
 fake = dict(in_dom, sample_id="smoke-fake", analyte="MadeUpPFAS")
 r = client.post("/v1/predict", json=fake, headers=HEADERS_OK)
 check("fake-analyte 422", r.status_code == 422, f"got {r.status_code}")
 check("fake-analyte ad_reason analyte_unseen", _response_json(r).get("ad_reason") == "analyte_unseen")
 
 
-print(">>> 10. burst overrun returns 429 with Retry-After")
+print(">>> 11. burst overrun returns 429 with Retry-After")
 limiter = api_main._rate_limiter
 bucket_key = f"k:{HEADERS_OK['X-API-Key'][:32]}"
 
@@ -303,7 +346,7 @@ check("rate limit triggers 429", saw_429, f"got {r.status_code}")
 check("rate limit response has Retry-After", saw_retry_after)
 
 
-print(">>> 11. Access log contains structured fields")
+print(">>> 12. Access log contains structured fields")
 lines = [ln for ln in LOG_BUF.getvalue().splitlines() if ln.strip().startswith("{")]
 
 have_pred_log = False
