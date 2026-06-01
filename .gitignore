@@ -17,3 +17,24 @@ __pycache__/
 # Generated result tables
 results/*.csv
 results/*.pdf
+
+# Local data-heavy artifacts (keep repo lean)
+data/raw/
+data/processed/
+data/contextualization_inputs/
+data/contextualization_outputs/
+data/external/
+data/training/*
+!data/training/matrix_pipeline_summary.json
+!data/training/pfas_training_target_progress.json
+!data/training/ucmr_exceedance_manifest.json
+
+# Local run outputs
+runs/
+validation/**/runs/
+
+# Local build/tooling directories
+.gradle/
+.gradle-bootstrap/
+build/
+bin/
