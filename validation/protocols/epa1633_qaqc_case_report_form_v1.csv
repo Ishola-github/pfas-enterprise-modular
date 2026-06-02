@@ -1,0 +1,4 @@
+study_id,protocol_version,batch_id,reviewer_id,review_decision,primary_reason_code,secondary_reason_code,review_time_minutes,reviewer_confidence,notes
+EPA1633_QAQC_V1,v1,BLINDED_BATCH_001,reviewer_A,pass,,,0,0,
+EPA1633_QAQC_V1,v1,BLINDED_BATCH_002,reviewer_A,fail,method_blank_failed,,0,0,
+EPA1633_QAQC_V1,v1,BLINDED_BATCH_003,reviewer_A,pass,,,0,0,

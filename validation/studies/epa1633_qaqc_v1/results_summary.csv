@@ -1,0 +1,2 @@
+study_id,protocol_version,analysis_date_utc,batches_total,batches_blinded,reviewers_n,agreement_pct,cohens_kappa,false_positive_rate,false_negative_rate,median_review_time_manual_min,median_review_time_automated_min,median_time_reduction_pct,status,notes
+EPA1633_QAQC_V1,v1,,,,,,,,,,,,pending,Populate after blinded reviewer analysis

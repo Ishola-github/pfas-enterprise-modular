@@ -1,0 +1,42 @@
+{
+  "study_id": "EPA1633_QAQC_V1",
+  "protocol_version": "v1",
+  "title": "External Blinded Validation of Automated EPA 1633 PFAS QA/QC Review",
+  "generated_utc": "2026-06-02T17:00:00Z",
+  "dataset_plan": {
+    "target_batches": 100,
+    "splits": {
+      "development_tuning": 40,
+      "locked_holdout": 20,
+      "blinded_external_validation": 40
+    }
+  },
+  "reviewer_plan": {
+    "target_reviewers": "2-3 independent reviewers",
+    "blinded": true
+  },
+  "success_thresholds": {
+    "agreement_pct_min": 90.0,
+    "cohens_kappa_min": 0.8,
+    "median_review_time_reduction_pct_min": 50.0
+  },
+  "files": [
+    {
+      "path": "validation/protocols/epa1633_qaqc_validation_protocol_v1.md",
+      "type": "protocol"
+    },
+    {
+      "path": "validation/protocols/epa1633_qaqc_reviewer_instructions_v1.md",
+      "type": "reviewer_instructions"
+    },
+    {
+      "path": "validation/protocols/epa1633_qaqc_case_report_form_v1.csv",
+      "type": "case_report_form_template"
+    },
+    {
+      "path": "validation/studies/epa1633_qaqc_v1/results_summary.csv",
+      "type": "results_placeholder"
+    }
+  ],
+  "status": "protocol_frozen_pending_data_freeze"
+}
