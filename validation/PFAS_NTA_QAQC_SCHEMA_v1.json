@@ -1,0 +1,240 @@
+{
+  "artifact": "PFAS_NTA_QAQC_SCHEMA_v1",
+  "artifact_type": "schema_contract",
+  "version": "1.0.0",
+  "status": "draft_for_implementation",
+  "issued_utc": "2026-06-03T00:00:00Z",
+  "owner": "PFAS Enterprise 5.0",
+  "intended_use": "QA/QC decision-support schema for non-target PFAS (NTA) HRMS evidence objects.",
+  "regulatory_position": "RUO decision-support. Not a replacement for accredited laboratory judgment or regulatory determination.",
+  "references": [
+    "EPA Method 1633 (targeted context; complementary use)",
+    "Health Canada (2026) NTA QA/QC framework direction",
+    "FAIR+Environmental data-governance principles"
+  ],
+  "required_top_level_fields": [
+    "run_id",
+    "sample_id",
+    "sample_matrix",
+    "instrument_id",
+    "acquisition_timestamp_utc",
+    "feature_id",
+    "candidate_pfas_name",
+    "candidate_formula",
+    "exact_mass",
+    "mass_error_ppm",
+    "retention_time_min",
+    "predicted_retention_time_min",
+    "msms_match_score",
+    "isotope_pattern_score",
+    "blank_signal_ratio",
+    "replicate_rsd_percent",
+    "adduct_consistency",
+    "confidence_level",
+    "decision_status",
+    "reason_codes",
+    "evidence_hash_sha256"
+  ],
+  "field_spec": {
+    "run_id": {
+      "dtype": "string",
+      "nullable": false,
+      "pattern": "^[A-Za-z0-9._-]{6,80}$"
+    },
+    "sample_id": {
+      "dtype": "string",
+      "nullable": false,
+      "pattern": "^[A-Za-z0-9._-]{3,120}$"
+    },
+    "sample_matrix": {
+      "dtype": "string",
+      "nullable": false,
+      "allowed_values": [
+        "drinking_water",
+        "groundwater",
+        "surface_water",
+        "wastewater",
+        "soil",
+        "sediment",
+        "sludge",
+        "biosolids",
+        "tissue",
+        "food",
+        "other"
+      ]
+    },
+    "instrument_id": {
+      "dtype": "string",
+      "nullable": false
+    },
+    "acquisition_timestamp_utc": {
+      "dtype": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "feature_id": {
+      "dtype": "string",
+      "nullable": false
+    },
+    "candidate_pfas_name": {
+      "dtype": "string",
+      "nullable": false
+    },
+    "candidate_formula": {
+      "dtype": "string",
+      "nullable": false
+    },
+    "exact_mass": {
+      "dtype": "float64",
+      "nullable": false,
+      "min": 50.0,
+      "max": 2000.0
+    },
+    "mass_error_ppm": {
+      "dtype": "float64",
+      "nullable": false,
+      "min": -20.0,
+      "max": 20.0
+    },
+    "retention_time_min": {
+      "dtype": "float64",
+      "nullable": false,
+      "min": 0.0,
+      "max": 120.0
+    },
+    "predicted_retention_time_min": {
+      "dtype": "float64",
+      "nullable": true,
+      "min": 0.0,
+      "max": 120.0
+    },
+    "msms_match_score": {
+      "dtype": "float64",
+      "nullable": false,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "isotope_pattern_score": {
+      "dtype": "float64",
+      "nullable": false,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "blank_signal_ratio": {
+      "dtype": "float64",
+      "nullable": false,
+      "min": 0.0,
+      "max": 100.0,
+      "definition": "sample_peak_area / blank_peak_area (or high sentinel value if blank absent)"
+    },
+    "replicate_rsd_percent": {
+      "dtype": "float64",
+      "nullable": true,
+      "min": 0.0,
+      "max": 200.0
+    },
+    "adduct_consistency": {
+      "dtype": "string",
+      "nullable": false,
+      "allowed_values": [
+        "consistent",
+        "partially_consistent",
+        "inconsistent",
+        "unknown"
+      ]
+    },
+    "confidence_level": {
+      "dtype": "string",
+      "nullable": false,
+      "allowed_values": [
+        "high",
+        "moderate",
+        "low",
+        "insufficient"
+      ]
+    },
+    "decision_status": {
+      "dtype": "string",
+      "nullable": false,
+      "allowed_values": [
+        "candidate_accept",
+        "candidate_defer_review",
+        "candidate_reject"
+      ]
+    },
+    "reason_codes": {
+      "dtype": "array[string]",
+      "nullable": false,
+      "min_items": 1
+    },
+    "evidence_hash_sha256": {
+      "dtype": "string",
+      "nullable": false,
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "decision_rules": {
+    "candidate_accept": {
+      "all_required": [
+        "abs(mass_error_ppm) <= 5.0",
+        "msms_match_score >= 0.75",
+        "isotope_pattern_score >= 0.70",
+        "blank_signal_ratio >= 5.0",
+        "adduct_consistency in [consistent, partially_consistent]"
+      ],
+      "default_confidence_level": "high"
+    },
+    "candidate_defer_review": {
+      "any_trigger": [
+        "5.0 < abs(mass_error_ppm) <= 10.0",
+        "0.50 <= msms_match_score < 0.75",
+        "0.50 <= isotope_pattern_score < 0.70",
+        "2.0 <= blank_signal_ratio < 5.0",
+        "replicate_rsd_percent > 30.0",
+        "adduct_consistency == partially_consistent"
+      ],
+      "default_confidence_level": "moderate"
+    },
+    "candidate_reject": {
+      "any_trigger": [
+        "abs(mass_error_ppm) > 10.0",
+        "msms_match_score < 0.50",
+        "isotope_pattern_score < 0.50",
+        "blank_signal_ratio < 2.0",
+        "adduct_consistency == inconsistent"
+      ],
+      "default_confidence_level": "low"
+    }
+  },
+  "hard_refusal_conditions": [
+    "missing required_top_level_fields",
+    "invalid sample_matrix value",
+    "decision_status present without reason_codes",
+    "evidence_hash_sha256 missing or malformed",
+    "attempted use for final regulatory release without human reviewer sign-off"
+  ],
+  "human_review_guardrails": {
+    "mandatory_for": [
+      "candidate_defer_review",
+      "any record with blank_signal_ratio < 5.0",
+      "any record with replicate_rsd_percent > 30.0",
+      "any record where candidate_pfas_name is not in controlled library"
+    ],
+    "review_fields_required": [
+      "reviewer_id",
+      "review_timestamp_utc",
+      "review_decision",
+      "review_rationale"
+    ]
+  },
+  "audit_requirements": {
+    "artifact_paths_required": [
+      "raw_spectrum_path",
+      "processed_feature_table_path",
+      "blank_trace_path",
+      "decision_record_path"
+    ],
+    "hash_algorithm": "sha256",
+    "immutability_note": "Evidence artifacts should be write-once at run close."
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "artifact": "fair_env_metadata_profile_v1",
+  "artifact_type": "metadata_profile",
+  "version": "1.0.0",
+  "status": "draft_for_implementation",
+  "issued_utc": "2026-06-03T00:00:00Z",
+  "scope": "FAIR+Environmental metadata minimum profile for PFAS Enterprise datasets and run artifacts.",
+  "design_objectives": [
+    "Findable: persistent identifiers and indexable keywords",
+    "Accessible: retrievable artifact pointers and access policy flags",
+    "Interoperable: normalized units, matrices, method keys, and controlled vocabularies",
+    "Reusable: provenance completeness, QA/QC context, uncertainty and review annotations"
+  ],
+  "required_sections": [
+    "dataset_identity",
+    "provenance",
+    "measurement_context",
+    "quality_context",
+    "governance_context",
+    "access_and_use"
+  ],
+  "dataset_identity": {
+    "required_fields": [
+      "dataset_id",
+      "dataset_title",
+      "dataset_version",
+      "dataset_created_utc",
+      "dataset_owner",
+      "persistent_identifier",
+      "keywords"
+    ],
+    "field_rules": {
+      "dataset_id": {
+        "pattern": "^[A-Za-z0-9._-]{6,80}$"
+      },
+      "dataset_version": {
+        "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+      },
+      "persistent_identifier": {
+        "allowed_examples": [
+          "doi:10.xxxx/xxxx",
+          "urn:uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+          "sha256:<64-hex>"
+        ]
+      },
+      "keywords": {
+        "min_items": 3
+      }
+    }
+  },
+  "provenance": {
+    "required_fields": [
+      "source_program",
+      "source_dataset_name",
+      "source_url_or_registry",
+      "ingestion_timestamp_utc",
+      "pipeline_id",
+      "pipeline_version",
+      "code_commit",
+      "input_artifact_hashes"
+    ],
+    "field_rules": {
+      "code_commit": {
+        "pattern": "^[a-f0-9]{7,64}$"
+      },
+      "input_artifact_hashes": {
+        "dtype": "object",
+        "min_properties": 1,
+        "property_value_pattern": "^[a-f0-9]{64}$"
+      }
+    }
+  },
+  "measurement_context": {
+    "required_fields": [
+      "sample_matrix",
+      "matrix_category",
+      "result_unit",
+      "analytical_method_key",
+      "instrument_class",
+      "target_mode",
+      "analyte_registry_version"
+    ],
+    "controlled_vocabularies": {
+      "sample_matrix": [
+        "drinking_water",
+        "groundwater",
+        "surface_water",
+        "wastewater",
+        "soil",
+        "sediment",
+        "sludge",
+        "biosolids",
+        "tissue",
+        "serum",
+        "food",
+        "other"
+      ],
+      "matrix_category": [
+        "environmental",
+        "physiological",
+        "reference_material"
+      ],
+      "result_unit": [
+        "ng/L",
+        "ug/L",
+        "ng/mL",
+        "ug/kg",
+        "ng/g",
+        "pg/mL"
+      ],
+      "analytical_method_key": [
+        "EPA_1633",
+        "EPA_1633A",
+        "EPA_533",
+        "EPA_537_1",
+        "EPA_8327",
+        "UCMR5",
+        "NTA_HRMS",
+        "other"
+      ],
+      "target_mode": [
+        "targeted",
+        "suspect_screening",
+        "non_targeted"
+      ]
+    }
+  },
+  "quality_context": {
+    "required_fields": [
+      "qaqc_profile_version",
+      "blank_summary",
+      "calibration_summary",
+      "isotope_internal_standard_policy",
+      "surrogate_recovery_summary",
+      "review_status"
+    ],
+    "review_status_allowed_values": [
+      "machine_screened",
+      "human_review_pending",
+      "human_review_completed",
+      "released_for_reporting",
+      "rejected"
+    ],
+    "optional_fields": [
+      "uncertainty_statement",
+      "known_limitations",
+      "discordance_notes"
+    ]
+  },
+  "governance_context": {
+    "required_fields": [
+      "governance_lane",
+      "governance_version",
+      "scope_classification",
+      "regulatory_use_flag",
+      "ruo_disclaimer_applied"
+    ],
+    "field_rules": {
+      "scope_classification": {
+        "allowed_values": [
+          "screening_support",
+          "research",
+          "pilot_validation",
+          "reference_only"
+        ]
+      },
+      "regulatory_use_flag": {
+        "dtype": "boolean"
+      },
+      "ruo_disclaimer_applied": {
+        "dtype": "boolean"
+      }
+    }
+  },
+  "access_and_use": {
+    "required_fields": [
+      "access_tier",
+      "license",
+      "contains_sensitive_data",
+      "retention_policy",
+      "contact_point"
+    ],
+    "field_rules": {
+      "access_tier": {
+        "allowed_values": [
+          "public",
+          "partner_shared",
+          "internal_restricted"
+        ]
+      },
+      "contains_sensitive_data": {
+        "dtype": "boolean"
+      }
+    }
+  },
+  "interoperability_guards": [
+    "Reject records where matrix_category conflicts with sample_matrix domain.",
+    "Reject rows with missing result_unit or non-controlled units.",
+    "Reject promotion to released_for_reporting if provenance hashes are absent.",
+    "Reject cross-dataset merges unless analytical_method_key and result_unit harmonization is declared."
+  ],
+  "minimum_completeness_thresholds": {
+    "required_field_fill_rate_percent": 100.0,
+    "optional_field_fill_rate_percent_recommended": 80.0,
+    "provenance_hash_coverage_percent": 100.0
+  }
+}

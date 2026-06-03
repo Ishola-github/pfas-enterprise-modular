@@ -210,6 +210,15 @@ def _manifest_availability() -> dict[str, bool]:
         "qaqc_method_metadata_1633a": (
             settings.project_root / "data" / "reference" / "epa_1633a_method_metadata.csv"
         ).is_file(),
+        "pfas_nta_qaqc_schema_v1": (
+            settings.project_root / "validation" / "PFAS_NTA_QAQC_SCHEMA_v1.json"
+        ).is_file(),
+        "fair_env_metadata_profile_v1": (
+            settings.project_root / "validation" / "fair_env_metadata_profile_v1.json"
+        ).is_file(),
+        "qaqc_reason_code_taxonomy_v1": (
+            settings.project_root / "validation" / "qaqc_reason_code_taxonomy_v1.json"
+        ).is_file(),
     }
 
 
@@ -440,6 +449,80 @@ def _load_qaqc_reference_bundle() -> dict[str, Any]:
         "method_sources": method_sources,
         "allowed_qc_types": allowed_qc_types,
     }
+
+
+def _load_json_artifact(path: Path, missing_error: str, unreadable_error: str) -> dict[str, Any]:
+    if not path.is_file():
+        raise HTTPException(
+            status_code=503,
+            detail={"error": missing_error, "path": str(path.relative_to(settings.project_root))},
+        )
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail={"error": unreadable_error, "exception": type(exc).__name__},
+        ) from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=503, detail={"error": unreadable_error + "_shape"})
+    return payload
+
+
+def _load_qaqc_governance_bundle() -> dict[str, Any]:
+    base = settings.project_root / "validation"
+    paths = {
+        "nta_qaqc_schema": base / "PFAS_NTA_QAQC_SCHEMA_v1.json",
+        "fair_env_metadata_profile": base / "fair_env_metadata_profile_v1.json",
+        "reason_code_taxonomy": base / "qaqc_reason_code_taxonomy_v1.json",
+    }
+    artifacts = {
+        "nta_qaqc_schema": _load_json_artifact(
+            paths["nta_qaqc_schema"],
+            missing_error="nta_qaqc_schema_missing",
+            unreadable_error="nta_qaqc_schema_unreadable",
+        ),
+        "fair_env_metadata_profile": _load_json_artifact(
+            paths["fair_env_metadata_profile"],
+            missing_error="fair_env_metadata_profile_missing",
+            unreadable_error="fair_env_metadata_profile_unreadable",
+        ),
+        "reason_code_taxonomy": _load_json_artifact(
+            paths["reason_code_taxonomy"],
+            missing_error="qaqc_reason_code_taxonomy_missing",
+            unreadable_error="qaqc_reason_code_taxonomy_unreadable",
+        ),
+    }
+    return {
+        "artifacts": artifacts,
+        "paths": {k: str(v.relative_to(settings.project_root)) for k, v in paths.items()},
+        "hashes": {k: _sha256_prefix(v) for k, v in paths.items()},
+    }
+
+
+def _derive_taxonomy_reason_codes(
+    failures: list[dict[str, str]],
+    warnings: list[dict[str, str]],
+) -> list[str]:
+    code_map = {
+        "batch_id_mismatch": "metadata_incomplete",
+        "unknown_qc_type": "metadata_incomplete",
+        "method_blank_failed": "method_blank_contamination_detected",
+        "calibration_failed": "calibration_fit_out_of_range",
+        "recovery_gate_failed": "surrogate_recovery_out_of_range",
+        "required_qc_type_missing": "metadata_incomplete",
+        "duplicate_rpd_missing": "replicate_precision_out_of_range",
+        "mdl_loq_missing": "metadata_incomplete",
+    }
+    out: list[str] = []
+    for item in failures + warnings:
+        src = str(item.get("code", "")).strip()
+        mapped = code_map.get(src)
+        if mapped:
+            out.append(mapped)
+    if not out:
+        out.append("human_review_required")
+    return sorted(set(out))
 
 
 # --------------------------------------------------------------------- #
@@ -676,15 +759,16 @@ def qaqc_validate(
 ) -> JSONResponse:
     """Validate EPA 1633A-style QC batch rows and emit evidence artifact."""
     request.state.api_key_id = ctx["api_key_id"]
-    bundle = _load_qaqc_reference_bundle()
-    allowed_qc_types = set(bundle["allowed_qc_types"])
-    if payload.method_source not in set(bundle["method_sources"]):
+    ref_bundle = _load_qaqc_reference_bundle()
+    governance_bundle = _load_qaqc_governance_bundle()
+    allowed_qc_types = set(ref_bundle["allowed_qc_types"])
+    if payload.method_source not in set(ref_bundle["method_sources"]):
         raise HTTPException(
             status_code=400,
             detail={
                 "error": "unknown_method_source",
                 "method_source": payload.method_source,
-                "allowed_method_sources": bundle["method_sources"],
+                "allowed_method_sources": ref_bundle["method_sources"],
             },
         )
 
@@ -782,6 +866,131 @@ def qaqc_validate(
         ("pass_with_warnings" if warnings else "pass")
     )
 
+    taxonomy = governance_bundle["artifacts"]["reason_code_taxonomy"]
+    taxonomy_catalog = taxonomy.get("reason_codes", [])
+    taxonomy_allowed = {
+        str(item.get("code", "")).strip()
+        for item in taxonomy_catalog
+        if isinstance(item, dict) and str(item.get("code", "")).strip()
+    }
+    reason_codes = _derive_taxonomy_reason_codes(failures=failures, warnings=warnings)
+    reason_codes = [code for code in reason_codes if code in taxonomy_allowed]
+    if not reason_codes:
+        reason_codes = ["human_review_required"] if "human_review_required" in taxonomy_allowed else []
+    if not reason_codes:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "qaqc_reason_code_taxonomy_invalid"},
+        )
+
+    allowed_code_sets = taxonomy.get("allowed_code_sets", {})
+    pass_codes = set(allowed_code_sets.get("pass", []))
+    warning_codes = set(allowed_code_sets.get("warning", []))
+    defer_codes = set(allowed_code_sets.get("defer_review", []))
+    fail_codes = set(allowed_code_sets.get("fail", []))
+    reason_code_set = set(reason_codes)
+    if reason_code_set & fail_codes:
+        decision_class = "fail"
+    elif reason_code_set & defer_codes:
+        decision_class = "defer_review"
+    elif reason_code_set & warning_codes:
+        decision_class = "warning"
+    else:
+        decision_class = "pass" if reason_code_set & pass_codes else "defer_review"
+
+    schema_payload = governance_bundle["artifacts"]["nta_qaqc_schema"]
+    allowed_decision_statuses = set(schema_payload.get("field_spec", {}).get(
+        "decision_status", {}
+    ).get("allowed_values", []))
+    allowed_conf_levels = set(schema_payload.get("field_spec", {}).get(
+        "confidence_level", {}
+    ).get("allowed_values", []))
+    decision_status = (
+        "candidate_reject" if decision_class == "fail"
+        else ("candidate_accept" if decision_class == "pass" else "candidate_defer_review")
+    )
+    confidence_level = (
+        "low" if decision_class == "fail"
+        else ("high" if decision_class == "pass" else "moderate")
+    )
+    if decision_status not in allowed_decision_statuses:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "qaqc_schema_decision_status_mismatch", "decision_status": decision_status},
+        )
+    if confidence_level not in allowed_conf_levels:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "qaqc_schema_confidence_level_mismatch", "confidence_level": confidence_level},
+        )
+
+    fair_profile = governance_bundle["artifacts"]["fair_env_metadata_profile"]
+    required_sections = fair_profile.get("required_sections", [])
+    metadata_profile = {
+        "dataset_identity": {
+            "dataset_id": f"qaqc_{payload.batch_id}",
+            "dataset_title": f"QAQC validation artifact for {payload.batch_id}",
+            "dataset_version": "v1.0.0",
+            "dataset_created_utc": _utcnow_iso(),
+            "dataset_owner": "PFAS Enterprise 5.0",
+            "persistent_identifier": f"sha256:{governance_bundle['hashes']['nta_qaqc_schema']}",
+            "keywords": ["PFAS", "QAQC", payload.method_source],
+        },
+        "provenance": {
+            "source_program": "PFAS Enterprise API",
+            "source_dataset_name": payload.batch_id,
+            "source_url_or_registry": "internal_api_request",
+            "ingestion_timestamp_utc": _utcnow_iso(),
+            "pipeline_id": "qaqc_validate",
+            "pipeline_version": settings.api_version,
+            "code_commit": "unknown",
+            "input_artifact_hashes": {
+                **ref_bundle["hashes"],
+                **governance_bundle["hashes"],
+            },
+        },
+        "measurement_context": {
+            "sample_matrix": payload.matrix or "other",
+            "matrix_category": "environmental",
+            "result_unit": "not_applicable",
+            "analytical_method_key": payload.method_source,
+            "instrument_class": "not_captured",
+            "target_mode": "targeted",
+            "analyte_registry_version": "not_captured",
+        },
+        "quality_context": {
+            "qaqc_profile_version": "qaqc_reason_code_taxonomy_v1",
+            "blank_summary": {"has_method_blank_failure": any(f.get("code") == "method_blank_failed" for f in failures)},
+            "calibration_summary": {"has_calibration_failure": any(f.get("code") == "calibration_failed" for f in failures)},
+            "isotope_internal_standard_policy": "eis_pass gate used when provided",
+            "surrogate_recovery_summary": {"has_recovery_gate_failure": any(f.get("code") == "recovery_gate_failed" for f in failures)},
+            "review_status": "human_review_pending" if validation_status != "pass" else "machine_screened",
+        },
+        "governance_context": {
+            "governance_lane": "pfas_enterprise_v5_qaqc",
+            "governance_version": "v1.0.0",
+            "scope_classification": "screening_support",
+            "regulatory_use_flag": False,
+            "ruo_disclaimer_applied": True,
+        },
+        "access_and_use": {
+            "access_tier": "internal_restricted",
+            "license": "internal_use",
+            "contains_sensitive_data": False,
+            "retention_policy": "project_default",
+            "contact_point": "pfas-enterprise-api",
+        },
+    }
+    missing_sections = [
+        section for section in required_sections
+        if section not in metadata_profile
+    ]
+    if missing_sections:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "fair_metadata_profile_sections_missing", "missing_sections": missing_sections},
+        )
+
     evidence_dir = settings.project_root / "results" / "qaqc_evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
     evidence_path = evidence_dir / f"{payload.batch_id}_{request.state.request_id}.json"
@@ -794,6 +1003,10 @@ def qaqc_validate(
         "strict": payload.strict,
         "evidence_tag": payload.evidence_tag or "",
         "validation_status": validation_status,
+        "decision_class": decision_class,
+        "decision_status": decision_status,
+        "confidence_level": confidence_level,
+        "reason_codes": reason_codes,
         "summary": {
             "rows_received": len(payload.rows),
             "failures": len(failures),
@@ -803,11 +1016,19 @@ def qaqc_validate(
         "warnings": warnings,
         "row_checks": row_checks,
         "reference_bundle": {
-            "paths": bundle["paths"],
-            "hashes": bundle["hashes"],
+            "paths": ref_bundle["paths"],
+            "hashes": ref_bundle["hashes"],
             "allowed_qc_types": sorted(allowed_qc_types),
-            "allowed_method_sources": bundle["method_sources"],
+            "allowed_method_sources": ref_bundle["method_sources"],
         },
+        "governance_bundle": {
+            "paths": governance_bundle["paths"],
+            "hashes": governance_bundle["hashes"],
+            "schema_version": schema_payload.get("version", ""),
+            "reason_taxonomy_version": taxonomy.get("version", ""),
+            "fair_profile_version": fair_profile.get("version", ""),
+        },
+        "metadata_profile": metadata_profile,
         "intended_use": (
             "Screening QA/QC automation support only. Not EPA-approved, "
             "ISO-accredited, or a certified laboratory method."
@@ -823,11 +1044,16 @@ def qaqc_validate(
         "batch_id": payload.batch_id,
         "method_source": payload.method_source,
         "validation_status": validation_status,
+        "decision_class": decision_class,
+        "decision_status": decision_status,
+        "confidence_level": confidence_level,
+        "reason_codes": reason_codes,
         "summary": evidence_body["summary"],
         "failures": failures,
         "warnings": warnings,
         "evidence_artifact_path": str(evidence_path.relative_to(settings.project_root)),
-        "reference_hashes": bundle["hashes"],
+        "reference_hashes": ref_bundle["hashes"],
+        "governance_hashes": governance_bundle["hashes"],
     }
 
     if payload.strict and validation_status == "fail":

@@ -1,0 +1,191 @@
+{
+  "artifact": "qaqc_reason_code_taxonomy_v1",
+  "artifact_type": "reason_code_taxonomy",
+  "version": "1.0.0",
+  "status": "draft_for_implementation",
+  "issued_utc": "2026-06-03T00:00:00Z",
+  "purpose": "Controlled reason-code vocabulary for PFAS QA/QC decision traces.",
+  "decision_classes": [
+    "pass",
+    "warning",
+    "defer_review",
+    "fail"
+  ],
+  "severity_levels": [
+    "info",
+    "minor",
+    "major",
+    "critical"
+  ],
+  "reason_codes": [
+    {
+      "code": "calibration_fit_out_of_range",
+      "class": "fail",
+      "severity": "critical",
+      "description": "Calibration fit or point-level acceptance criteria not met.",
+      "typical_trigger": "r2 < threshold or %D exceeds method allowance"
+    },
+    {
+      "code": "isotope_internal_standard_drift",
+      "class": "warning",
+      "severity": "major",
+      "description": "Isotope-labeled internal-standard response drifted beyond control window.",
+      "typical_trigger": "IS area outside rolling median control limits"
+    },
+    {
+      "code": "surrogate_recovery_out_of_range",
+      "class": "defer_review",
+      "severity": "major",
+      "description": "Surrogate recovery outside lane-defined acceptance envelope.",
+      "typical_trigger": "recovery % outside configured range"
+    },
+    {
+      "code": "method_blank_contamination_detected",
+      "class": "defer_review",
+      "severity": "critical",
+      "description": "Method blank signal suggests potential contamination carryover.",
+      "typical_trigger": "blank signal exceeds method criterion"
+    },
+    {
+      "code": "field_blank_anomaly",
+      "class": "warning",
+      "severity": "major",
+      "description": "Field blank indicates possible sampling or transport contamination."
+    },
+    {
+      "code": "reagent_blank_signal_present",
+      "class": "warning",
+      "severity": "minor",
+      "description": "Reagent blank contains low-level PFAS indication requiring trend tracking."
+    },
+    {
+      "code": "replicate_precision_out_of_range",
+      "class": "defer_review",
+      "severity": "major",
+      "description": "Replicate precision indicates unstable quantitation."
+    },
+    {
+      "code": "duplicate_relative_percent_difference_high",
+      "class": "defer_review",
+      "severity": "major",
+      "description": "Duplicate sample disagreement exceeds accepted RPD threshold."
+    },
+    {
+      "code": "holding_time_exceeded",
+      "class": "fail",
+      "severity": "critical",
+      "description": "Sample exceeded matrix/analyte holding-time requirement."
+    },
+    {
+      "code": "chain_of_custody_gap",
+      "class": "fail",
+      "severity": "critical",
+      "description": "Required chain-of-custody metadata is missing or inconsistent."
+    },
+    {
+      "code": "unit_normalization_missing",
+      "class": "fail",
+      "severity": "major",
+      "description": "Result cannot be interpreted due to missing or invalid units."
+    },
+    {
+      "code": "matrix_method_mismatch",
+      "class": "fail",
+      "severity": "critical",
+      "description": "Declared matrix is not compatible with applied method context."
+    },
+    {
+      "code": "mass_accuracy_out_of_range",
+      "class": "defer_review",
+      "severity": "major",
+      "description": "Observed mass error exceeds acceptance criterion."
+    },
+    {
+      "code": "retention_time_deviation",
+      "class": "defer_review",
+      "severity": "major",
+      "description": "Observed retention time departs from expected/predicted envelope."
+    },
+    {
+      "code": "msms_library_match_low",
+      "class": "defer_review",
+      "severity": "major",
+      "description": "MS/MS evidence is insufficient for confident assignment."
+    },
+    {
+      "code": "adduct_pattern_inconsistent",
+      "class": "defer_review",
+      "severity": "minor",
+      "description": "Observed adduct pattern conflicts with expected chemistry."
+    },
+    {
+      "code": "confidence_below_release_threshold",
+      "class": "defer_review",
+      "severity": "major",
+      "description": "Composite confidence score below release threshold."
+    },
+    {
+      "code": "metadata_incomplete",
+      "class": "defer_review",
+      "severity": "major",
+      "description": "Required provenance/metadata fields are incomplete."
+    },
+    {
+      "code": "human_review_required",
+      "class": "defer_review",
+      "severity": "info",
+      "description": "Automatic policy requires human reviewer sign-off before release."
+    },
+    {
+      "code": "release_approved_with_conditions",
+      "class": "pass",
+      "severity": "minor",
+      "description": "Reviewer approved release with documented caveats."
+    }
+  ],
+  "allowed_code_sets": {
+    "pass": [
+      "release_approved_with_conditions"
+    ],
+    "warning": [
+      "isotope_internal_standard_drift",
+      "field_blank_anomaly",
+      "reagent_blank_signal_present"
+    ],
+    "defer_review": [
+      "surrogate_recovery_out_of_range",
+      "method_blank_contamination_detected",
+      "replicate_precision_out_of_range",
+      "duplicate_relative_percent_difference_high",
+      "mass_accuracy_out_of_range",
+      "retention_time_deviation",
+      "msms_library_match_low",
+      "adduct_pattern_inconsistent",
+      "confidence_below_release_threshold",
+      "metadata_incomplete",
+      "human_review_required"
+    ],
+    "fail": [
+      "calibration_fit_out_of_range",
+      "holding_time_exceeded",
+      "chain_of_custody_gap",
+      "unit_normalization_missing",
+      "matrix_method_mismatch"
+    ]
+  },
+  "composition_rules": [
+    "Every decision record must include at least one reason_codes entry.",
+    "If decision class is fail, at least one fail-class reason code is required.",
+    "If reason_codes contains method_blank_contamination_detected, decision class cannot be pass.",
+    "release_approved_with_conditions requires reviewer_id and reviewer_note fields in decision record."
+  ],
+  "review_trace_fields_required": [
+    "request_id",
+    "sample_id",
+    "decision_class",
+    "reason_codes",
+    "reviewer_id",
+    "review_timestamp_utc",
+    "evidence_hash_sha256"
+  ]
+}
