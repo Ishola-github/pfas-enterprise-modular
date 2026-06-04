@@ -149,6 +149,47 @@ class QAQCValidateRequest(BaseModel):
     evidence_tag: str | None = Field(default=None, max_length=128)
 
 
+class BiomonitoringAnalyteValue(BaseModel):
+    analyte: str = Field(..., min_length=1, max_length=128)
+    value: float = Field(..., ge=0.0)
+    unit: str = Field(default="ng/mL", min_length=1, max_length=16)
+    qualifier: str = Field(default="measured", min_length=1, max_length=64)
+
+
+class BiomonitoringPercentileContext(BaseModel):
+    analyte: str = Field(..., min_length=1, max_length=128)
+    reference_population: str = Field(..., min_length=1, max_length=256)
+    percentile: float = Field(..., ge=0.0, le=100.0)
+    band: str = Field(default="typical", min_length=1, max_length=32)
+
+
+class BiomonitoringPathwayFlag(BaseModel):
+    pathway_name: str = Field(..., min_length=1, max_length=256)
+    direction: str = Field(default="mixed_or_unclear", min_length=1, max_length=64)
+    evidence_level: str = Field(default="exploratory", min_length=1, max_length=64)
+    rationale: str = Field(..., min_length=10, max_length=4000)
+
+
+class BiomonitoringInterpretRequest(BaseModel):
+    subject_id: str = Field(..., min_length=1, max_length=120)
+    matrix_lane: str = Field(default="serum", min_length=1, max_length=64)
+    source_dataset: str = Field(..., min_length=1, max_length=256)
+    analyte_values: list[BiomonitoringAnalyteValue] = Field(..., min_length=1)
+    percentile_context: list[BiomonitoringPercentileContext] = Field(..., min_length=1)
+    pathway_flags: list[BiomonitoringPathwayFlag] = Field(default_factory=list)
+    overall_interpretation_override: str | None = Field(default=None, max_length=4000)
+    confidence_tier: str | None = Field(default=None, max_length=64)
+    human_review_status: str = Field(default="pending", min_length=1, max_length=64)
+    claim_boundary: dict[str, str] | None = None
+    provenance: dict[str, Any] | None = None
+    strict_claim_boundary: bool = Field(default=True)
+
+
+class QAQCExplainRequest(BaseModel):
+    reason_code: str = Field(..., min_length=1, max_length=128)
+    context: dict[str, Any] | None = None
+
+
 # --------------------------------------------------------------------- #
 # Helpers                                                               #
 # --------------------------------------------------------------------- #
@@ -218,6 +259,9 @@ def _manifest_availability() -> dict[str, bool]:
         ).is_file(),
         "qaqc_reason_code_taxonomy_v1": (
             settings.project_root / "validation" / "qaqc_reason_code_taxonomy_v1.json"
+        ).is_file(),
+        "biomonitoring_interpretation_v0": (
+            settings.project_root / "validation" / "biomonitoring_interpretation_v0.json"
         ).is_file(),
     }
 
@@ -523,6 +567,183 @@ def _derive_taxonomy_reason_codes(
     if not out:
         out.append("human_review_required")
     return sorted(set(out))
+
+
+def _load_biomonitoring_schema_bundle() -> dict[str, Any]:
+    path = settings.project_root / "validation" / "biomonitoring_interpretation_v0.json"
+    payload = _load_json_artifact(
+        path=path,
+        missing_error="biomonitoring_schema_missing",
+        unreadable_error="biomonitoring_schema_unreadable",
+    )
+    return {
+        "path": str(path.relative_to(settings.project_root)),
+        "hash": _sha256_prefix(path),
+        "schema": payload,
+    }
+
+
+def _contains_forbidden_language(text: str, terms: list[str]) -> str | None:
+    text_norm = text.lower()
+    for term in terms:
+        needle = str(term).strip().lower()
+        if needle and needle in text_norm:
+            return needle
+    return None
+
+
+QAQC_EXPLANATIONS: dict[str, dict[str, str]] = {
+    "METHOD_BLANK_FAILED": {
+        "severity": "fail",
+        "explanation": (
+            "Method blank criteria were not met, indicating possible contamination "
+            "during preparation or analysis. Human review is required before result release."
+        ),
+    },
+    "LCS_RECOVERY_LOW": {
+        "severity": "fail",
+        "explanation": (
+            "Laboratory control sample recovery was below acceptance criteria, suggesting "
+            "possible low bias in the batch. Human review is required."
+        ),
+    },
+    "LCS_RECOVERY_HIGH": {
+        "severity": "fail",
+        "explanation": (
+            "Laboratory control sample recovery was above acceptance criteria, suggesting "
+            "possible high bias or interference. Human review is required."
+        ),
+    },
+    "MS_RECOVERY_LOW": {
+        "severity": "warning",
+        "explanation": (
+            "Matrix spike recovery was low, suggesting matrix effects or recovery loss. "
+            "A reviewer should evaluate affected samples."
+        ),
+    },
+    "MS_RECOVERY_HIGH": {
+        "severity": "warning",
+        "explanation": (
+            "Matrix spike recovery was high, suggesting matrix enhancement or interference. "
+            "A reviewer should evaluate affected samples."
+        ),
+    },
+    "RPD_EXCEEDED": {
+        "severity": "warning",
+        "explanation": (
+            "Duplicate precision exceeded acceptance limits. The reviewer should assess "
+            "sample heterogeneity, preparation records, and replicate performance."
+        ),
+    },
+    "EIS_RECOVERY_LOW": {
+        "severity": "warning",
+        "explanation": (
+            "Extracted internal standard recovery was low, suggesting possible extraction loss, "
+            "suppression, or preparation issue. Human review is required."
+        ),
+    },
+    "EIS_RECOVERY_HIGH": {
+        "severity": "warning",
+        "explanation": (
+            "Extracted internal standard recovery was high, suggesting possible enhancement or "
+            "integration issue. Human review is required."
+        ),
+    },
+    "NIS_RECOVERY_LOW": {
+        "severity": "warning",
+        "explanation": (
+            "Non-extracted internal standard recovery was low, suggesting possible instrument "
+            "response or injection issue. Reviewer assessment is required."
+        ),
+    },
+    "NIS_RECOVERY_HIGH": {
+        "severity": "warning",
+        "explanation": (
+            "Non-extracted internal standard recovery was high, suggesting possible response "
+            "enhancement or calibration issue. Reviewer assessment is required."
+        ),
+    },
+    "CALIBRATION_FAILED": {
+        "severity": "fail",
+        "explanation": (
+            "Calibration criteria were not met. Quantitative results should not be released "
+            "until calibration performance is reviewed."
+        ),
+    },
+    "CCV_FAILED": {
+        "severity": "fail",
+        "explanation": (
+            "Continuing calibration verification failed, indicating possible instrument drift "
+            "or calibration instability. Human review is required."
+        ),
+    },
+    "ION_RATIO_FAILED": {
+        "severity": "warning",
+        "explanation": (
+            "Ion ratio criteria were not met, suggesting possible interference or "
+            "identification uncertainty. Reviewer confirmation is required."
+        ),
+    },
+    "RETENTION_TIME_FAILED": {
+        "severity": "warning",
+        "explanation": (
+            "Retention time criteria were not met, suggesting possible identification or "
+            "chromatography issue. Human review is required."
+        ),
+    },
+    "SURROGATE_FAILED": {
+        "severity": "warning",
+        "explanation": (
+            "Surrogate recovery criteria were not met, suggesting possible recovery or "
+            "matrix-related issue. Reviewer assessment is required."
+        ),
+    },
+    "FIELD_BLANK_DETECTED": {
+        "severity": "warning",
+        "explanation": (
+            "Field blank detection suggests possible field, transport, or handling contamination. "
+            "Reviewer assessment is required."
+        ),
+    },
+    "HOLDING_TIME_EXCEEDED": {
+        "severity": "warning",
+        "explanation": (
+            "Holding time was exceeded. Results may require qualification before release."
+        ),
+    },
+    "MISSING_REQUIRED_QC": {
+        "severity": "fail",
+        "explanation": (
+            "Required QC elements were missing from the batch record. The batch cannot be fully "
+            "evaluated without human review."
+        ),
+    },
+    "SCHEMA_VALIDATION_FAILED": {
+        "severity": "fail",
+        "explanation": (
+            "The submitted batch record does not match the required schema. The file must be "
+            "corrected before automated review can proceed."
+        ),
+    },
+    "UNKNOWN_REASON_CODE": {
+        "severity": "warning",
+        "explanation": (
+            "The reason code is not recognized by the governed taxonomy. Human review is required "
+            "before interpretation or release."
+        ),
+    },
+}
+
+
+def _normalize_reason_code(reason_code: str) -> str:
+    text = str(reason_code or "").strip()
+    if not text:
+        return ""
+    # Accept mixed separators/casing from demos and clients:
+    # METHOD_BLANK_FAILED / method blank failed / method-blank-failed.
+    text = text.replace("-", " ").replace("_", " ")
+    parts = [p for p in text.split() if p]
+    return "_".join(parts).upper()
 
 
 # --------------------------------------------------------------------- #
@@ -1059,6 +1280,260 @@ def qaqc_validate(
     if payload.strict and validation_status == "fail":
         return JSONResponse(status_code=422, content=response_body)
     return JSONResponse(status_code=200, content=response_body)
+
+
+@app.post("/v1/qaqc/explain")
+def qaqc_explain(
+    payload: QAQCExplainRequest,
+    request: Request,
+    ctx: dict[str, Any] = Depends(authenticate_request),
+) -> JSONResponse:
+    """Deterministic governed explanation for QA/QC reason codes."""
+    request.state.api_key_id = ctx["api_key_id"]
+    normalized = _normalize_reason_code(payload.reason_code)
+    item = QAQC_EXPLANATIONS.get(normalized, QAQC_EXPLANATIONS["UNKNOWN_REASON_CODE"])
+    response_body = {
+        "request_id": request.state.request_id,
+        "reason_code": normalized,
+        "explanation": item["explanation"],
+        "severity": item["severity"],
+        "human_review_required": True,
+        "claim_safety": {
+            "diagnostic_claim": False,
+            "regulatory_adjudication": False,
+            "release_ready": False,
+        },
+        "context_echo": payload.context or {},
+    }
+    return JSONResponse(status_code=200, content=response_body)
+
+
+@app.post("/v1/biomonitoring/interpret")
+def biomonitoring_interpret(
+    payload: BiomonitoringInterpretRequest,
+    request: Request,
+    ctx: dict[str, Any] = Depends(authenticate_request),
+) -> JSONResponse:
+    """Generate claim-safe biomonitoring interpretation output (serum lane only)."""
+    request.state.api_key_id = ctx["api_key_id"]
+    schema_bundle = _load_biomonitoring_schema_bundle()
+    schema = schema_bundle["schema"]
+
+    matrix_lane = payload.matrix_lane.strip().lower()
+    if matrix_lane != "serum":
+        return JSONResponse(
+            status_code=422,
+            content={
+                "request_id": request.state.request_id,
+                "error": "matrix_lane_unsupported",
+                "matrix_lane": payload.matrix_lane,
+                "allowed_matrix_lanes": schema.get("scope", {}).get("supported_matrix_lanes", ["serum"]),
+            },
+        )
+
+    allowed_conf_tiers = set(schema.get("field_spec", {}).get("confidence_tier", {}).get("allowed_values", []))
+    allowed_review_status = set(schema.get("field_spec", {}).get("human_review_status", {}).get("allowed_values", []))
+    allowed_direction = set(schema.get("field_spec", {}).get("pathway_flags", {}).get(
+        "item_field_rules", {}
+    ).get("direction", {}).get("allowed_values", []))
+    allowed_evidence = set(schema.get("field_spec", {}).get("pathway_flags", {}).get(
+        "item_field_rules", {}
+    ).get("evidence_level", {}).get("allowed_values", []))
+
+    max_percentile = max(p.percentile for p in payload.percentile_context)
+    derived_conf_tier = (
+        "high" if max_percentile >= 99.0 else
+        ("moderate" if max_percentile >= 90.0 else "exploratory")
+    )
+    confidence_tier = (payload.confidence_tier or derived_conf_tier).strip().lower()
+    if confidence_tier not in allowed_conf_tiers:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "request_id": request.state.request_id,
+                "error": "confidence_tier_invalid",
+                "confidence_tier": confidence_tier,
+                "allowed": sorted(allowed_conf_tiers),
+            },
+        )
+
+    human_review_status = payload.human_review_status.strip().lower()
+    if human_review_status not in allowed_review_status:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "request_id": request.state.request_id,
+                "error": "human_review_status_invalid",
+                "human_review_status": human_review_status,
+                "allowed": sorted(allowed_review_status),
+            },
+        )
+
+    pathway_flags = [
+        {
+            "pathway_name": p.pathway_name,
+            "direction": p.direction.strip().lower(),
+            "evidence_level": p.evidence_level.strip().lower(),
+            "rationale": p.rationale.strip(),
+        }
+        for p in payload.pathway_flags
+    ]
+    for pf in pathway_flags:
+        if pf["direction"] not in allowed_direction:
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "request_id": request.state.request_id,
+                    "error": "pathway_direction_invalid",
+                    "value": pf["direction"],
+                    "allowed": sorted(allowed_direction),
+                },
+            )
+        if pf["evidence_level"] not in allowed_evidence:
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "request_id": request.state.request_id,
+                    "error": "pathway_evidence_level_invalid",
+                    "value": pf["evidence_level"],
+                    "allowed": sorted(allowed_evidence),
+                },
+            )
+
+    required_claim_boundary_text = schema.get("required_claim_boundary_text", {})
+    claim_boundary = dict(required_claim_boundary_text)
+    if payload.claim_boundary:
+        claim_boundary.update({str(k): str(v) for k, v in payload.claim_boundary.items()})
+
+    if payload.strict_claim_boundary:
+        for k, v in required_claim_boundary_text.items():
+            if claim_boundary.get(k, "").strip() != str(v).strip():
+                return JSONResponse(
+                    status_code=422,
+                    content={
+                        "request_id": request.state.request_id,
+                        "error": "claim_boundary_mismatch",
+                        "field": k,
+                    },
+                )
+
+    if payload.overall_interpretation_override:
+        overall_interpretation = payload.overall_interpretation_override.strip()
+    else:
+        overall_interpretation = (
+            f"Serum PFAS biomonitoring profile for subject {payload.subject_id} was contextualized "
+            f"against {payload.source_dataset}. Results indicate a maximum percentile of "
+            f"{max_percentile:.1f} with confidence tier '{confidence_tier}'. "
+            "This interpretation is intended for research and decision-support with human review."
+        )
+
+    forbidden = schema.get("forbidden_language_rules", {})
+    forbidden_hit = _contains_forbidden_language(
+        overall_interpretation,
+        [*forbidden.get("diagnostic_terms", []), *forbidden.get("causal_terms", []), *forbidden.get("treatment_terms", [])],
+    )
+    if forbidden_hit:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "request_id": request.state.request_id,
+                "error": "forbidden_language_detected",
+                "term": forbidden_hit,
+            },
+        )
+    for pf in pathway_flags:
+        forbidden_hit = _contains_forbidden_language(
+            pf["rationale"],
+            [*forbidden.get("diagnostic_terms", []), *forbidden.get("causal_terms", []), *forbidden.get("treatment_terms", [])],
+        )
+        if forbidden_hit:
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "request_id": request.state.request_id,
+                    "error": "forbidden_language_detected",
+                    "term": forbidden_hit,
+                    "pathway_name": pf["pathway_name"],
+                },
+            )
+
+    review_policy = schema.get("review_policy", {})
+    if (
+        review_policy.get("release_block_if_confidence_exploratory_and_pathway_flags_non_empty")
+        and confidence_tier == "exploratory"
+        and len(pathway_flags) > 0
+        and human_review_status == "completed"
+    ):
+        return JSONResponse(
+            status_code=422,
+            content={
+                "request_id": request.state.request_id,
+                "error": "release_blocked_exploratory_with_pathway_flags",
+            },
+        )
+
+    provenance = {
+        "pipeline_id": "biomonitoring_interpret",
+        "pipeline_version": settings.api_version,
+        "governance_version": schema.get("version", ""),
+        "reference_registry_version": "not_captured",
+        "input_artifact_hashes": {
+            "biomonitoring_schema_hash": schema_bundle["hash"],
+        },
+    }
+    if payload.provenance:
+        provenance.update(payload.provenance)
+
+    report_id = f"bio_{payload.subject_id}_{request.state.request_id[:8]}"
+    interpretation_body = {
+        "report_id": report_id,
+        "generated_utc": _utcnow_iso(),
+        "subject_id": payload.subject_id,
+        "matrix_lane": matrix_lane,
+        "source_dataset": payload.source_dataset,
+        "analyte_values": [a.model_dump() for a in payload.analyte_values],
+        "percentile_context": [p.model_dump() for p in payload.percentile_context],
+        "pathway_flags": pathway_flags,
+        "overall_interpretation": overall_interpretation,
+        "confidence_tier": confidence_tier,
+        "human_review_status": human_review_status,
+        "claim_boundary": claim_boundary,
+        "limitations": [
+            "Interpretation is association-based and non-diagnostic.",
+            "Individual-level causality cannot be inferred from this output alone.",
+        ],
+        "provenance": provenance,
+    }
+
+    required_fields = schema.get("required_top_level_fields", [])
+    missing = [f for f in required_fields if f != "evidence_hash_sha256" and f not in interpretation_body]
+    if missing:
+        return JSONResponse(
+            status_code=422,
+            content={"request_id": request.state.request_id, "error": "required_fields_missing", "missing": missing},
+        )
+
+    canonical = json.dumps(interpretation_body, sort_keys=True, ensure_ascii=True).encode("utf-8")
+    interpretation_body["evidence_hash_sha256"] = hashlib.sha256(canonical).hexdigest()
+
+    evidence_dir = settings.project_root / "results" / "biomonitoring_evidence"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    evidence_path = evidence_dir / f"{report_id}.json"
+    evidence_path.write_text(json.dumps(interpretation_body, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "request_id": request.state.request_id,
+            "report_id": report_id,
+            "matrix_lane": matrix_lane,
+            "confidence_tier": confidence_tier,
+            "human_review_status": human_review_status,
+            "pathway_flags_count": len(pathway_flags),
+            "evidence_artifact_path": str(evidence_path.relative_to(settings.project_root)),
+            "schema_hash": schema_bundle["hash"],
+        },
+    )
 
 
 @app.post("/v1/predict")

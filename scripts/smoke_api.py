@@ -288,7 +288,112 @@ check(
 )
 
 
+print(">>> 8. /v1/qaqc/explain known + unknown code paths")
+r = client.post(
+    "/v1/qaqc/explain",
+    json={
+        "reason_code": "METHOD_BLANK_FAILED",
+        "context": {"batch_id": "SMOKE_BATCH_002", "analyte": "PFOS", "matrix": "water"},
+    },
+    headers=HEADERS_OK,
+)
+check("qaqc explain known 200", r.status_code == 200, f"got {r.status_code}")
+body = _response_json(r)
+check("qaqc explain known severity fail", body.get("severity") == "fail", f"got {body.get('severity')}")
+check(
+    "qaqc explain known has claim safety",
+    isinstance(body.get("claim_safety"), dict)
+    and body.get("claim_safety", {}).get("diagnostic_claim") is False
+    and body.get("claim_safety", {}).get("release_ready") is False,
+)
+
+r = client.post(
+    "/v1/qaqc/explain",
+    json={"reason_code": "method blank-failed"},
+    headers=HEADERS_OK,
+)
+check("qaqc explain normalization variant 200", r.status_code == 200, f"got {r.status_code}")
+body = _response_json(r)
+check(
+    "qaqc explain normalization canonical reason code",
+    body.get("reason_code") == "METHOD_BLANK_FAILED",
+    f"got {body.get('reason_code')}",
+)
+check(
+    "qaqc explain normalization resolves known severity",
+    body.get("severity") == "fail",
+    f"got {body.get('severity')}",
+)
+
+r = client.post(
+    "/v1/qaqc/explain",
+    json={"reason_code": "NOT_A_REAL_CODE"},
+    headers=HEADERS_OK,
+)
+check("qaqc explain unknown 200", r.status_code == 200, f"got {r.status_code}")
+body = _response_json(r)
+check("qaqc explain unknown normalized code echo", body.get("reason_code") == "NOT_A_REAL_CODE")
+check("qaqc explain unknown severity warning", body.get("severity") == "warning", f"got {body.get('severity')}")
+
+
 print(">>> 8. /v1/predict in-domain")
+print(">>> 8. /v1/biomonitoring/interpret pass + refusal paths")
+bio_ok = {
+    "subject_id": "SUBJ_001",
+    "matrix_lane": "serum",
+    "source_dataset": "NHANES_2017_2018",
+    "analyte_values": [
+        {"analyte": "n-PFOA", "value": 1.4, "unit": "ng/mL", "qualifier": "measured"},
+        {"analyte": "PFHxS", "value": 1.1, "unit": "ng/mL", "qualifier": "measured"},
+    ],
+    "percentile_context": [
+        {
+            "analyte": "n-PFOA",
+            "reference_population": "NHANES_2017_2018",
+            "percentile": 92.0,
+            "band": "elevated",
+        }
+    ],
+    "pathway_flags": [],
+    "human_review_status": "pending",
+}
+r = client.post("/v1/biomonitoring/interpret", json=bio_ok, headers=HEADERS_OK)
+check("biomonitoring interpret 200", r.status_code == 200, f"got {r.status_code}")
+body = _response_json(r)
+check(
+    "biomonitoring response has report_id",
+    bool(body.get("report_id")),
+)
+check(
+    "biomonitoring writes evidence path",
+    bool(body.get("evidence_artifact_path")),
+)
+
+bio_forbidden = dict(bio_ok)
+bio_forbidden["overall_interpretation_override"] = "This result proves that PFAS directly causes disease."
+r = client.post("/v1/biomonitoring/interpret", json=bio_forbidden, headers=HEADERS_OK)
+check("biomonitoring forbidden language 422", r.status_code == 422, f"got {r.status_code}")
+check("biomonitoring forbidden code", _response_json(r).get("error") == "forbidden_language_detected")
+
+bio_release_block = dict(bio_ok)
+bio_release_block["pathway_flags"] = [
+    {
+        "pathway_name": "Glycerophospholipid metabolism",
+        "direction": "possible_downregulation",
+        "evidence_level": "exploratory",
+        "rationale": "Exploratory association based on limited contextual pathway evidence.",
+    }
+]
+bio_release_block["confidence_tier"] = "exploratory"
+bio_release_block["human_review_status"] = "completed"
+r = client.post("/v1/biomonitoring/interpret", json=bio_release_block, headers=HEADERS_OK)
+check("biomonitoring exploratory release block 422", r.status_code == 422, f"got {r.status_code}")
+check(
+    "biomonitoring exploratory release block code",
+    _response_json(r).get("error") == "release_blocked_exploratory_with_pathway_flags",
+)
+
+print(">>> 9. /v1/predict in-domain")
 in_dom = {
     "sample_id": "smoke-in-dom-1",
     "matrix_lane": "drinking_water",
@@ -309,7 +414,7 @@ check("in-dom threshold_version present", bool(body.get("threshold_version")))
 check("in-dom request_id echoed in header", r.headers.get("X-Request-Id") == body.get("request_id"))
 
 
-print(">>> 9. /v1/predict out-of-envelope -> 422 + refusal")
+print(">>> 10. /v1/predict out-of-envelope -> 422 + refusal")
 out = dict(in_dom, sample_id="smoke-out-env", result_value_numeric=5000.0)
 r = client.post("/v1/predict", json=out, headers=HEADERS_OK)
 check("oob 422", r.status_code == 422, f"got {r.status_code}")
@@ -322,14 +427,14 @@ check(
 )
 
 
-print(">>> 10. /v1/predict analyte_unseen -> 422")
+print(">>> 11. /v1/predict analyte_unseen -> 422")
 fake = dict(in_dom, sample_id="smoke-fake", analyte="MadeUpPFAS")
 r = client.post("/v1/predict", json=fake, headers=HEADERS_OK)
 check("fake-analyte 422", r.status_code == 422, f"got {r.status_code}")
 check("fake-analyte ad_reason analyte_unseen", _response_json(r).get("ad_reason") == "analyte_unseen")
 
 
-print(">>> 11. burst overrun returns 429 with Retry-After")
+print(">>> 12. burst overrun returns 429 with Retry-After")
 limiter = api_main._rate_limiter
 bucket_key = f"k:{HEADERS_OK['X-API-Key'][:32]}"
 
@@ -346,7 +451,7 @@ check("rate limit triggers 429", saw_429, f"got {r.status_code}")
 check("rate limit response has Retry-After", saw_retry_after)
 
 
-print(">>> 12. Access log contains structured fields")
+print(">>> 13. Access log contains structured fields")
 lines = [ln for ln in LOG_BUF.getvalue().splitlines() if ln.strip().startswith("{")]
 
 have_pred_log = False

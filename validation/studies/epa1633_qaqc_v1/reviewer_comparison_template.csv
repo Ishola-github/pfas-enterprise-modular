@@ -1,0 +1,4 @@
+study_id,batch_id,reviewer_a_decision,reviewer_b_decision,engine_decision,consensus_decision,engine_matches_consensus,engine_false_positive,engine_false_negative,escalated_to_human,notes
+EPA1633_QAQC_V1,BATCH_001,pass,pass,pass,pass,,,,false,Example row
+EPA1633_QAQC_V1,BATCH_002,fail,fail,fail,fail,,,,false,Example row
+EPA1633_QAQC_V1,BATCH_003,warning,pass,warning,,,,,true,Consensus pending adjudication

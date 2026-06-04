@@ -1,0 +1,21 @@
+study_id,batch_id,reviewer_a_decision,reviewer_b_decision,engine_decision,consensus_decision,engine_matches_consensus,engine_false_positive,engine_false_negative,escalated_to_human,notes
+EPA1633_QAQC_V1,BATCH_001,pass,pass,pass,pass,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_002,pass,pass,pass,pass,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_003,pass,pass,warning,pass,,,,true,Engine conservative flag
+EPA1633_QAQC_V1,BATCH_004,pass,warning,warning,warning,,,,true,Consensus warning
+EPA1633_QAQC_V1,BATCH_005,warning,warning,warning,warning,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_006,warning,warning,warning,warning,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_007,warning,warning,pass,warning,,,,true,Engine under-calls warning
+EPA1633_QAQC_V1,BATCH_008,pass,pass,pass,pass,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_009,fail,fail,fail,fail,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_010,fail,fail,fail,fail,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_011,fail,warning,fail,fail,,,,true,Consensus fail
+EPA1633_QAQC_V1,BATCH_012,warning,warning,warning,warning,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_013,pass,pass,pass,pass,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_014,warning,pass,warning,warning,,,,true,Consensus warning
+EPA1633_QAQC_V1,BATCH_015,fail,fail,warning,fail,,,,true,Potential missed failure
+EPA1633_QAQC_V1,BATCH_016,fail,fail,fail,fail,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_017,pass,pass,pass,pass,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_018,warning,warning,warning,warning,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_019,fail,fail,fail,fail,,,,false,Starter set
+EPA1633_QAQC_V1,BATCH_020,pass,warning,pass,pass,,,,true,Consensus pass

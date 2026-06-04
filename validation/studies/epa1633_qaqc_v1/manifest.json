@@ -36,6 +36,18 @@
     {
       "path": "validation/studies/epa1633_qaqc_v1/results_summary.csv",
       "type": "results_placeholder"
+    },
+    {
+      "path": "validation/studies/epa1633_qaqc_v1/reviewer_comparison_template.csv",
+      "type": "reviewer_engine_comparison_template"
+    },
+    {
+      "path": "scripts/compute_qaqc_reviewer_metrics.py",
+      "type": "metrics_computation_script"
+    },
+    {
+      "path": "scripts/append_qaqc_metrics_to_results_summary.py",
+      "type": "results_summary_upsert_script"
     }
   ],
   "status": "protocol_frozen_pending_data_freeze"

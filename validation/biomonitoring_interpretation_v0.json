@@ -1,0 +1,273 @@
+{
+  "artifact": "biomonitoring_interpretation_v0",
+  "artifact_type": "output_schema_contract",
+  "version": "0.1.0",
+  "status": "draft_for_internal_validation",
+  "issued_utc": "2026-06-04T00:00:00Z",
+  "intended_use": "Research and decision-support interpretation of PFAS biomonitoring context.",
+  "regulatory_position": "Not a clinical diagnostic output. Not a medical device. Not a regulatory determination.",
+  "scope": {
+    "supported_matrix_lanes": [
+      "serum"
+    ],
+    "supported_use_modes": [
+      "research",
+      "screening_support",
+      "human_review_required"
+    ],
+    "unsupported_use_modes": [
+      "clinical_diagnosis",
+      "treatment_recommendation",
+      "regulatory_adjudication"
+    ]
+  },
+  "required_top_level_fields": [
+    "report_id",
+    "generated_utc",
+    "subject_id",
+    "matrix_lane",
+    "source_dataset",
+    "analyte_values",
+    "percentile_context",
+    "pathway_flags",
+    "overall_interpretation",
+    "confidence_tier",
+    "human_review_status",
+    "claim_boundary",
+    "limitations",
+    "provenance",
+    "evidence_hash_sha256"
+  ],
+  "field_spec": {
+    "report_id": {
+      "dtype": "string",
+      "nullable": false,
+      "pattern": "^[A-Za-z0-9._-]{6,80}$"
+    },
+    "generated_utc": {
+      "dtype": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "subject_id": {
+      "dtype": "string",
+      "nullable": false,
+      "pattern": "^[A-Za-z0-9._-]{3,120}$"
+    },
+    "matrix_lane": {
+      "dtype": "string",
+      "nullable": false,
+      "allowed_values": [
+        "serum"
+      ]
+    },
+    "source_dataset": {
+      "dtype": "string",
+      "nullable": false
+    },
+    "analyte_values": {
+      "dtype": "array[object]",
+      "nullable": false,
+      "min_items": 1,
+      "item_required_fields": [
+        "analyte",
+        "value",
+        "unit",
+        "qualifier"
+      ],
+      "item_field_rules": {
+        "analyte": {
+          "dtype": "string"
+        },
+        "value": {
+          "dtype": "float64",
+          "min": 0.0
+        },
+        "unit": {
+          "dtype": "string",
+          "allowed_values": [
+            "ng/mL",
+            "pg/mL"
+          ]
+        },
+        "qualifier": {
+          "dtype": "string",
+          "allowed_values": [
+            "measured",
+            "below_lod_imputed",
+            "estimated"
+          ]
+        }
+      }
+    },
+    "percentile_context": {
+      "dtype": "array[object]",
+      "nullable": false,
+      "min_items": 1,
+      "item_required_fields": [
+        "analyte",
+        "reference_population",
+        "percentile",
+        "band"
+      ],
+      "item_field_rules": {
+        "percentile": {
+          "dtype": "float64",
+          "min": 0.0,
+          "max": 100.0
+        },
+        "band": {
+          "dtype": "string",
+          "allowed_values": [
+            "low",
+            "typical",
+            "elevated",
+            "high"
+          ]
+        }
+      }
+    },
+    "pathway_flags": {
+      "dtype": "array[object]",
+      "nullable": false,
+      "min_items": 0,
+      "item_required_fields": [
+        "pathway_name",
+        "direction",
+        "evidence_level",
+        "rationale"
+      ],
+      "item_field_rules": {
+        "direction": {
+          "dtype": "string",
+          "allowed_values": [
+            "possible_upregulation",
+            "possible_downregulation",
+            "mixed_or_unclear"
+          ]
+        },
+        "evidence_level": {
+          "dtype": "string",
+          "allowed_values": [
+            "high",
+            "moderate",
+            "exploratory"
+          ]
+        },
+        "rationale": {
+          "dtype": "string",
+          "min_length": 10
+        }
+      }
+    },
+    "overall_interpretation": {
+      "dtype": "string",
+      "nullable": false,
+      "min_length": 20,
+      "max_length": 4000
+    },
+    "confidence_tier": {
+      "dtype": "string",
+      "nullable": false,
+      "allowed_values": [
+        "high",
+        "moderate",
+        "exploratory"
+      ]
+    },
+    "human_review_status": {
+      "dtype": "string",
+      "nullable": false,
+      "allowed_values": [
+        "pending",
+        "completed",
+        "rejected"
+      ]
+    },
+    "claim_boundary": {
+      "dtype": "object",
+      "nullable": false,
+      "required_fields": [
+        "non_diagnostic_statement",
+        "non_causal_statement",
+        "no_treatment_guidance_statement"
+      ]
+    },
+    "limitations": {
+      "dtype": "array[string]",
+      "nullable": false,
+      "min_items": 1
+    },
+    "provenance": {
+      "dtype": "object",
+      "nullable": false,
+      "required_fields": [
+        "pipeline_id",
+        "pipeline_version",
+        "governance_version",
+        "reference_registry_version",
+        "input_artifact_hashes"
+      ]
+    },
+    "evidence_hash_sha256": {
+      "dtype": "string",
+      "nullable": false,
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "hard_refusal_conditions": [
+    "matrix_lane is not serum",
+    "confidence_tier missing",
+    "human_review_status missing",
+    "claim_boundary object missing required statements",
+    "overall_interpretation contains forbidden clinical diagnosis language",
+    "overall_interpretation contains direct causal claim language",
+    "evidence_hash_sha256 missing or malformed"
+  ],
+  "forbidden_language_rules": {
+    "diagnostic_terms": [
+      "diagnosed with",
+      "diagnosis",
+      "disease confirmed",
+      "clinical diagnosis"
+    ],
+    "causal_terms": [
+      "caused by",
+      "proves that",
+      "directly causes",
+      "definitively linked"
+    ],
+    "treatment_terms": [
+      "start treatment",
+      "medical treatment",
+      "prescription",
+      "dose recommendation"
+    ],
+    "enforcement": "Case-insensitive substring check over overall_interpretation and pathway rationale fields."
+  },
+  "required_claim_boundary_text": {
+    "non_diagnostic_statement": "This report is a research and decision-support interpretation and is not a clinical diagnosis.",
+    "non_causal_statement": "Observed associations do not establish causation at the individual level.",
+    "no_treatment_guidance_statement": "This report does not provide treatment recommendations."
+  },
+  "review_policy": {
+    "human_review_required_before_release": true,
+    "release_block_if_confidence_exploratory_and_pathway_flags_non_empty": true,
+    "minimum_reviewer_fields": [
+      "reviewer_id",
+      "review_timestamp_utc",
+      "review_disposition",
+      "review_notes"
+    ]
+  },
+  "audit_requirements": {
+    "artifact_paths_required": [
+      "input_profile_path",
+      "reference_context_path",
+      "interpretation_payload_path",
+      "review_record_path"
+    ],
+    "hash_algorithm": "sha256",
+    "immutability_note": "Release payload and reviewer decision record should be immutable after sign-off."
+  }
+}
